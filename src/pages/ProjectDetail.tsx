@@ -17,7 +17,7 @@ import { Progress } from '@/components/ui/progress';
 import {
   ArrowLeft, AlertTriangle, CheckCircle, Clock, Ban,
   UserPlus, RefreshCw, Loader2, Layers, Activity,
-  Sparkles, Pencil, Check, X, BookOpen, ChevronDown, ChevronUp,
+  Sparkles, Pencil, Check, X, BookOpen, ChevronDown, ChevronUp, Trophy,
   ClipboardList, Save, History, HardHat, Hammer, BrainCircuit, Users
 } from 'lucide-react';
 import { getBookRequirements, toRoman, getBestStrategy } from '@/lib/enchantmentBooks';
@@ -161,6 +161,7 @@ const ProjectDetail = () => {
       await addProjectMember(id!, collabEmail.trim(), collabRole);
       setCollabEmail('');
       setCollabRole('member');
+      soundManager.playSound('button');
       await loadProject();
     } catch (err) {
       setCollabError((err as Error).message);
@@ -603,6 +604,9 @@ const ProjectDetail = () => {
                   const isOwner = m.role === 'owner';
                   const isProjectOwner = project.owner_id === user?.id;
                   const memberName = (m.profiles as any)?.full_name || (m.profiles as any)?.email || 'User';
+                  const lastActive = (m.profiles as any)?.last_active_at;
+                  const isCurrentUser = m.user_id === user?.id;
+                  const isActive = isCurrentUser || (lastActive && (new Date().getTime() - new Date(lastActive).getTime()) < 5 * 60 * 1000);
                   const roleIcon = m.role === 'miner' ? <HardHat className="w-3 h-3" /> :
                                    m.role === 'builder' ? <Hammer className="w-3 h-3" /> :
                                    m.role === 'planner' ? <BrainCircuit className="w-3 h-3" /> :
@@ -615,14 +619,23 @@ const ProjectDetail = () => {
                   return (
                     <div key={m.user_id} className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-colors">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-full bg-primary/15 border border-primary/25 flex items-center justify-center text-xs text-primary font-bold">
-                          {memberName[0].toUpperCase()}
+                        <div className="relative">
+                          <div className="w-7 h-7 rounded-full bg-primary/15 border border-primary/25 flex items-center justify-center text-xs text-primary font-bold">
+                            {memberName[0].toUpperCase()}
+                          </div>
+                          <div className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#0a0a0b] ${isActive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-zinc-500'}`} />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-foreground leading-tight">{memberName}</p>
+                          <p className="text-sm font-medium text-foreground leading-tight">
+                            {memberName}
+                            {isCurrentUser && <span className="text-[10px] text-primary/60 ml-1.5 font-normal">(You)</span>}
+                          </p>
                           <div className={`flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider ${roleColor}`}>
                             {roleIcon}
                             <span>{m.role}</span>
+                            <span className="text-muted-foreground/40 font-normal normal-case">
+                              {isActive ? '• Active now' : lastActive ? `• ${new Date(lastActive).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -832,23 +845,60 @@ const ProjectDetail = () => {
               </div>
             ) : (
               <div className="space-y-6 relative before:absolute before:left-[13px] before:top-2 before:bottom-2 before:w-px before:bg-white/5">
-                {contributions.slice(0, 10).map(c => (
-                  <div key={c.id} className="flex gap-4 relative">
-                    <div className={`w-7 h-7 rounded-full border border-white/10 flex items-center justify-center text-[10px] font-black z-10 ${
-                      c.action === 'restored' ? 'bg-amber-900/50 text-amber-400' : 'bg-secondary text-primary'
-                    }`}>
-                      {c.action === 'restored' ? '↺' : ((c.profiles as any)?.full_name || (c.profiles as any)?.email || 'U')[0].toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      {c.action === 'restored' ? (
-                        <p className="text-xs leading-normal">
-                          <span className="font-bold text-amber-400">
-                            {(c.profiles as any)?.full_name || (c.profiles as any)?.email}
-                          </span>
-                          <span className="text-muted-foreground"> restored plan to </span>
-                          <span className="text-amber-400 font-bold">Version {c.quantity}</span>
-                        </p>
-                      ) : (
+                {contributions.slice(0, 15).map(c => {
+                  const isMilestone = c.action === 'milestone';
+                  const isRestored = c.action === 'restored';
+                  const initials = ((c.profiles as any)?.full_name || (c.profiles as any)?.email || 'U')[0].toUpperCase();
+
+                  if (isMilestone) {
+                    return (
+                      <div key={c.id} className="flex gap-4 relative group">
+                        <div className="w-7 h-7 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center z-10 animate-pulse">
+                          <Trophy className="w-3.5 h-3.5 text-emerald-400" />
+                        </div>
+                        <div className="flex-1 min-w-0 bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-3 transform transition-all group-hover:scale-[1.02] group-hover:bg-emerald-500/10">
+                          <p className="text-xs leading-normal">
+                            <span className="font-black text-emerald-400 uppercase tracking-wider mr-2">Milestone</span>
+                            <span className="text-foreground">
+                              The team completed <span className="text-emerald-400 font-bold">{(c.crafting_nodes as any)?.display_name}</span>!
+                            </span>
+                          </p>
+                          <p className="text-[10px] text-emerald-500/50 mt-1 uppercase tracking-tighter">
+                            {new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (isRestored) {
+                    return (
+                      <div key={c.id} className="flex gap-4 relative">
+                        <div className="w-7 h-7 rounded-full bg-amber-900/50 border border-white/10 flex items-center justify-center text-[10px] font-black text-amber-400 z-10">
+                          ↺
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs leading-normal">
+                            <span className="font-bold text-amber-400">
+                              {(c.profiles as any)?.full_name || (c.profiles as any)?.email}
+                            </span>
+                            <span className="text-muted-foreground"> restored plan to </span>
+                            <span className="text-amber-400 font-bold">Version {c.quantity}</span>
+                          </p>
+                          <p className="text-[10px] text-muted-foreground/50 mt-1 uppercase tracking-tighter">
+                            {new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={c.id} className="flex gap-4 relative">
+                      <div className="w-7 h-7 rounded-full bg-secondary border border-white/10 flex items-center justify-center text-[10px] font-black text-primary z-10">
+                        {initials}
+                      </div>
+                      <div className="flex-1 min-w-0">
                         <p className="text-xs leading-normal">
                           <span className="font-bold text-foreground">
                             {(c.profiles as any)?.full_name || (c.profiles as any)?.email}
@@ -859,19 +909,19 @@ const ProjectDetail = () => {
                           </span>
                           <span className="text-muted-foreground"> ×{c.quantity}</span>
                         </p>
-                      )}
-                      <p className="text-[10px] text-muted-foreground/50 mt-1 uppercase tracking-tighter">
-                        {new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </p>
+                        <p className="text-[10px] text-muted-foreground/50 mt-1 uppercase tracking-tighter">
+                          {new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
         </div>
       </main>
-    </div >
+    </div>
   );
 };
 

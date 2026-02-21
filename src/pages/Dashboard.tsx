@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { soundManager } from '@/lib/sound';
 import { useNavigate } from 'react-router-dom';
 import { fetchProjects, deleteProject, updateProjectStatus, type Project } from '@/lib/api';
+import { soundManager } from '@/lib/sound';
 import { Button } from '@/components/ui/button';
 import { Plus, LogOut, Loader2, Pickaxe } from 'lucide-react';
 import ProjectCard from '@/components/ProjectCard';
@@ -37,6 +37,7 @@ const Dashboard = () => {
 
   const handleLogout = async () => {
     setLoggingOut(true);
+    soundManager.playSound('button');
     await logout();
     navigate('/');
   };
@@ -122,7 +123,7 @@ const Dashboard = () => {
           </div>
           <Button
             onClick={handleNewProject}
-            className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl gap-2"
+            className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl gap-2 px-5"
           >
             <Plus className="w-4 h-4" />
             New Project

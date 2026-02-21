@@ -77,13 +77,14 @@ export interface ProjectMember {
     full_name: string;
     email: string;
     avatar_url: string | null;
+    last_active_at?: string | null;
   };
 }
 
 export interface Contribution {
   id: string;
   quantity: number;
-  action: string;
+  action: 'collected' | 'crafted' | 'milestone' | 'restored';
   created_at: string;
   user_id: string;
   node_id: string;
@@ -212,7 +213,7 @@ export async function contributeToNode(
   success: boolean;
   error?: string;
   node?: CraftingNode;
-  contribution?: { id: string; quantity: number; action: string };
+  contribution?: { id: string; quantity: number; action: 'collected' | 'crafted' | 'milestone' };
 }> {
   return apiFetch(`/projects/${projectId}/contribute`, {
     method: 'POST',

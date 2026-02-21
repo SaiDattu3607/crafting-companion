@@ -26,6 +26,7 @@ const App = () => {
   useEffect(() => {
     try {
       soundManager.init();
+      // Start background music after user interaction (browsers require user gesture)
       const startMusic = () => {
         soundManager.playBackgroundMusic();
         document.removeEventListener('click', startMusic);

@@ -35,6 +35,17 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
 
     req.userId = user.id;
     req.accessToken = token;
+
+    // Background: Update "last_active_at" for presence tracking
+    // We use the user's specific client to ensure RLS is handled correctly
+    supabaseForUser(token)
+      .from('profiles')
+      .update({ last_active_at: new Date().toISOString() })
+      .eq('id', user.id)
+      .then(({ error }) => {
+        if (error) console.error('[Presence] Error updating last_active_at:', error.message);
+      });
+
     next();
   } catch (err) {
     res.status(401).json({ error: 'Authentication failed' });

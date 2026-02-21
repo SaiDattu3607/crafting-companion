@@ -9,12 +9,14 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { supabaseForUser } from '../config/supabase.js';
+import { supabaseAdmin, supabaseForUser } from '../config/supabase.js';
 import { authMiddleware, projectMemberGuard } from '../middleware/auth.js';
 import { contribute, getProjectContributions, getContributionLeaderboard } from '../services/contribution.js';
 import { findBottleneck, getProjectProgress } from '../services/bottleneck.js';
 
 const router = Router();
+
+
 
 // All routes require authentication
 router.use(authMiddleware);
@@ -98,5 +100,6 @@ router.get('/:projectId/progress', projectMemberGuard, async (req: Request, res:
     res.status(500).json({ error: (err as Error).message });
   }
 });
+
 
 export default router;

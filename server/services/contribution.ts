@@ -128,6 +128,23 @@ export async function contribute(req: ContributeRequest, supabase: SupabaseClien
     return { success: false, error: `Contribution saved but log failed: ${contribError.message}` };
   }
 
+  // 5.b Record Milestone if completed
+  if (newStatus === 'completed') {
+    const { error: milestoneError } = await supabase
+      .from('contributions')
+      .insert({
+        project_id: projectId,
+        node_id: nodeId,
+        user_id: userId,
+        quantity: node.required_qty,
+        action: 'milestone',
+      });
+
+    if (milestoneError) {
+      console.error('[Milestone] Error logging milestone:', milestoneError.message);
+    }
+  }
+
   // 6. Check if parent can now be auto-unlocked (optional status change)
   if (node.parent_id && newStatus === 'completed') {
     await checkAndUpdateParentStatus(node.parent_id, supabase);
