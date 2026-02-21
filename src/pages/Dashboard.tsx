@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { fetchProjects, type Project } from '@/lib/api';
-import { soundManager } from '@/lib/sound';
 import { Button } from '@/components/ui/button';
 import { Plus, LogOut, Loader2, Pickaxe } from 'lucide-react';
 import ProjectCard from '@/components/ProjectCard';
@@ -37,11 +36,21 @@ const Dashboard = () => {
 
   const handleLogout = async () => {
     setLoggingOut(true);
-    soundManager.playSound('button');
     await logout();
     navigate('/');
   };
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+  const handleNewProject = () => {
+    soundManager.playSound('button');
+    navigate('/new-project');
+  };
+
+>>>>>>> ba21255c2c8569e985ddf295ca732f654d9d2c1d
+>>>>>>> d8a183a6c9241ff83e2a9d8542fc353a485dbc01
   const initials = (user.full_name || user.email || 'U')
     .split(' ')
     .map((w: string) => w[0])
@@ -97,8 +106,13 @@ const Dashboard = () => {
             </p>
           </div>
           <Button
+<<<<<<< HEAD
             onClick={() => { soundManager.playSound('button'); navigate('/new-project'); }}
             className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl gap-2 px-5"
+=======
+            onClick={handleNewProject}
+            className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl gap-2"
+>>>>>>> d8a183a6c9241ff83e2a9d8542fc353a485dbc01
           >
             <Plus className="w-4 h-4" />
             New Project
@@ -129,7 +143,11 @@ const Dashboard = () => {
               Create your first crafting project to start tracking recipes and progress.
             </p>
             <Button
+<<<<<<< HEAD
               onClick={() => { soundManager.playSound('button'); navigate('/new-project'); }}
+=======
+              onClick={handleNewProject}
+>>>>>>> d8a183a6c9241ff83e2a9d8542fc353a485dbc01
               className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl gap-2"
             >
               <Plus className="w-4 h-4" />

@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { createProject, searchMinecraftItems, lookupMinecraftItem, type MinecraftItem } from '@/lib/api';
-import { soundManager } from '@/lib/sound';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -54,6 +53,14 @@ const NewProject = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !selectedItem) return;
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+
+    soundManager.playSound('button');
+>>>>>>> ba21255c2c8569e985ddf295ca732f654d9d2c1d
+>>>>>>> d8a183a6c9241ff83e2a9d8542fc353a485dbc01
     setCreating(true);
     setError('');
     soundManager.playSound('button');
@@ -132,7 +139,15 @@ const NewProject = () => {
                     <span className="text-xs badge-pending px-2 py-0.5 rounded-full">Resource</span>
                   )}
                 </div>
+<<<<<<< HEAD
                 <Button type="button" variant="ghost" size="sm" onClick={() => { soundManager.playSound('button'); setSelectedItem(null); setItemSearch(''); }}
+=======
+<<<<<<< HEAD
+                <Button type="button" variant="ghost" size="sm" onClick={() => { setSelectedItem(null); setItemSearch(''); }}
+=======
+                <Button type="button" variant="ghost" size="sm" onClick={() => { soundManager.playSound('button'); setSelectedItem(null); setItemSearch(''); }}
+>>>>>>> ba21255c2c8569e985ddf295ca732f654d9d2c1d
+>>>>>>> d8a183a6c9241ff83e2a9d8542fc353a485dbc01
                   className="rounded-xl text-muted-foreground hover:text-foreground">
                   <X className="w-4 h-4" />
                 </Button>
@@ -156,7 +171,14 @@ const NewProject = () => {
                         type="button"
                         className="w-full text-left px-4 py-3 hover:bg-primary/10 transition-colors flex items-center justify-between group border-b border-white/5 last:border-0"
                         onClick={async () => {
+<<<<<<< HEAD
                           soundManager.playSound('button');
+=======
+<<<<<<< HEAD
+=======
+                          soundManager.playSound('button');
+>>>>>>> ba21255c2c8569e985ddf295ca732f654d9d2c1d
+>>>>>>> d8a183a6c9241ff83e2a9d8542fc353a485dbc01
                           try {
                             const full = await lookupMinecraftItem(item.name);
                             setSelectedItem(full || item);
@@ -213,7 +235,10 @@ const NewProject = () => {
                 <Button
                   type="button" size="sm"
                   onClick={() => {
+<<<<<<< HEAD
                     soundManager.playSound('button');
+=======
+>>>>>>> d8a183a6c9241ff83e2a9d8542fc353a485dbc01
                     if (!enchantName) return;
                     setEnchantments(es => {
                       const exists = es.find(e => e.name === enchantName);

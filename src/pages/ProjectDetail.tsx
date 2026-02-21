@@ -8,7 +8,6 @@ import {
   type Project, type CraftingNode, type Contribution,
   type BottleneckItem, type ProjectProgress, type ProjectMember,
 } from '@/lib/api';
-import { soundManager } from '@/lib/sound';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
@@ -69,7 +68,6 @@ const ProjectDetail = () => {
       setProgress(progressData);
       setError('');
     } catch (err) {
-      console.error('ProjectDetail loadProject error:', err);
       setError((err as Error).message);
     } finally {
       setLoading(false);
@@ -118,12 +116,21 @@ const ProjectDetail = () => {
     setContributing(nodeId);
     try {
       const result = await contributeToNode(id!, nodeId, 1, action);
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+      if (!result.success) setError(result.error || 'Contribution failed');
+=======
+>>>>>>> d8a183a6c9241ff83e2a9d8542fc353a485dbc01
       if (!result.success) {
         setError(result.error || 'Contribution failed');
       } else {
-        // Play sound effect
         soundManager.playSound(action === 'crafted' ? 'craft' : 'collect');
       }
+<<<<<<< HEAD
+=======
+>>>>>>> ba21255c2c8569e985ddf295ca732f654d9d2c1d
+>>>>>>> d8a183a6c9241ff83e2a9d8542fc353a485dbc01
       await loadProject();
     } catch (err) {
       setError((err as Error).message);
@@ -132,23 +139,12 @@ const ProjectDetail = () => {
     }
   };
 
-  const handleRefresh = () => {
-    soundManager.playSound('button');
-    loadProject();
-  };
-
-  const handleGoHome = () => {
-    soundManager.playSound('button');
-    navigate('/');
-  }
-
   const handleAddCollaborator = async () => {
     setCollabError('');
     if (!collabEmail.trim()) return;
     try {
       await addProjectMember(id!, collabEmail.trim());
       setCollabEmail('');
-      soundManager.playSound('button');
       await loadProject();
     } catch (err) {
       setCollabError((err as Error).message);
@@ -323,7 +319,7 @@ const ProjectDetail = () => {
       <header className="sticky top-0 z-40 glass-strong border-b border-white/5">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')} className="rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/5">
+            <Button variant="ghost" size="sm" onClick={handleGoHome} className="rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/5">
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <div className="flex items-center gap-2">
@@ -332,7 +328,7 @@ const ProjectDetail = () => {
             </div>
             <span className="text-muted-foreground text-sm hidden sm:block">/ {project.name}</span>
           </div>
-          <Button variant="ghost" size="sm" onClick={loadProject} className="text-muted-foreground hover:text-foreground rounded-xl gap-1.5">
+          <Button variant="ghost" size="sm" onClick={handleRefresh} className="text-muted-foreground hover:text-foreground rounded-xl gap-1.5">
             <RefreshCw className="w-4 h-4" /> <span className="hidden sm:inline text-sm">Refresh</span>
           </Button>
         </div>
