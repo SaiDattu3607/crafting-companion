@@ -11,15 +11,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
-<<<<<<< HEAD
 import {
   ArrowLeft, AlertTriangle, CheckCircle, Clock, Ban,
   UserPlus, RefreshCw, Loader2, Layers, Activity,
+  Sparkles, Pencil, Check, X, BookOpen, ChevronDown, ChevronUp
 } from 'lucide-react';
-=======
-import { ArrowLeft, AlertTriangle, CheckCircle, Clock, Ban, UserPlus, RefreshCw, Loader2, Sparkles, Pencil, Check, X, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
-import { getBookRequirements, toRoman, getBestStrategy, type BookRequirement } from '@/lib/enchantmentBooks';
->>>>>>> 16e39100c2bd54d60969ed9ea39b79c7ce4133ea
+import { getBookRequirements, toRoman, getBestStrategy } from '@/lib/enchantmentBooks';
 
 const ProjectDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -37,6 +34,8 @@ const ProjectDetail = () => {
   const [collabEmail, setCollabEmail] = useState('');
   const [collabError, setCollabError] = useState('');
   const [contributing, setContributing] = useState<string | null>(null);
+
+  // Enchantment editing state
   const [editingEnchantments, setEditingEnchantments] = useState<string | null>(null);
   const [editEnchantmentLevels, setEditEnchantmentLevels] = useState<{ name: string; level: number }[]>([]);
   const [savingEnchantments, setSavingEnchantments] = useState(false);
@@ -138,8 +137,6 @@ const ProjectDetail = () => {
     }
   };
 
-<<<<<<< HEAD
-=======
   const handleStartEditEnchantments = (node: CraftingNode) => {
     setEditingEnchantments(node.id);
     setEditEnchantmentLevels(
@@ -165,22 +162,6 @@ const ProjectDetail = () => {
     setEditEnchantmentLevels([]);
   };
 
-  const statusIcon = (node: CraftingNode) => {
-    const status = getNodeStatus(node);
-    if (status === 'complete') return <CheckCircle className="w-5 h-5 text-craft-complete" />;
-    if (status === 'blocked') return <Ban className="w-5 h-5 text-craft-blocked" />;
-    return <Clock className="w-5 h-5 text-craft-pending" />;
-  };
-
-  const statusBg = (node: CraftingNode) => {
-    const status = getNodeStatus(node);
-    if (status === 'complete') return 'border-l-4 border-l-craft-complete bg-craft-complete/5';
-    if (status === 'blocked') return 'border-l-4 border-l-craft-blocked bg-craft-blocked/5';
-    return 'border-l-4 border-l-craft-pending bg-craft-pending/5';
-  };
-
-  // Build tree structure from flat nodes
->>>>>>> 16e39100c2bd54d60969ed9ea39b79c7ce4133ea
   const rootNodes = nodes.filter(n => n.parent_id === null);
   const rootNode = rootNodes[0] ?? null;
   const getChildren = (parentId: string) => nodes.filter(n => n.parent_id === parentId);
@@ -237,68 +218,53 @@ const ProjectDetail = () => {
                 <span className="text-muted-foreground text-xs">
                   {node.collected_qty}/{node.required_qty}
                 </span>
-<<<<<<< HEAD
-                {node.enchantments?.length > 0 && depth !== 0 && node.enchantments.map((en, i) => (
-                  <span key={`${en.name}-${i}`} className="text-xs bg-purple-500/15 text-purple-400 border border-purple-500/20 px-1.5 py-0.5 rounded-full">
-                    {en.name.replace(/_/g, ' ')} {en.level}
-                  </span>
-                ))}
-=======
+
+                {/* Enchantment Display/Edit in Tree */}
                 {Array.isArray(node.enchantments) && node.enchantments.length > 0 && editingEnchantments !== node.id && (
                   <div className="flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                    {(node.enchantments as { name: string; level: number }[]).map((en, i) => (
-                      <span key={`${en.name}-${i}`} className="text-xs bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded font-medium">
-                        {en.name} {en.level}
+                    <Sparkles className="w-3 h-3 text-purple-400" />
+                    {node.enchantments.map((en: any, i: number) => (
+                      <span key={`${en.name}-${i}`} className="text-[10px] bg-purple-500/15 text-purple-400 border border-purple-500/20 px-1.5 py-0.5 rounded-full font-medium">
+                        {en.name.replace(/_/g, ' ')} {en.level}
                       </span>
                     ))}
                     <button
                       onClick={() => handleStartEditEnchantments(node)}
                       className="text-purple-400/60 hover:text-purple-400 transition-colors ml-1"
-                      title="Update enchantment levels"
+                      title="Update levels"
                     >
                       <Pencil className="w-3 h-3" />
                     </button>
                   </div>
                 )}
-                {Array.isArray(node.enchantments) && node.enchantments.length > 0 && editingEnchantments === node.id && (
-                  <div className="flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+
+                {/* Inline Editing */}
+                {editingEnchantments === node.id && (
+                  <div className="flex items-center gap-1.5 bg-purple-500/10 px-2 py-1 rounded-lg border border-purple-500/20">
                     {editEnchantmentLevels.map((en, i) => (
-                      <span key={`${en.name}-${i}`} className="inline-flex items-center gap-1 text-xs bg-purple-500/30 text-purple-300 px-1.5 py-0.5 rounded font-medium">
-                        {en.name}
+                      <span key={`${en.name}-${i}`} className="inline-flex items-center gap-1 text-[10px] text-purple-300 font-medium">
+                        {en.name.replace(/_/g, ' ')}
                         <input
-                          type="number"
-                          min={1}
-                          max={10}
+                          type="number" min={1} max={10}
                           value={en.level}
                           onChange={(e) => {
                             const newLevels = [...editEnchantmentLevels];
                             newLevels[i] = { ...newLevels[i], level: Math.max(1, Math.min(10, Number(e.target.value))) };
                             setEditEnchantmentLevels(newLevels);
                           }}
-                          className="w-8 h-5 text-center bg-purple-500/30 border border-purple-400/40 rounded text-purple-200 text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          className="w-7 h-4 text-center bg-purple-500/20 border border-purple-400/30 rounded text-purple-200"
                         />
                       </span>
                     ))}
-                    <button
-                      onClick={() => handleSaveEnchantments(node.id)}
-                      disabled={savingEnchantments}
-                      className="text-green-400 hover:text-green-300 transition-colors ml-1"
-                      title="Save levels"
-                    >
-                      {savingEnchantments ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                    <button onClick={() => handleSaveEnchantments(node.id)} disabled={savingEnchantments} className="text-emerald-400 hover:text-emerald-300">
+                      {savingEnchantments ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
                     </button>
-                    <button
-                      onClick={handleCancelEditEnchantments}
-                      className="text-red-400 hover:text-red-300 transition-colors"
-                      title="Cancel"
-                    >
-                      <X className="w-3.5 h-3.5" />
+                    <button onClick={handleCancelEditEnchantments} className="text-red-400 hover:text-red-300">
+                      <X className="w-3 h-3" />
                     </button>
                   </div>
                 )}
->>>>>>> 16e39100c2bd54d60969ed9ea39b79c7ce4133ea
+
                 {node.is_resource && (
                   <span className="text-xs badge-pending px-1.5 py-0.5 rounded-full">resource</span>
                 )}
@@ -365,6 +331,31 @@ const ProjectDetail = () => {
         </div>
       )}
 
+      {/* Enchantment Summary Panel */}
+      {rootNode && Array.isArray(rootNode.enchantments) && rootNode.enchantments.length > 0 && (
+        <div className="mx-6 mt-4 p-5 glass-strong border border-purple-500/20 rounded-2xl">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20">
+              <Sparkles className="w-5 h-5 text-purple-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-foreground">✨ Master Enchantment Plan</h2>
+              <p className="text-xs text-muted-foreground">Requirements for your {rootNode.display_name}</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            {rootNode.enchantments.map((en: any, i: number) => (
+              <div key={i} className="bg-purple-500/5 border border-purple-500/10 px-4 py-3 rounded-xl flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-300 font-mono text-sm">
+                  {toRoman(en.level)}
+                </div>
+                <span className="text-sm font-semibold text-purple-200">{en.name.replace(/_/g, ' ')}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="mx-6 mt-4 flex items-center justify-between p-4 rounded-xl bg-destructive/10 border border-destructive/20">
           <span className="text-destructive text-sm">{error}</span>
@@ -372,121 +363,21 @@ const ProjectDetail = () => {
         </div>
       )}
 
-<<<<<<< HEAD
       <main className="max-w-7xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* ── Left: Crafting Tree ───────────────────────────── */}
-        <div className="lg:col-span-2 space-y-5">
+        <div className="lg:col-span-2 space-y-6">
           <div className="glass-strong rounded-2xl border border-white/5 p-6">
-            <div className="flex items-center gap-2 mb-1">
-              <Layers className="w-4 h-4 text-primary" />
-              <h2 className="font-bold text-lg text-foreground">
-                {rootNode && hasEnchantment && rootNode.enchantments?.length
-                  ? `${rootNode.display_name} (${rootNode.enchantments.map(e => `${e.name.replace(/_/g, ' ')} ${e.level}`).join(', ')})`
-                  : rootNode?.display_name ?? 'Crafting Tree'}
-              </h2>
-=======
-      {/* Enchantment Panel — always shown when root node has enchantments */}
-      {rootNodes.filter(r => Array.isArray(r.enchantments) && r.enchantments.length > 0).map(rootNode => {
-        const rootStatus = getNodeStatus(rootNode);
-        const statusLabel = rootStatus === 'complete'
-          ? 'Enchantments Applied'
-          : rootStatus === 'ready'
-            ? '✨ Ready to Enchant'
-            : '🔮 Planned Enchantments';
-        const statusDescription = rootStatus === 'complete'
-          ? `${rootNode.display_name} has been crafted. Update the actual enchantment levels you got:`
-          : rootStatus === 'ready'
-            ? `All materials are ready! Apply these enchantments to your ${rootNode.display_name}:`
-            : `These enchantments will be applied to ${rootNode.display_name} once crafted. You can update levels after crafting.`;
-
-        return (
-          <div key={`enchant-panel-${rootNode.id}`} className="mx-6 mt-4 p-4 pixel-border bg-purple-500/10 border-purple-500/30">
-            <div className="flex items-center gap-2 mb-3">
-              <Sparkles className="w-5 h-5 text-purple-400" />
-              <h2 className="text-sm font-pixel text-purple-400">{statusLabel}</h2>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <Layers className="w-4 h-4 text-primary" />
+                <h2 className="font-bold text-lg text-foreground">Crafting Dependencies</h2>
+              </div>
+              <span className="text-xs text-muted-foreground bg-white/5 px-3 py-1 rounded-full">{nodes.length} nodes total</span>
             </div>
-            <p className="text-sm text-muted-foreground mb-3">{statusDescription}</p>
-            <div className="flex flex-wrap gap-3">
-              {editingEnchantments === rootNode.id ? (
-                <>
-                  {editEnchantmentLevels.map((en, i) => (
-                    <div key={`panel-${en.name}-${i}`} className="flex items-center gap-2 bg-purple-500/20 px-3 py-2 rounded-lg border border-purple-500/30">
-                      <span className="text-sm font-medium text-purple-300">{en.name}</span>
-                      <span className="text-xs text-muted-foreground">Lvl</span>
-                      <input
-                        type="number"
-                        min={1}
-                        max={10}
-                        value={en.level}
-                        onChange={(e) => {
-                          const newLevels = [...editEnchantmentLevels];
-                          newLevels[i] = { ...newLevels[i], level: Math.max(1, Math.min(10, Number(e.target.value))) };
-                          setEditEnchantmentLevels(newLevels);
-                        }}
-                        className="w-12 h-7 text-center bg-purple-500/30 border border-purple-400/40 rounded text-purple-200 text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
-                    </div>
-                  ))}
-                  <div className="flex items-center gap-1">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={savingEnchantments}
-                      onClick={() => handleSaveEnchantments(rootNode.id)}
-                      className="h-8 px-3 text-green-400 border-green-500/30 hover:bg-green-500/10"
-                    >
-                      {savingEnchantments ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Check className="w-3 h-3 mr-1" />}
-                      Save
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={handleCancelEditEnchantments}
-                      className="h-8 px-3 text-muted-foreground"
-                    >
-                      <X className="w-3 h-3 mr-1" /> Cancel
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  {(rootNode.enchantments as { name: string; level: number }[]).map((en, i) => (
-                    <div key={`panel-${en.name}-${i}`} className="flex items-center gap-2 bg-purple-500/20 px-3 py-2 rounded-lg border border-purple-500/30">
-                      <span className="text-sm font-medium text-purple-300">{en.name}</span>
-                      <span className="text-sm font-bold text-purple-200">Level {en.level}</span>
-                    </div>
-                  ))}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleStartEditEnchantments(rootNode)}
-                    className="h-9 px-3 text-purple-400 border-purple-500/30 hover:bg-purple-500/10"
-                  >
-                    <Pencil className="w-3 h-3 mr-1" /> Update Levels
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-        );
-      })}
-
-      <main className="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Crafting Tree */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="pixel-border bg-card p-4">
-            <h2 className="text-xs font-pixel text-muted-foreground mb-4">
-              Crafting Tree ({nodes.length} nodes)
-            </h2>
-            <div className="space-y-1">
-              {rootNodes.map(r => renderNodeTree(r))}
->>>>>>> 16e39100c2bd54d60969ed9ea39b79c7ce4133ea
-            </div>
-            <p className="text-xs text-muted-foreground mb-5">{nodes.length} nodes in recipe tree</p>
 
             {/* Item section */}
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-2">Item</p>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mb-3">Main Recipe</p>
             <div className="space-y-0.5">
               {rootNode && renderNodeTree(rootNode, 0, bookChildren.length === 0 && itemChildren.length === 0, '', itemChildren)}
             </div>
@@ -494,7 +385,7 @@ const ProjectDetail = () => {
             {/* Book section */}
             {bookChildren.length > 0 && (
               <>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mt-5 mb-2">Book</p>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mt-8 mb-3">Enchanted Book components</p>
                 <div className="space-y-0.5">
                   {bookChildren.map((bookNode, i) => (
                     <div key={bookNode.id}>
@@ -506,118 +397,86 @@ const ProjectDetail = () => {
             )}
           </div>
 
-<<<<<<< HEAD
-          {/* Collaborators */}
-          <div className="glass-strong rounded-2xl border border-white/5 p-6">
-            <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
-              <UserPlus className="w-4 h-4" /> Collaboration
-            </h2>
-=======
-          {/* Enchantment Book Guide — shown when root node has enchantments */}
-          {rootNodes.filter(r => Array.isArray(r.enchantments) && r.enchantments.length > 0).map(rootNode => {
-            const enchantments = rootNode.enchantments as { name: string; level: number }[];
-            const bookReqs = getBookRequirements(enchantments);
-            const totalBooks = bookReqs.reduce((sum, b) => sum + b.booksNeeded, 0);
+          {/* Enchantment Book Guide */}
+          {rootNode && Array.isArray(rootNode.enchantments) && rootNode.enchantments.length > 0 && (
+            <div className="glass-strong rounded-2xl border border-white/5 p-6">
+              <div className="flex items-center gap-2 mb-6">
+                <BookOpen className="w-5 h-5 text-amber-400" />
+                <h2 className="font-bold text-lg text-foreground">Enchanted Book Guide</h2>
+              </div>
 
-            return (
-              <div key={`books-${rootNode.id}`} className="pixel-border bg-card p-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <BookOpen className="w-5 h-5 text-amber-400" />
-                  <h2 className="text-xs font-pixel text-muted-foreground">
-                    Enchanted Books Needed ({totalBooks} total)
-                  </h2>
-                </div>
+              <div className="grid gap-4">
+                {getBookRequirements(rootNode.enchantments).map((req) => {
+                  const isExpanded = expandedBook === req.enchantmentName;
+                  const strategy = getBestStrategy(req.enchantmentName, req.targetLevel);
 
-                <div className="space-y-3">
-                  {bookReqs.map((req) => {
-                    const isExpanded = expandedBook === req.enchantmentName;
-                    const strategy = getBestStrategy(req.enchantmentName, req.targetLevel);
-
-                    return (
-                      <div key={req.enchantmentName} className="bg-secondary/50 rounded-lg border border-border overflow-hidden">
-                        {/* Header */}
-                        <button
-                          onClick={() => setExpandedBook(isExpanded ? null : req.enchantmentName)}
-                          className="w-full flex items-center justify-between p-3 hover:bg-secondary/80 transition-colors text-left"
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className="text-lg">📕</span>
-                            <div>
-                              <span className="font-bold text-base text-foreground">
-                                {req.displayName} {toRoman(req.targetLevel)}
-                              </span>
-                              <span className="text-sm text-muted-foreground ml-2">
-                                {req.booksNeeded === 1
-                                  ? '1 book needed'
-                                  : `${req.booksNeeded} books needed`}
-                              </span>
-                            </div>
+                  return (
+                    <div key={req.enchantmentName} className="glass rounded-xl border border-white/5 overflow-hidden">
+                      <button
+                        onClick={() => setExpandedBook(isExpanded ? null : req.enchantmentName)}
+                        className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors text-left"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-xl">📕</div>
+                          <div>
+                            <p className="font-bold text-foreground">{req.displayName} {toRoman(req.targetLevel)}</p>
+                            <p className="text-xs text-muted-foreground">{req.booksNeeded} level-1 books needed</p>
                           </div>
-                          {isExpanded
-                            ? <ChevronUp className="w-4 h-4 text-muted-foreground" />
-                            : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-                        </button>
+                        </div>
+                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </button>
 
-                        {/* Expanded details */}
-                        {isExpanded && (
-                          <div className="px-3 pb-3 space-y-3 border-t border-border pt-3">
-                            {/* Best strategy */}
-                            <div className="flex items-start gap-2 p-2 bg-amber-500/10 rounded text-sm">
-                              <span className="text-amber-400 font-bold">💡</span>
-                              <span className="text-amber-200/90">{strategy}</span>
-                            </div>
+                      {isExpanded && (
+                        <div className="px-5 pb-5 pt-1 space-y-5 border-t border-white/5 mt-1">
+                          <div className="p-3 rounded-xl bg-amber-400/5 border border-amber-400/20 flex gap-3">
+                            <Sparkles className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                            <p className="text-sm text-amber-200/80 leading-relaxed font-medium">{strategy}</p>
+                          </div>
 
-                            {/* Anvil combining steps */}
-                            {req.anvilSteps.length > 0 && (
-                              <div>
-                                <h4 className="text-xs font-pixel text-muted-foreground mb-2">Anvil Combining</h4>
-                                <div className="space-y-1">
-                                  {req.anvilSteps.map((step) => (
-                                    <div key={step.step} className="flex items-center gap-2 text-sm pl-2">
-                                      <span className="text-muted-foreground font-mono text-xs w-5">#{step.step}</span>
-                                      <span className="text-foreground">
-                                        {step.count}× {toRoman(step.inputLevel)} + {toRoman(step.inputLevel)}
-                                      </span>
-                                      <span className="text-muted-foreground">→</span>
-                                      <span className="text-purple-400 font-medium">
-                                        {step.count}× {toRoman(step.outputLevel)}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Source locations */}
+                          {req.anvilSteps.length > 0 && (
                             <div>
-                              <h4 className="text-xs font-pixel text-muted-foreground mb-2">Where to Find</h4>
-                              <div className="space-y-1.5">
-                                {req.sources.map((src, i) => (
-                                  <div key={i} className="flex items-start gap-2 text-sm pl-2">
-                                    <span className="flex-shrink-0">{src.icon}</span>
-                                    <div>
-                                      <span className="font-medium text-foreground">{src.method}</span>
-                                      <span className="text-muted-foreground"> — {src.description}</span>
-                                      <span className="text-xs text-purple-400 ml-1">(up to lvl {src.maxLevel})</span>
-                                    </div>
+                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3">Anvil Combining Progress</p>
+                              <div className="space-y-2">
+                                {req.anvilSteps.map(step => (
+                                  <div key={step.step} className="flex items-center gap-3 text-sm px-3 py-2 rounded-lg bg-white/5">
+                                    <span className="text-muted-foreground font-mono text-xs">#{step.step}</span>
+                                    <span className="flex-1 font-medium">{step.count}× [{toRoman(step.inputLevel)} + {toRoman(step.inputLevel)}]</span>
+                                    <ArrowLeft className="w-3 h-3 text-muted-foreground rotate-180" />
+                                    <span className="text-purple-400 font-bold">{step.count}× {toRoman(step.outputLevel)}</span>
                                   </div>
                                 ))}
                               </div>
                             </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
+                          )}
 
-          {/* Add Collaborator */}
-          <div className="pixel-border bg-card p-4">
-            <h2 className="text-xs font-pixel text-muted-foreground mb-3">Collaboration</h2>
->>>>>>> 16e39100c2bd54d60969ed9ea39b79c7ce4133ea
+                          <div>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3">Where to hunt</p>
+                            <div className="grid sm:grid-cols-2 gap-2">
+                              {req.sources.map((src, i) => (
+                                <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-secondary/40 border border-white/5">
+                                  <span className="text-lg">{src.icon}</span>
+                                  <div>
+                                    <p className="text-xs font-bold text-foreground">{src.method}</p>
+                                    <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{src.description}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Collaboration */}
+          <div className="glass-strong rounded-2xl border border-white/5 p-6">
+            <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
+              <UserPlus className="w-4 h-4" /> Collaboration
+            </h2>
             <div className="flex gap-2">
               <Input
                 value={collabEmail}
@@ -626,117 +485,118 @@ const ProjectDetail = () => {
                 className="bg-secondary/60 border-white/8 rounded-xl h-10 focus:border-primary/50"
               />
               <Button onClick={handleAddCollaborator} variant="outline"
-                className="rounded-xl border-white/10 hover:border-primary/40 hover:text-primary gap-1.5 px-4">
+                className="rounded-xl border-white/10 hover:border-primary/40 hover:text-primary gap-1.5 px-4 h-10">
                 <UserPlus className="w-4 h-4" /> Invite
               </Button>
             </div>
             {collabError && <p className="text-destructive text-sm mt-2">{collabError}</p>}
             {members.length > 0 && (
-              <div className="mt-4 space-y-2">
+              <div className="mt-6 flex flex-wrap gap-2">
                 {members.map(m => (
-                  <div key={m.user_id} className="flex items-center gap-3">
-                    <div className="w-7 h-7 rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center text-xs text-primary font-bold">
+                  <div key={m.user_id} className="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full">
+                    <div className="w-5 h-5 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-[10px] text-primary font-bold">
                       {((m.profiles as any)?.full_name || (m.profiles as any)?.email || 'U')[0].toUpperCase()}
                     </div>
-                    <span className="text-sm text-foreground font-medium">
+                    <span className="text-xs text-foreground font-medium">
                       {(m.profiles as any)?.full_name || (m.profiles as any)?.email}
                     </span>
-                    <span className="text-xs text-muted-foreground bg-secondary/60 px-2 py-0.5 rounded-lg capitalize">{m.role}</span>
+                    <span className="text-[10px] text-muted-foreground capitalize">{m.role}</span>
                   </div>
                 ))}
               </div>
             )}
           </div>
+        </div>
 
-          {/* Bottleneck Details */}
+        {/* ── Right: Progress + Activity ────────────────────── */}
+        <div className="space-y-6">
+
+          {/* Progress Card */}
+          <div className="glass-strong rounded-2xl border border-white/5 p-6">
+            <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-widest mb-6">Progress</h2>
+
+            <div className="flex justify-center mb-6">
+              <div className="relative w-32 h-32">
+                <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(222 35% 12%)" strokeWidth="8" />
+                  <circle
+                    cx="50" cy="50" r="42" fill="none"
+                    stroke="hsl(152 80% 48%)" strokeWidth="8"
+                    strokeLinecap="round"
+                    strokeDasharray={`${progressPct * 2.639} 263.9`}
+                    className="transition-all duration-1000 ease-out"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-3xl font-black gradient-text-green">{progressPct}%</span>
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">Done</span>
+                </div>
+              </div>
+            </div>
+
+            <Progress value={progressPct} className="h-1.5 bg-secondary [&>div]:bg-primary rounded-full mb-4" />
+
+            <div className="space-y-3">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-muted-foreground flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> Tasks Complete</span>
+                <span className="font-bold">{progress?.completed_nodes} / {nodes.length}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-muted-foreground flex items-center gap-2"><Layers className="w-3.5 h-3.5 text-blue-400" /> Resources Gathers</span>
+                <span className="font-bold">{progress?.completed_resources} / {progress?.total_resources}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottleneck List */}
           {bottlenecks.length > 0 && (
             <div className="glass-strong rounded-2xl border border-white/5 p-6">
-              <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-yellow-400" /> Bottleneck Resources
-              </h2>
+              <h2 className="font-semibold text-[10px] text-muted-foreground uppercase tracking-[0.2em] mb-4">Critical Blockers</h2>
               <div className="space-y-3">
-                {bottlenecks.slice(0, 5).map(b => (
-                  <div key={b.node_id} className="flex items-center justify-between p-3 rounded-xl bg-red-500/5 border border-red-500/10">
-                    <div>
-                      <span className="font-semibold text-sm">{b.display_name}</span>
-                      <span className="text-muted-foreground text-xs ml-2">{b.collected_qty}/{b.required_qty} ({b.remaining_qty} needed)</span>
+                {bottlenecks.slice(0, 3).map(b => (
+                  <div key={b.node_id} className="p-3 rounded-xl bg-red-500/5 border border-red-500/10">
+                    <div className="flex justify-between mb-1">
+                      <span className="text-xs font-bold text-red-200">{b.display_name}</span>
+                      <span className="text-[10px] font-mono text-red-400">-{b.remaining_qty} units</span>
                     </div>
-                    <span className="text-xs text-red-400 font-medium">
-                      Blocking {b.blocked_ancestors} item{b.blocked_ancestors > 1 ? 's' : ''}
-                    </span>
+                    <div className="w-full bg-red-500/10 h-1 rounded-full overflow-hidden">
+                      <div className="bg-red-500 h-full" style={{ width: `${(b.collected_qty / b.required_qty) * 100}%` }} />
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
           )}
-        </div>
-
-        {/* ── Right: Progress + Activity ────────────────────── */}
-        <div className="space-y-5">
-
-          {/* Progress */}
-          <div className="glass-strong rounded-2xl border border-white/5 p-6">
-            <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-widest mb-5">Progress</h2>
-
-            {/* Circular progress ring */}
-            <div className="flex justify-center mb-5">
-              <div className="relative w-28 h-28">
-                <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                  <circle cx="50" cy="50" r="40" fill="none" stroke="hsl(222 35% 12%)" strokeWidth="10" />
-                  <circle
-                    cx="50" cy="50" r="40" fill="none"
-                    stroke="hsl(152 80% 48%)" strokeWidth="10"
-                    strokeLinecap="round"
-                    strokeDasharray={`${progressPct * 2.513} 251.3`}
-                    className="transition-all duration-700"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-2xl font-black gradient-text-green">{progressPct}%</span>
-                  <span className="text-xs text-muted-foreground">complete</span>
-                </div>
-              </div>
-            </div>
-
-            <Progress value={progressPct} className="h-2 bg-secondary [&>div]:bg-primary rounded-full mb-3" />
-            {progress && (
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-emerald-400" /> {progress.completed_nodes} done</span>
-                <span>📦 {progress.completed_resources}/{progress.total_resources} resources</span>
-              </div>
-            )}
-          </div>
 
           {/* Activity Feed */}
           <div className="glass-strong rounded-2xl border border-white/5 p-6">
-            <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Activity className="w-4 h-4 text-primary" /> Activity Feed
+            <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-widest mb-6 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-primary" /> Active Feed
             </h2>
             {contributions.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground text-sm">No activity yet</p>
-                <p className="text-xs text-muted-foreground mt-1">Start collecting or crafting!</p>
+              <div className="text-center py-10 opacity-40">
+                <p className="text-sm">No recent signals</p>
               </div>
             ) : (
-              <div className="space-y-3 max-h-80 overflow-y-auto">
-                {contributions.map(c => (
-                  <div key={c.id} className="flex gap-3">
-                    <div className="w-7 h-7 rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center text-xs text-primary font-bold flex-shrink-0 mt-0.5">
+              <div className="space-y-6 relative before:absolute before:left-[13px] before:top-2 before:bottom-2 before:w-px before:bg-white/5">
+                {contributions.slice(0, 10).map(c => (
+                  <div key={c.id} className="flex gap-4 relative">
+                    <div className="w-7 h-7 rounded-full bg-secondary border border-white/10 flex items-center justify-center text-[10px] font-black text-primary z-10">
                       {((c.profiles as any)?.full_name || (c.profiles as any)?.email || 'U')[0].toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm">
-                        <span className="font-semibold text-foreground">
+                      <p className="text-xs leading-normal">
+                        <span className="font-bold text-foreground">
                           {(c.profiles as any)?.full_name || (c.profiles as any)?.email}
                         </span>
                         <span className="text-muted-foreground"> {c.action} </span>
-                        <span className="text-primary font-medium">
+                        <span className="text-primary font-bold">
                           {(c.crafting_nodes as any)?.display_name || 'item'}
                         </span>
                         <span className="text-muted-foreground"> ×{c.quantity}</span>
                       </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {new Date(c.created_at).toLocaleString()}
+                      <p className="text-[10px] text-muted-foreground/50 mt-1 uppercase tracking-tighter">
+                        {new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </p>
                     </div>
                   </div>
