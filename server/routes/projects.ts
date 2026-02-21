@@ -120,6 +120,143 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════
+//  INVITE ROUTES (must be before /:projectId to avoid catch-all)
+// ═══════════════════════════════════════════════════════════════
+
+// ── GET /api/projects/invites/pending ──────────────────────────
+// Get all pending invites for the current user
+router.get('/invites/pending', async (req: Request, res: Response) => {
+  try {
+    const sb = supabaseForUser(req.accessToken!);
+
+    const { data, error } = await sb
+      .from('project_invites')
+      .select(`
+        id,
+        project_id,
+        inviter_id,
+        role,
+        message,
+        status,
+        created_at,
+        projects ( id, name, description ),
+        inviter:profiles!project_invites_inviter_id_fkey ( id, full_name, email, avatar_url )
+      `)
+      .eq('invitee_id', req.userId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    res.json({ invites: data || [] });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// ── POST /api/projects/invites/:inviteId/accept ────────────────
+router.post('/invites/:inviteId/accept', async (req: Request, res: Response) => {
+  try {
+    const { inviteId } = req.params;
+    const sb = supabaseForUser(req.accessToken!);
+
+    const { data: invite, error: fetchErr } = await sb
+      .from('project_invites')
+      .select('id, project_id, invitee_id, role, status')
+      .eq('id', inviteId)
+      .single();
+
+    if (fetchErr || !invite) {
+      res.status(404).json({ error: 'Invite not found' });
+      return;
+    }
+
+    if (invite.invitee_id !== req.userId) {
+      res.status(403).json({ error: 'This invite is not for you' });
+      return;
+    }
+
+    if (invite.status !== 'pending') {
+      res.status(400).json({ error: `Invite has already been ${invite.status}` });
+      return;
+    }
+
+    const { error: memberErr } = await sb
+      .from('project_members')
+      .insert({
+        project_id: invite.project_id,
+        user_id: req.userId,
+        role: invite.role,
+      });
+
+    if (memberErr && memberErr.code !== '23505') {
+      res.status(500).json({ error: memberErr.message });
+      return;
+    }
+
+    const { error: updateErr } = await sb
+      .from('project_invites')
+      .update({ status: 'accepted', updated_at: new Date().toISOString() })
+      .eq('id', inviteId);
+
+    if (updateErr) {
+      res.status(500).json({ error: updateErr.message });
+      return;
+    }
+
+    res.json({ success: true, projectId: invite.project_id });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// ── POST /api/projects/invites/:inviteId/decline ───────────────
+router.post('/invites/:inviteId/decline', async (req: Request, res: Response) => {
+  try {
+    const { inviteId } = req.params;
+    const sb = supabaseForUser(req.accessToken!);
+
+    const { data: invite, error: fetchErr } = await sb
+      .from('project_invites')
+      .select('id, invitee_id, status')
+      .eq('id', inviteId)
+      .single();
+
+    if (fetchErr || !invite) {
+      res.status(404).json({ error: 'Invite not found' });
+      return;
+    }
+
+    if (invite.invitee_id !== req.userId) {
+      res.status(403).json({ error: 'This invite is not for you' });
+      return;
+    }
+
+    if (invite.status !== 'pending') {
+      res.status(400).json({ error: `Invite has already been ${invite.status}` });
+      return;
+    }
+
+    const { error: updateErr } = await sb
+      .from('project_invites')
+      .update({ status: 'declined', updated_at: new Date().toISOString() })
+      .eq('id', inviteId);
+
+    if (updateErr) {
+      res.status(500).json({ error: updateErr.message });
+      return;
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
 // ── GET /api/projects/:projectId ───────────────────────────────
 // Get project details with full crafting tree
 router.get('/:projectId', projectMemberGuard, async (req: Request, res: Response) => {
@@ -196,6 +333,50 @@ router.delete('/:projectId', async (req: Request, res: Response) => {
     }
 
     res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// ── POST /api/projects/:projectId/items ────────────────────────
+// Add a new target item to an existing project
+router.post('/:projectId/items', projectMemberGuard, async (req: Request, res: Response) => {
+  try {
+    const { projectId } = req.params;
+    const { itemName, quantity = 1, enchantments = null } = req.body;
+
+    if (!itemName) {
+      res.status(400).json({ error: 'itemName is required' });
+      return;
+    }
+
+    const item = lookupItem(itemName);
+    if (!item) {
+      res.status(400).json({ error: `Unknown Minecraft item: "${itemName}"` });
+      return;
+    }
+
+    const sb = supabaseForUser(req.accessToken!);
+
+    // Verify project exists
+    const { data: project } = await sb
+      .from('projects')
+      .select('id, owner_id')
+      .eq('id', projectId)
+      .single();
+
+    if (!project) {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+
+    // Parse and insert the new item's recipe tree
+    const parseResult = await parseRecipeTree(projectId, itemName, quantity, sb, enchantments);
+
+    res.status(201).json({
+      success: true,
+      tree: parseResult,
+    });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
@@ -883,6 +1064,134 @@ router.patch('/:projectId/nodes/:nodeId/enchantments', projectMemberGuard, async
     }
 
     res.json({ success: true, enchantments });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  INVITE SYSTEM
+// ═══════════════════════════════════════════════════════════════
+
+// ── POST /api/projects/:projectId/invite ───────────────────────
+// Send an invite to a user (owner only). Creates a pending invite row.
+router.post('/:projectId/invite', async (req: Request, res: Response) => {
+  try {
+    const { projectId } = req.params;
+    const { email, role = 'member', message = '' } = req.body;
+
+    if (!email) {
+      res.status(400).json({ error: 'email is required' });
+      return;
+    }
+
+    if (!VALID_ROLES.includes(role)) {
+      res.status(400).json({ error: `role must be one of: ${VALID_ROLES.join(', ')}` });
+      return;
+    }
+
+    const sb = supabaseForUser(req.accessToken!);
+
+    // Verify ownership
+    const { data: project } = await sb
+      .from('projects')
+      .select('owner_id, name')
+      .eq('id', projectId)
+      .single();
+
+    if (!project || project.owner_id !== req.userId) {
+      res.status(403).json({ error: 'Only the project owner can send invites' });
+      return;
+    }
+
+    // Find user by email
+    const { data: profile } = await sb
+      .from('profiles')
+      .select('id')
+      .eq('email', email)
+      .single();
+
+    if (!profile) {
+      res.status(404).json({ error: 'User not found with that email' });
+      return;
+    }
+
+    if (profile.id === req.userId) {
+      res.status(400).json({ error: 'You cannot invite yourself' });
+      return;
+    }
+
+    // Check if already a member
+    const { data: existingMember } = await sb
+      .from('project_members')
+      .select('id')
+      .eq('project_id', projectId)
+      .eq('user_id', profile.id)
+      .single();
+
+    if (existingMember) {
+      res.status(409).json({ error: 'User is already a member of this project' });
+      return;
+    }
+
+    // Check for existing pending invite
+    const { data: existingInvite } = await sb
+      .from('project_invites')
+      .select('id, status')
+      .eq('project_id', projectId)
+      .eq('invitee_id', profile.id)
+      .eq('status', 'pending')
+      .single();
+
+    if (existingInvite) {
+      res.status(409).json({ error: 'An invite is already pending for this user' });
+      return;
+    }
+
+    // Create the invite
+    const { data: invite, error } = await sb
+      .from('project_invites')
+      .insert({
+        project_id: projectId,
+        inviter_id: req.userId,
+        invitee_id: profile.id,
+        role,
+        message: message || null,
+      })
+      .select('id, role, message, created_at')
+      .single();
+
+    if (error) {
+      // unique constraint violation — delete the old declined invite and re-create
+      if (error.code === '23505') {
+        await sb
+          .from('project_invites')
+          .delete()
+          .eq('project_id', projectId)
+          .eq('invitee_id', profile.id);
+
+        const { error: retryErr } = await sb
+          .from('project_invites')
+          .insert({
+            project_id: projectId,
+            inviter_id: req.userId,
+            invitee_id: profile.id,
+            role,
+            message: message || null,
+          });
+
+        if (retryErr) {
+          res.status(500).json({ error: retryErr.message });
+          return;
+        }
+        res.status(201).json({ success: true, reinvited: true });
+        return;
+      }
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    res.status(201).json({ success: true, invite });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }

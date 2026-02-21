@@ -195,6 +195,19 @@ export async function deleteProject(projectId: string): Promise<void> {
   await apiFetch(`/projects/${projectId}`, { method: 'DELETE' });
 }
 
+/** Add a new target item to an existing project */
+export async function addTargetItem(
+  projectId: string,
+  itemName: string,
+  quantity: number = 1,
+  enchantments: { name: string; level: number }[] | null = null,
+): Promise<{ success: boolean; tree: ParseResult }> {
+  return apiFetch(`/projects/${projectId}/items`, {
+    method: 'POST',
+    body: JSON.stringify({ itemName, quantity, enchantments }),
+  });
+}
+
 /** Mark project as completed or reactivate */
 export async function updateProjectStatus(projectId: string, status: 'active' | 'completed' | 'archived'): Promise<void> {
   await apiFetch(`/projects/${projectId}/status`, {
@@ -364,4 +377,47 @@ export async function lookupMinecraftItem(itemName: string): Promise<MinecraftIt
   } catch {
     return null;
   }
+}
+
+// ── Invite System ──────────────────────────────────────────────
+
+export interface ProjectInvite {
+  id: string;
+  project_id: string;
+  inviter_id: string;
+  role: MemberRole;
+  message: string | null;
+  status: 'pending' | 'accepted' | 'declined';
+  created_at: string;
+  projects: { id: string; name: string; description: string | null };
+  inviter: { id: string; full_name: string | null; email: string; avatar_url: string | null };
+}
+
+/** Send an invite to a user for a project */
+export async function sendProjectInvite(
+  projectId: string,
+  email: string,
+  role: MemberRole = 'member',
+  message: string = '',
+): Promise<{ success: boolean }> {
+  return apiFetch(`/projects/${projectId}/invite`, {
+    method: 'POST',
+    body: JSON.stringify({ email, role, message }),
+  });
+}
+
+/** Get all pending invites for the current user */
+export async function fetchPendingInvites(): Promise<ProjectInvite[]> {
+  const data = await apiFetch<{ invites: ProjectInvite[] }>('/projects/invites/pending');
+  return data.invites;
+}
+
+/** Accept an invite */
+export async function acceptInvite(inviteId: string): Promise<{ success: boolean; projectId: string }> {
+  return apiFetch(`/projects/invites/${inviteId}/accept`, { method: 'POST' });
+}
+
+/** Decline an invite */
+export async function declineInvite(inviteId: string): Promise<{ success: boolean }> {
+  return apiFetch(`/projects/invites/${inviteId}/decline`, { method: 'POST' });
 }

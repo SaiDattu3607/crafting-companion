@@ -3,13 +3,15 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { soundManager } from '@/lib/sound';
 import {
-  fetchProject, contributeToNode, addProjectMember,
+  fetchProject, contributeToNode, sendProjectInvite,
   fetchContributions, fetchBottleneck, fetchProgress,
   updateNodeEnchantments, updateMemberRole,
   fetchTaskSuggestions, savePlanSnapshot, fetchPlanSnapshots, restorePlanSnapshot,
+  addTargetItem, searchMinecraftItems,
   type Project, type CraftingNode, type Contribution,
   type BottleneckItem, type ProjectProgress, type ProjectMember,
   type MemberRole, type SuggestedTask, type PlanSnapshot,
+  type MinecraftItem,
 } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,7 +20,8 @@ import {
   ArrowLeft, AlertTriangle, CheckCircle, Clock, Ban,
   UserPlus, RefreshCw, Loader2, Layers, Activity,
   Sparkles, Pencil, Check, X, BookOpen, ChevronDown, ChevronUp, Trophy,
-  ClipboardList, Save, History, HardHat, Hammer, BrainCircuit, Users
+  ClipboardList, Save, History, HardHat, Hammer, BrainCircuit, Users,
+  Plus, Search, Package
 } from 'lucide-react';
 import { getBookRequirements, toRoman, getBestStrategy } from '@/lib/enchantmentBooks';
 
@@ -37,7 +40,11 @@ const ProjectDetail = () => {
   const [error, setError] = useState('');
   const [collabEmail, setCollabEmail] = useState('');
   const [collabRole, setCollabRole] = useState<MemberRole>('member');
+  const [collabMessage, setCollabMessage] = useState('');
   const [collabError, setCollabError] = useState('');
+  const [collabSuccess, setCollabSuccess] = useState('');
+  const [inviteSending, setInviteSending] = useState(false);
+  const [showInviteForm, setShowInviteForm] = useState(false);
   const [contributing, setContributing] = useState<string | null>(null);
 
   // Role-based tasks
@@ -50,6 +57,18 @@ const ProjectDetail = () => {
   const [restoringVersion, setRestoringVersion] = useState<number | null>(null);
   const [snapshotLabel, setSnapshotLabel] = useState('');
   const [showVersions, setShowVersions] = useState(false);
+
+  // Add-item state
+  const [showAddItem, setShowAddItem] = useState(false);
+  const [addItemSearch, setAddItemSearch] = useState('');
+  const [addItemResults, setAddItemResults] = useState<MinecraftItem[]>([]);
+  const [addItemSearching, setAddItemSearching] = useState(false);
+  const [addItemSelected, setAddItemSelected] = useState<MinecraftItem | null>(null);
+  const [addItemQty, setAddItemQty] = useState(1);
+  const [addItemEnchantName, setAddItemEnchantName] = useState('');
+  const [addItemEnchantLevel, setAddItemEnchantLevel] = useState(1);
+  const [addItemEnchantments, setAddItemEnchantments] = useState<{ name: string; level: number }[]>([]);
+  const [addingItem, setAddingItem] = useState(false);
 
   // Enchantment editing state
   const [editingEnchantments, setEditingEnchantments] = useState<string | null>(null);
@@ -100,6 +119,19 @@ const ProjectDetail = () => {
   }, [id]);
 
   useEffect(() => { loadProject(); }, [loadProject]);
+
+  // ── Add Item search debounce (must be before early returns – Rules of Hooks) ──
+  useEffect(() => {
+    if (addItemSearch.length < 2) { setAddItemResults([]); return; }
+    const t = setTimeout(async () => {
+      setAddItemSearching(true);
+      try {
+        setAddItemResults(await searchMinecraftItems(addItemSearch));
+      } catch { setAddItemResults([]); }
+      finally { setAddItemSearching(false); }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [addItemSearch]);
 
   if (!user) { navigate('/auth'); return null; }
 
@@ -154,17 +186,24 @@ const ProjectDetail = () => {
     }
   };
 
-  const handleAddCollaborator = async () => {
+  const handleSendInvite = async () => {
     setCollabError('');
+    setCollabSuccess('');
     if (!collabEmail.trim()) return;
+    setInviteSending(true);
     try {
-      await addProjectMember(id!, collabEmail.trim(), collabRole);
+      await sendProjectInvite(id!, collabEmail.trim(), collabRole, collabMessage.trim());
       setCollabEmail('');
       setCollabRole('member');
-      soundManager.playSound('button');
-      await loadProject();
+      setCollabMessage('');
+      setShowInviteForm(false);
+      setCollabSuccess('Invite sent!');
+      soundManager.playSound('craft');
+      setTimeout(() => setCollabSuccess(''), 3000);
     } catch (err) {
       setCollabError((err as Error).message);
+    } finally {
+      setInviteSending(false);
     }
   };
 
@@ -230,6 +269,55 @@ const ProjectDetail = () => {
   const handleCancelEditEnchantments = () => {
     setEditingEnchantments(null);
     setEditEnchantmentLevels([]);
+  };
+
+  // ── Add Item handlers ──────────────────────────────────────────
+  const handleAddItemSelect = (item: MinecraftItem) => {
+    setAddItemSelected(item);
+    setAddItemSearch('');
+    setAddItemResults([]);
+    setAddItemQty(1);
+    setAddItemEnchantments([]);
+    if (item.possibleEnchantments?.length) {
+      setAddItemEnchantName(item.possibleEnchantments[0].name);
+    } else {
+      setAddItemEnchantName('');
+    }
+  };
+
+  const handleAddItemSubmit = async () => {
+    if (!addItemSelected || !id) return;
+    setAddingItem(true);
+    try {
+      await addTargetItem(
+        id,
+        addItemSelected.name,
+        addItemQty,
+        addItemEnchantments.length > 0 ? addItemEnchantments : null,
+      );
+      soundManager.playSound('craft');
+      // Reset state
+      setAddItemSelected(null);
+      setAddItemSearch('');
+      setAddItemQty(1);
+      setAddItemEnchantments([]);
+      setShowAddItem(false);
+      // Reload the project to show new nodes
+      await loadProject();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setAddingItem(false);
+    }
+  };
+
+  const handleAddItemCancel = () => {
+    setShowAddItem(false);
+    setAddItemSelected(null);
+    setAddItemSearch('');
+    setAddItemResults([]);
+    setAddItemQty(1);
+    setAddItemEnchantments([]);
   };
 
   const handleGoHome = () => {
@@ -400,6 +488,40 @@ const ProjectDetail = () => {
         </div>
       </header>
 
+      {/* Project Info Banner */}
+      <div className="max-w-7xl mx-auto px-6 mt-6">
+        <div className="glass-strong rounded-2xl border border-white/5 p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-2xl font-black text-foreground leading-tight">{project.name}</h2>
+              {project.description && (
+                <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">{project.description}</p>
+              )}
+              <div className="flex items-center gap-3 mt-3 flex-wrap">
+                <span className="text-xs text-muted-foreground bg-white/5 px-2.5 py-1 rounded-full">
+                  {rootNodes.length} target{rootNodes.length !== 1 ? 's' : ''}
+                </span>
+                <span className="text-xs text-muted-foreground bg-white/5 px-2.5 py-1 rounded-full">
+                  {nodes.length} nodes
+                </span>
+                <span className="text-xs text-muted-foreground bg-white/5 px-2.5 py-1 rounded-full">
+                  {members.length} member{members.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+            </div>
+            <div className="flex-shrink-0 w-28">
+              <div className="text-right">
+                <span className={`text-2xl font-black ${progressPct >= 100 ? 'text-emerald-400' : 'text-primary'}`}>
+                  {Math.round(progressPct)}%
+                </span>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">complete</p>
+              </div>
+              <Progress value={progressPct} className="h-1.5 mt-2 rounded-full" />
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Bottleneck banner */}
       {
         topBottleneck && (
@@ -457,8 +579,166 @@ const ProjectDetail = () => {
                 <Layers className="w-4 h-4 text-primary" />
                 <h2 className="font-bold text-lg text-foreground">Crafting Dependencies</h2>
               </div>
-              <span className="text-xs text-muted-foreground bg-white/5 px-3 py-1 rounded-full">{nodes.length} nodes total</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground bg-white/5 px-3 py-1 rounded-full">{nodes.length} nodes total</span>
+                {!showAddItem && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setShowAddItem(true); soundManager.playSound('button'); }}
+                    className="rounded-xl border-white/10 hover:border-primary/40 hover:text-primary gap-1.5 h-7 px-3 text-xs"
+                  >
+                    <Plus className="w-3 h-3" /> Add Item
+                  </Button>
+                )}
+              </div>
             </div>
+
+            {/* ── Inline Add Item form ─────────────────────── */}
+            {showAddItem && (
+              <div className="mb-6 p-4 rounded-xl bg-primary/5 border border-primary/15 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Package className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-semibold text-foreground">Add Target Item</span>
+                  </div>
+                  <button onClick={handleAddItemCancel} className="text-muted-foreground/60 hover:text-foreground transition-colors">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {!addItemSelected ? (
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
+                    <Input
+                      value={addItemSearch}
+                      onChange={e => setAddItemSearch(e.target.value)}
+                      placeholder="Search for a Minecraft item…"
+                      className="pl-9 bg-secondary/60 border-white/8 rounded-xl h-9 focus:border-primary/50"
+                      autoFocus
+                    />
+                    {addItemSearching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-primary" />}
+
+                    {addItemResults.length > 0 && (
+                      <div className="absolute z-20 mt-1 w-full bg-[#141418] border border-white/10 rounded-xl shadow-xl max-h-48 overflow-y-auto">
+                        {addItemResults.map(item => (
+                          <button
+                            key={item.name}
+                            onClick={() => handleAddItemSelect(item)}
+                            className="w-full text-left px-4 py-2.5 hover:bg-primary/10 transition-colors flex items-center gap-3 border-b border-white/5 last:border-0"
+                          >
+                            <span className="text-base">🎯</span>
+                            <div>
+                              <p className="text-sm font-medium text-foreground">{item.displayName}</p>
+                              <p className="text-[10px] text-muted-foreground">{item.name}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {/* Selected item */}
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-primary/10 border border-primary/20">
+                      <div className="flex items-center gap-3">
+                        <span className="text-lg">🎯</span>
+                        <div>
+                          <p className="font-semibold text-foreground text-sm">{addItemSelected.displayName}</p>
+                          <p className="text-[10px] text-muted-foreground">{addItemSelected.name}</p>
+                        </div>
+                      </div>
+                      <button onClick={() => setAddItemSelected(null)} className="text-muted-foreground/50 hover:text-foreground">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Quantity */}
+                    <div className="flex items-center gap-3">
+                      <label className="text-xs text-muted-foreground font-medium w-16">Qty</label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={9999}
+                        value={addItemQty}
+                        onChange={e => setAddItemQty(Math.max(1, Number(e.target.value)))}
+                        className="bg-secondary/60 border-white/8 rounded-xl h-8 w-24 text-sm"
+                      />
+                    </div>
+
+                    {/* Enchantments (if applicable) */}
+                    {addItemSelected.possibleEnchantments && addItemSelected.possibleEnchantments.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                          <Sparkles className="w-3 h-3 text-purple-400" /> Enchantments (optional)
+                        </p>
+                        <div className="flex gap-2 flex-wrap">
+                          <select
+                            value={addItemEnchantName}
+                            onChange={e => setAddItemEnchantName(e.target.value)}
+                            className="bg-secondary/60 border border-white/8 rounded-lg px-2 py-1 text-xs text-foreground flex-1 min-w-[120px]"
+                          >
+                            {addItemSelected.possibleEnchantments.map(e => (
+                              <option key={e.name} value={e.name}>
+                                {e.name.replace(/_/g, ' ')} (max {e.level || 1})
+                              </option>
+                            ))}
+                          </select>
+                          <Input
+                            type="number"
+                            min={1}
+                            max={addItemSelected.possibleEnchantments.find(e => e.name === addItemEnchantName)?.level || 5}
+                            value={addItemEnchantLevel}
+                            onChange={e => setAddItemEnchantLevel(Math.max(1, Number(e.target.value)))}
+                            className="bg-secondary/60 border-white/8 rounded-lg h-7 w-16 text-xs"
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              if (addItemEnchantName && !addItemEnchantments.find(e => e.name === addItemEnchantName)) {
+                                setAddItemEnchantments([...addItemEnchantments, { name: addItemEnchantName, level: addItemEnchantLevel }]);
+                              }
+                            }}
+                            className="rounded-lg h-7 px-2 text-xs border-white/10"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </Button>
+                        </div>
+                        {addItemEnchantments.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {addItemEnchantments.map((e, i) => (
+                              <span key={i} className="inline-flex items-center gap-1 bg-purple-500/10 border border-purple-500/20 text-purple-200 text-[10px] px-2 py-0.5 rounded-full">
+                                {e.name.replace(/_/g, ' ')} {toRoman(e.level)}
+                                <button onClick={() => setAddItemEnchantments(addItemEnchantments.filter((_, j) => j !== i))} className="hover:text-red-400">
+                                  <X className="w-2.5 h-2.5" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Submit */}
+                    <div className="flex justify-end gap-2 pt-1">
+                      <Button variant="ghost" size="sm" onClick={handleAddItemCancel} className="rounded-xl h-8 px-3 text-xs">
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={handleAddItemSubmit}
+                        disabled={addingItem}
+                        className="rounded-xl h-8 px-4 text-xs gap-1.5"
+                      >
+                        {addingItem ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+                        {addingItem ? 'Adding…' : 'Add to Project'}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Render a tree per root node (multi-item support) */}
             {rootNodes.map((rn, ri) => {
@@ -572,30 +852,91 @@ const ProjectDetail = () => {
               <Users className="w-4 h-4" /> Team & Roles
             </h2>
 
-            {/* Invite form with role picker */}
-            <div className="flex gap-2 flex-wrap">
-              <Input
-                value={collabEmail}
-                onChange={e => setCollabEmail(e.target.value)}
-                placeholder="Enter email to invite…"
-                className="bg-secondary/60 border-white/8 rounded-xl h-10 focus:border-primary/50 flex-1 min-w-[160px]"
-              />
-              <select
-                value={collabRole}
-                onChange={e => setCollabRole(e.target.value as MemberRole)}
-                className="bg-secondary/60 border border-white/8 rounded-xl px-3 py-2 text-sm text-foreground h-10"
-              >
-                <option value="member">Member</option>
-                <option value="miner">⛏ Miner</option>
-                <option value="builder">🔨 Builder</option>
-                <option value="planner">🧠 Planner</option>
-              </select>
-              <Button onClick={handleAddCollaborator} variant="outline"
-                className="rounded-xl border-white/10 hover:border-primary/40 hover:text-primary gap-1.5 px-4 h-10">
-                <UserPlus className="w-4 h-4" /> Invite
-              </Button>
+            {/* Invite button + success message */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {!showInviteForm && (
+                <Button
+                  onClick={() => { setShowInviteForm(true); setCollabError(''); setCollabSuccess(''); soundManager.playSound('button'); }}
+                  variant="outline"
+                  className="rounded-xl border-white/10 hover:border-primary/40 hover:text-primary gap-1.5 px-4 h-10"
+                >
+                  <UserPlus className="w-4 h-4" /> Invite Member
+                </Button>
+              )}
+              {collabSuccess && (
+                <span className="text-emerald-400 text-sm flex items-center gap-1.5 animate-in fade-in">
+                  <CheckCircle className="w-3.5 h-3.5" /> {collabSuccess}
+                </span>
+              )}
             </div>
-            {collabError && <p className="text-destructive text-sm mt-2">{collabError}</p>}
+
+            {/* Invite Dialog */}
+            {showInviteForm && (
+              <div className="mt-3 p-4 rounded-xl bg-primary/5 border border-primary/15 space-y-3 animate-in slide-in-from-top-2 duration-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <UserPlus className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-semibold text-foreground">Send Invite</span>
+                  </div>
+                  <button onClick={() => { setShowInviteForm(false); setCollabError(''); }} className="text-muted-foreground/60 hover:text-foreground transition-colors">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="space-y-2.5">
+                  <Input
+                    value={collabEmail}
+                    onChange={e => setCollabEmail(e.target.value)}
+                    placeholder="Enter email to invite…"
+                    className="bg-secondary/60 border-white/8 rounded-xl h-9 focus:border-primary/50"
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 block">Role</label>
+                      <select
+                        value={collabRole}
+                        onChange={e => setCollabRole(e.target.value as MemberRole)}
+                        className="w-full bg-secondary/60 border border-white/8 rounded-xl px-3 py-2 text-sm text-foreground h-9"
+                      >
+                        <option value="member">General Member</option>
+                        <option value="miner">⛏ Miner</option>
+                        <option value="builder">🔨 Builder</option>
+                        <option value="planner">🧠 Planner</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 block">Message (optional)</label>
+                    <textarea
+                      value={collabMessage}
+                      onChange={e => setCollabMessage(e.target.value)}
+                      placeholder="Hey! Want to help me build this?"
+                      rows={2}
+                      maxLength={200}
+                      className="w-full bg-secondary/60 border border-white/8 rounded-xl px-3 py-2 text-sm text-foreground resize-none focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30"
+                    />
+                  </div>
+                </div>
+
+                {collabError && <p className="text-destructive text-sm">{collabError}</p>}
+
+                <div className="flex justify-end gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => { setShowInviteForm(false); setCollabError(''); }} className="rounded-xl h-8 px-3 text-xs">
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleSendInvite}
+                    disabled={inviteSending || !collabEmail.trim()}
+                    className="rounded-xl h-8 px-4 text-xs gap-1.5"
+                  >
+                    {inviteSending ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserPlus className="w-3 h-3" />}
+                    {inviteSending ? 'Sending…' : 'Send Invite'}
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* Member list with role management */}
             {members.length > 0 && (
