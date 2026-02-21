@@ -7,25 +7,37 @@ import { Button } from '@/components/ui/button';
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
-  const [username, setUsername] = useState('');
+  const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { login, signup } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
-    if (isLogin) {
-      const result = login(email, password);
-      if (result === true) navigate('/');
-      else setError(result);
-    } else {
-      if (!username.trim()) { setError('Username required'); return; }
-      const result = signup(email, username, password);
-      if (result === true) navigate('/');
-      else setError(result);
+    setLoading(true);
+
+    try {
+      if (isLogin) {
+        const result = await login(email, password);
+        if (result === true) navigate('/');
+        else setError(result);
+      } else {
+        if (!fullName.trim()) {
+          setError('Full name required');
+          setLoading(false);
+          return;
+        }
+        const result = await signup(email, password, fullName);
+        if (result === true) navigate('/');
+        else setError(result);
+      }
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -45,6 +57,7 @@ const AuthPage = () => {
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
+              disabled={loading}
               className="bg-secondary border-border text-lg"
               placeholder="steve@minecraft.net"
             />
@@ -52,12 +65,13 @@ const AuthPage = () => {
 
           {!isLogin && (
             <div>
-              <label className="text-sm font-pixel text-muted-foreground block mb-1">Username</label>
+              <label className="text-sm font-pixel text-muted-foreground block mb-1">Full Name</label>
               <Input
-                value={username}
-                onChange={e => setUsername(e.target.value)}
+                value={fullName}
+                onChange={e => setFullName(e.target.value)}
+                disabled={loading}
                 className="bg-secondary border-border text-lg"
-                placeholder="DiamondMiner42"
+                placeholder="Steve the Miner"
               />
             </div>
           )}
@@ -69,6 +83,7 @@ const AuthPage = () => {
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
+              disabled={loading}
               className="bg-secondary border-border text-lg"
               placeholder="••••••••"
             />
@@ -76,14 +91,19 @@ const AuthPage = () => {
 
           {error && <p className="text-destructive text-lg">{error}</p>}
 
-          <Button type="submit" className="w-full text-lg pixel-border-accent">
-            {isLogin ? '⚔ Enter World' : '🏗 Create Account'}
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full text-lg pixel-border-accent"
+          >
+            {loading ? '⏳ Processing...' : (isLogin ? '⚔ Enter World' : '🏗 Create Account')}
           </Button>
         </form>
 
         <button
           onClick={() => { setIsLogin(!isLogin); setError(''); }}
-          className="w-full text-center mt-4 text-muted-foreground hover:text-primary text-lg transition-colors"
+          disabled={loading}
+          className="w-full text-center mt-4 text-muted-foreground hover:text-primary text-lg transition-colors disabled:opacity-50"
         >
           {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Log in'}
         </button>

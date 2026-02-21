@@ -10,11 +10,18 @@ const Dashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [projects] = useState<Project[]>(() => user ? getProjects(user.id) : []);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   if (!user) {
     navigate('/auth');
     return null;
   }
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    await logout();
+    navigate('/auth');
+  };
 
   return (
     <div className="min-h-screen">
@@ -22,8 +29,8 @@ const Dashboard = () => {
       <header className="pixel-border border-x-0 border-t-0 bg-card p-4 flex items-center justify-between">
         <h1 className="text-sm text-primary">⛏ CraftChain</h1>
         <div className="flex items-center gap-4">
-          <span className="text-lg text-muted-foreground">Welcome, <span className="text-foreground">{user.username}</span></span>
-          <Button variant="ghost" size="sm" onClick={logout} className="text-muted-foreground hover:text-destructive">
+          <span className="text-lg text-muted-foreground">Welcome, <span className="text-foreground">{user.full_name || user.email}</span></span>
+          <Button variant="ghost" size="sm" onClick={handleLogout} disabled={loggingOut} className="text-muted-foreground hover:text-destructive">
             <LogOut className="w-4 h-4" />
           </Button>
         </div>
