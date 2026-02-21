@@ -32,6 +32,21 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// ── Root ──────────────────────────────────────────────────────
+app.get('/', (_req, res) => {
+  res.json({
+    name: 'CraftChain API',
+    version: '1.0.0',
+    docs: 'API only — use the routes below. Frontend: run npm run dev',
+    health: '/api/health',
+    endpoints: {
+      projects: '/api/projects',
+      items: '/api/items',
+      admin: '/api/admin',
+    },
+  });
+});
+
 // ── Health Check ───────────────────────────────────────────────
 app.get('/api/health', (_req, res) => {
   res.json({

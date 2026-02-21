@@ -41,8 +41,21 @@ const ProjectDetail = () => {
         fetchProgress(id).catch(() => null),
       ]);
 
+      // Parse enchantments if they come as JSON strings from Supabase
+      const parsedNodes = projectData.nodes.map((node: any) => {
+        if (node.enchantments && typeof node.enchantments === 'string') {
+          try {
+            node.enchantments = JSON.parse(node.enchantments);
+          } catch (e) {
+            console.warn('Failed to parse enchantments for node:', node.id, e);
+            node.enchantments = null;
+          }
+        }
+        return node;
+      });
+
       setProject(projectData.project);
-      setNodes(projectData.nodes);
+      setNodes(parsedNodes);
       setMembers(projectData.members);
       setContributions(contribs);
       setBottlenecks(bottleneckData);
@@ -74,7 +87,7 @@ const ProjectDetail = () => {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <p className="text-xl text-muted-foreground mb-4">{error || 'Project not found'}</p>
-          <Button variant="outline" onClick={() => navigate('/')}>Go Home</Button>
+          <Button variant="outline" onClick={() => navigate('/dashboard')}>Go Home</Button>
         </div>
       </div>
     );
@@ -142,10 +155,23 @@ const ProjectDetail = () => {
 
   // Build tree structure from flat nodes
   const rootNodes = nodes.filter(n => n.parent_id === null);
+  const rootNode = rootNodes[0] ?? null;
   const getChildren = (parentId: string) => nodes.filter(n => n.parent_id === parentId);
+  const rootChildren = rootNode ? getChildren(rootNode.id) : [];
+  const itemChildren = rootChildren.filter(c => c.item_name !== 'enchanted_book');
+  const bookChildren = rootChildren.filter(c => c.item_name === 'enchanted_book');
+  const hasEnchantment = (rootNode?.enchantments?.length ?? 0) > 0;
 
-  const renderNodeTree = (node: CraftingNode, depth: number = 0, isLast: boolean = true, prefix: string = '') => {
-    const children = getChildren(node.id);
+  const renderNodeTree = (
+    node: CraftingNode,
+    depth: number = 0,
+    isLast: boolean = true,
+    prefix: string = '',
+    childrenOverride?: CraftingNode[] | null
+  ) => {
+    const children = childrenOverride !== undefined && childrenOverride !== null
+      ? childrenOverride
+      : getChildren(node.id);
     const isComplete = node.collected_qty >= node.required_qty;
     const isContributing = contributing === node.id;
     const hasChildren = children.length > 0;
@@ -169,16 +195,18 @@ const ProjectDetail = () => {
               {statusIcon(node)}
               <div className="flex items-center gap-2 flex-wrap">
                 <span className={`font-bold ${depth === 0 ? 'text-lg' : 'text-base'}`}>
-                  {node.display_name}
+                  {depth === 0 && node.enchantments && node.enchantments.length > 0
+                    ? `${node.display_name} (${node.enchantments.map((e) => `${e.name.replace(/_/g, ' ')} ${e.level}`).join(', ')})`
+                    : node.display_name}
                 </span>
                 <span className="text-muted-foreground text-sm">
                   {node.collected_qty}/{node.required_qty}
                 </span>
-                {node.enchantments && node.enchantments.length > 0 && (
+                {node.enchantments && node.enchantments.length > 0 && depth !== 0 && (
                   <div className="flex gap-2">
                     {node.enchantments.map((en, i) => (
                       <span key={`${en.name}-${i}`} className="text-xs bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded">
-                        {en.name} {en.level}
+                        {en.name.replace(/_/g, ' ')} {en.level}
                       </span>
                     ))}
                   </div>
@@ -233,7 +261,7 @@ const ProjectDetail = () => {
       {/* Header */}
       <header className="pixel-border border-x-0 border-t-0 bg-card p-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
+          <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')}>
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <h1 className="text-sm text-primary">{project.name}</h1>
@@ -264,12 +292,43 @@ const ProjectDetail = () => {
         {/* Left: Crafting Tree */}
         <div className="lg:col-span-2 space-y-4">
           <div className="pixel-border bg-card p-4">
-            <h2 className="text-xs font-pixel text-muted-foreground mb-4">
-              Crafting Tree ({nodes.length} nodes)
+            {/* Main heading: Item + Enchantment (e.g. "Stone Sword (Sharpness I)") */}
+            <h2 className="text-lg font-bold text-primary mb-1">
+              {rootNode && hasEnchantment && rootNode.enchantments?.length
+                ? `${rootNode.display_name} (${rootNode.enchantments.map((e) => `${e.name.replace(/_/g, ' ')} ${e.level}`).join(', ')})`
+                : rootNode?.display_name ?? 'Crafting Tree'}
             </h2>
+            <p className="text-xs font-pixel text-muted-foreground mb-4">
+              Crafting Tree ({nodes.length} nodes)
+            </p>
+
+            {/* Subheading: Item — goal + recipe ingredients */}
+            <h3 className="text-sm font-pixel text-muted-foreground uppercase tracking-wider mb-2 mt-4">
+              Item
+            </h3>
             <div className="space-y-1">
-              {rootNodes.map(r => renderNodeTree(r))}
+              {rootNode && (
+                <>
+                  {renderNodeTree(rootNode, 0, bookChildren.length === 0 && itemChildren.length === 0, '', itemChildren)}
+                </>
+              )}
             </div>
+
+            {/* Subheading: Book — Enchanted Book requirement(s) */}
+            {bookChildren.length > 0 && (
+              <>
+                <h3 className="text-sm font-pixel text-muted-foreground uppercase tracking-wider mb-2 mt-4">
+                  Book
+                </h3>
+                <div className="space-y-1">
+                  {bookChildren.map((bookNode, i) => (
+                    <div key={bookNode.id}>
+                      {renderNodeTree(bookNode, 0, i === bookChildren.length - 1)}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
           {/* Add Collaborator */}
