@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { createProject, searchMinecraftItems, lookupMinecraftItem, type MinecraftItem } from '@/lib/api';
+import { soundManager } from '@/lib/sound';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -60,6 +61,7 @@ const NewProject = () => {
     e.preventDefault();
     if (!name.trim() || !selectedItem) return;
 
+    soundManager.playSound('button');
     setCreating(true);
     setError('');
 
@@ -75,7 +77,7 @@ const NewProject = () => {
   return (
     <div className="min-h-screen">
       <header className="pixel-border border-x-0 border-t-0 bg-card p-4 flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
+        <Button variant="ghost" size="sm" onClick={() => { soundManager.playSound('button'); navigate('/'); }}>
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <h1 className="text-sm text-primary">New Crafting Project</h1>
@@ -119,7 +121,7 @@ const NewProject = () => {
                     <span className="ml-2 text-xs bg-yellow-500/20 text-yellow-600 px-2 py-0.5 rounded">Raw Resource</span>
                   )}
                 </div>
-                <Button type="button" variant="ghost" size="sm" onClick={() => { setSelectedItem(null); setItemSearch(''); }}>
+                <Button type="button" variant="ghost" size="sm" onClick={() => { soundManager.playSound('button'); setSelectedItem(null); setItemSearch(''); }}>
                   Change
                 </Button>
               </div>
@@ -144,6 +146,7 @@ const NewProject = () => {
                         type="button"
                         className="w-full text-left px-4 py-2 hover:bg-secondary transition-colors flex items-center justify-between"
                         onClick={async () => {
+                          soundManager.playSound('button');
                           // Fetch full item details (may include possibleEnchantments)
                           try {
                             const full = await lookupMinecraftItem(item.name);
@@ -192,6 +195,7 @@ const NewProject = () => {
                     {[1, 2, 3, 4, 5].map(l => <option key={l} value={l}>{l}</option>)}
                   </select>
                   <Button type="button" size="sm" onClick={() => {
+                    soundManager.playSound('button');
                     // avoid duplicates of same enchant
                     if (!enchantName) return;
                     setEnchantments(es => {
@@ -207,7 +211,7 @@ const NewProject = () => {
                       <div key={e.name} className="bg-secondary/20 px-2 py-1 rounded flex items-center gap-2">
                         <span className="text-sm font-bold">{e.name}</span>
                         <span className="text-xs text-muted-foreground">Level {e.level}</span>
-                        <Button type="button" variant="ghost" size="sm" onClick={() => setEnchantments(es => es.filter(x => x.name !== e.name))}>✕</Button>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => { soundManager.playSound('button'); setEnchantments(es => es.filter(x => x.name !== e.name)); }}>✕</Button>
                       </div>
                     ))}
                   </div>

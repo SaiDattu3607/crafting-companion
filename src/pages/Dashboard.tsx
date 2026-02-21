@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { fetchProjects, type Project } from '@/lib/api';
+import { soundManager } from '@/lib/sound';
 import { Button } from '@/components/ui/button';
 import { Plus, LogOut, Loader2 } from 'lucide-react';
 import ProjectCard from '@/components/ProjectCard';
@@ -39,8 +40,19 @@ const Dashboard = () => {
 
   const handleLogout = async () => {
     setLoggingOut(true);
+    soundManager.playSound('button');
     await logout();
     navigate('/auth');
+  };
+
+  const handleNewProject = () => {
+    soundManager.playSound('button');
+    navigate('/new-project');
+  };
+
+  const handleCreateFirstProject = () => {
+    soundManager.playSound('button');
+    navigate('/new-project');
   };
 
   return (
@@ -60,7 +72,7 @@ const Dashboard = () => {
       <main className="max-w-6xl mx-auto p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-sm text-foreground">Your Projects</h2>
-          <Button onClick={() => navigate('/new-project')} className="pixel-border-accent text-lg">
+          <Button onClick={handleNewProject} className="pixel-border-accent text-lg">
             <Plus className="w-4 h-4 mr-2" /> New Project
           </Button>
         </div>
@@ -80,7 +92,7 @@ const Dashboard = () => {
           <div className="text-center py-20 pixel-border bg-card">
             <p className="text-3xl mb-2">🪨</p>
             <p className="text-xl text-muted-foreground mb-4">No crafting projects yet</p>
-            <Button onClick={() => navigate('/new-project')} variant="outline" className="text-lg">
+            <Button onClick={handleCreateFirstProject} variant="outline" className="text-lg">
               Create your first project
             </Button>
           </div>

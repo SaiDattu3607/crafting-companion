@@ -7,6 +7,7 @@ import {
   type Project, type CraftingNode, type Contribution,
   type BottleneckItem, type ProjectProgress, type ProjectMember,
 } from '@/lib/api';
+import { soundManager } from '@/lib/sound';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
@@ -49,6 +50,7 @@ const ProjectDetail = () => {
       setProgress(progressData);
       setError('');
     } catch (err) {
+      console.error('ProjectDetail loadProject error:', err);
       setError((err as Error).message);
     } finally {
       setLoading(false);
@@ -104,6 +106,9 @@ const ProjectDetail = () => {
       const result = await contributeToNode(id!, nodeId, 1, action);
       if (!result.success) {
         setError(result.error || 'Contribution failed');
+      } else {
+        // Play sound effect
+        soundManager.playSound(action === 'crafted' ? 'craft' : 'collect');
       }
       // Reload project to get updated state
       await loadProject();
@@ -114,12 +119,23 @@ const ProjectDetail = () => {
     }
   };
 
+  const handleRefresh = () => {
+    soundManager.playSound('button');
+    loadProject();
+  };
+
+  const handleGoHome = () => {
+    soundManager.playSound('button');
+    navigate('/');
+  }
+
   const handleAddCollaborator = async () => {
     setCollabError('');
     if (!collabEmail.trim()) return;
     try {
       await addProjectMember(id!, collabEmail.trim());
       setCollabEmail('');
+      soundManager.playSound('button');
       await loadProject();
     } catch (err) {
       setCollabError((err as Error).message);
@@ -233,12 +249,12 @@ const ProjectDetail = () => {
       {/* Header */}
       <header className="pixel-border border-x-0 border-t-0 bg-card p-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
+          <Button variant="ghost" size="sm" onClick={handleGoHome}>
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <h1 className="text-sm text-primary">{project.name}</h1>
         </div>
-        <Button variant="ghost" size="sm" onClick={loadProject} className="text-muted-foreground">
+        <Button variant="ghost" size="sm" onClick={handleRefresh} className="text-muted-foreground">
           <RefreshCw className="w-4 h-4 mr-1" /> Refresh
         </Button>
       </header>
