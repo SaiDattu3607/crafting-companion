@@ -118,17 +118,11 @@ const ProjectDetail = () => {
     setContributing(nodeId);
     try {
       const result = await contributeToNode(id!, nodeId, 1, action);
-<<<<<<< HEAD
       if (!result.success) {
         setError(result.error || 'Contribution failed');
       } else {
-        // Play sound effect
         soundManager.playSound(action === 'crafted' ? 'craft' : 'collect');
       }
-      // Reload project to get updated state
-=======
-      if (!result.success) setError(result.error || 'Contribution failed');
->>>>>>> 4e77ce56015b279a2db7bef5705c277d7dd2bec5
       await loadProject();
     } catch (err) {
       setError((err as Error).message);
@@ -325,16 +319,10 @@ const ProjectDetail = () => {
     <div className="min-h-screen mesh-bg text-foreground">
 
       {/* Header */}
-<<<<<<< HEAD
-      <header className="pixel-border border-x-0 border-t-0 bg-card p-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={handleGoHome}>
-            <ArrowLeft className="w-4 h-4" />
-=======
       <header className="sticky top-0 z-40 glass-strong border-b border-white/5">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')} className="rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/5">
+            <Button variant="ghost" size="sm" onClick={handleGoHome} className="rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/5">
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <div className="flex items-center gap-2">
@@ -343,17 +331,10 @@ const ProjectDetail = () => {
             </div>
             <span className="text-muted-foreground text-sm hidden sm:block">/ {project.name}</span>
           </div>
-          <Button variant="ghost" size="sm" onClick={loadProject} className="text-muted-foreground hover:text-foreground rounded-xl gap-1.5">
+          <Button variant="ghost" size="sm" onClick={handleRefresh} className="text-muted-foreground hover:text-foreground rounded-xl gap-1.5">
             <RefreshCw className="w-4 h-4" /> <span className="hidden sm:inline text-sm">Refresh</span>
->>>>>>> 4e77ce56015b279a2db7bef5705c277d7dd2bec5
           </Button>
         </div>
-<<<<<<< HEAD
-        <Button variant="ghost" size="sm" onClick={handleRefresh} className="text-muted-foreground">
-          <RefreshCw className="w-4 h-4 mr-1" /> Refresh
-        </Button>
-=======
->>>>>>> 4e77ce56015b279a2db7bef5705c277d7dd2bec5
       </header>
 
       {/* Bottleneck banner */}
