@@ -67,9 +67,11 @@ export interface CraftingNode {
   enchantments?: { name: string; level: number }[] | null;
 }
 
+export type MemberRole = 'owner' | 'member' | 'miner' | 'builder' | 'planner';
+
 export interface ProjectMember {
   user_id: string;
-  role: string;
+  role: MemberRole;
   joined_at: string;
   profiles: {
     full_name: string;
@@ -218,11 +220,27 @@ export async function contributeToNode(
   });
 }
 
-/** Add a member to a project */
-export async function addProjectMember(projectId: string, email: string): Promise<void> {
+/** Add a member to a project with optional role */
+export async function addProjectMember(
+  projectId: string,
+  email: string,
+  role: MemberRole = 'member',
+): Promise<void> {
   await apiFetch(`/projects/${projectId}/members`, {
     method: 'POST',
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email, role }),
+  });
+}
+
+/** Update a member's role */
+export async function updateMemberRole(
+  projectId: string,
+  userId: string,
+  role: MemberRole,
+): Promise<void> {
+  await apiFetch(`/projects/${projectId}/members/${userId}/role`, {
+    method: 'PATCH',
+    body: JSON.stringify({ role }),
   });
 }
 
@@ -267,6 +285,65 @@ export async function updateNodeEnchantments(
   return apiFetch(`/projects/${projectId}/nodes/${nodeId}/enchantments`, {
     method: 'PATCH',
     body: JSON.stringify({ enchantments }),
+  });
+}
+
+// ── Task Suggestions ───────────────────────────────────────────
+
+export interface SuggestedTask {
+  id: string;
+  action: string;
+  item: string;
+  displayName: string;
+  qty: number;
+  priority: 'high' | 'medium' | 'low';
+  reason: string;
+}
+
+/** Get role-based task suggestions for the current user */
+export async function fetchTaskSuggestions(projectId: string): Promise<{
+  role: MemberRole;
+  tasks: SuggestedTask[];
+}> {
+  return apiFetch(`/projects/${projectId}/tasks`);
+}
+
+// ── Plan Versioning ────────────────────────────────────────────
+
+export interface PlanSnapshot {
+  id: string;
+  version: number;
+  label: string;
+  created_at: string;
+  created_by: string;
+}
+
+/** Save a snapshot of the current plan */
+export async function savePlanSnapshot(
+  projectId: string,
+  label?: string,
+): Promise<{ success: boolean; version: number }> {
+  return apiFetch(`/projects/${projectId}/snapshots`, {
+    method: 'POST',
+    body: JSON.stringify({ label }),
+  });
+}
+
+/** List all plan snapshots */
+export async function fetchPlanSnapshots(projectId: string): Promise<PlanSnapshot[]> {
+  const data = await apiFetch<{ snapshots: PlanSnapshot[] }>(
+    `/projects/${projectId}/snapshots`
+  );
+  return data.snapshots;
+}
+
+/** Restore a plan snapshot */
+export async function restorePlanSnapshot(
+  projectId: string,
+  version: number,
+): Promise<{ success: boolean; restoredVersion: number; nodesRestored: number }> {
+  return apiFetch(`/projects/${projectId}/snapshots/${version}/restore`, {
+    method: 'POST',
   });
 }
 

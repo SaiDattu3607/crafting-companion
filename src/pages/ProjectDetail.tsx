@@ -5,9 +5,11 @@ import { soundManager } from '@/lib/sound';
 import {
   fetchProject, contributeToNode, addProjectMember,
   fetchContributions, fetchBottleneck, fetchProgress,
-  updateNodeEnchantments,
+  updateNodeEnchantments, updateMemberRole,
+  fetchTaskSuggestions, savePlanSnapshot, fetchPlanSnapshots, restorePlanSnapshot,
   type Project, type CraftingNode, type Contribution,
   type BottleneckItem, type ProjectProgress, type ProjectMember,
+  type MemberRole, type SuggestedTask, type PlanSnapshot,
 } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +17,8 @@ import { Progress } from '@/components/ui/progress';
 import {
   ArrowLeft, AlertTriangle, CheckCircle, Clock, Ban,
   UserPlus, RefreshCw, Loader2, Layers, Activity,
-  Sparkles, Pencil, Check, X, BookOpen, ChevronDown, ChevronUp
+  Sparkles, Pencil, Check, X, BookOpen, ChevronDown, ChevronUp,
+  ClipboardList, Save, History, HardHat, Hammer, BrainCircuit, Users
 } from 'lucide-react';
 import { getBookRequirements, toRoman, getBestStrategy } from '@/lib/enchantmentBooks';
 
@@ -33,8 +36,20 @@ const ProjectDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [collabEmail, setCollabEmail] = useState('');
+  const [collabRole, setCollabRole] = useState<MemberRole>('member');
   const [collabError, setCollabError] = useState('');
   const [contributing, setContributing] = useState<string | null>(null);
+
+  // Role-based tasks
+  const [myRole, setMyRole] = useState<MemberRole>('member');
+  const [suggestedTasks, setSuggestedTasks] = useState<SuggestedTask[]>([]);
+
+  // Plan versioning
+  const [snapshots, setSnapshots] = useState<PlanSnapshot[]>([]);
+  const [savingSnapshot, setSavingSnapshot] = useState(false);
+  const [restoringVersion, setRestoringVersion] = useState<number | null>(null);
+  const [snapshotLabel, setSnapshotLabel] = useState('');
+  const [showVersions, setShowVersions] = useState(false);
 
   // Enchantment editing state
   const [editingEnchantments, setEditingEnchantments] = useState<string | null>(null);
@@ -68,6 +83,15 @@ const ProjectDetail = () => {
       setBottlenecks(bottleneckData);
       setProgress(progressData);
       setError('');
+
+      // Load tasks & snapshots in parallel
+      const [taskData, snapshotData] = await Promise.all([
+        fetchTaskSuggestions(id).catch(() => ({ role: 'member' as MemberRole, tasks: [] })),
+        fetchPlanSnapshots(id).catch(() => []),
+      ]);
+      setMyRole(taskData.role);
+      setSuggestedTasks(taskData.tasks);
+      setSnapshots(snapshotData);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -134,11 +158,51 @@ const ProjectDetail = () => {
     setCollabError('');
     if (!collabEmail.trim()) return;
     try {
-      await addProjectMember(id!, collabEmail.trim());
+      await addProjectMember(id!, collabEmail.trim(), collabRole);
       setCollabEmail('');
+      setCollabRole('member');
       await loadProject();
     } catch (err) {
       setCollabError((err as Error).message);
+    }
+  };
+
+  const handleChangeRole = async (userId: string, newRole: MemberRole) => {
+    try {
+      await updateMemberRole(id!, userId, newRole);
+      soundManager.playSound('button');
+      await loadProject();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const handleSaveSnapshot = async () => {
+    setSavingSnapshot(true);
+    try {
+      await savePlanSnapshot(id!, snapshotLabel || undefined);
+      soundManager.playSound('craft');
+      setSnapshotLabel('');
+      // Reload snapshots
+      const snapshotData = await fetchPlanSnapshots(id!);
+      setSnapshots(snapshotData);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSavingSnapshot(false);
+    }
+  };
+
+  const handleRestoreSnapshot = async (version: number) => {
+    setRestoringVersion(version);
+    try {
+      await restorePlanSnapshot(id!, version);
+      soundManager.playSound('craft');
+      await loadProject();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setRestoringVersion(null);
     }
   };
 
@@ -504,35 +568,195 @@ const ProjectDetail = () => {
           {/* Collaboration */}
           <div className="glass-strong rounded-2xl border border-white/5 p-6">
             <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
-              <UserPlus className="w-4 h-4" /> Collaboration
+              <Users className="w-4 h-4" /> Team & Roles
             </h2>
-            <div className="flex gap-2">
+
+            {/* Invite form with role picker */}
+            <div className="flex gap-2 flex-wrap">
               <Input
                 value={collabEmail}
                 onChange={e => setCollabEmail(e.target.value)}
                 placeholder="Enter email to invite…"
-                className="bg-secondary/60 border-white/8 rounded-xl h-10 focus:border-primary/50"
+                className="bg-secondary/60 border-white/8 rounded-xl h-10 focus:border-primary/50 flex-1 min-w-[160px]"
               />
+              <select
+                value={collabRole}
+                onChange={e => setCollabRole(e.target.value as MemberRole)}
+                className="bg-secondary/60 border border-white/8 rounded-xl px-3 py-2 text-sm text-foreground h-10"
+              >
+                <option value="member">Member</option>
+                <option value="miner">⛏ Miner</option>
+                <option value="builder">🔨 Builder</option>
+                <option value="planner">🧠 Planner</option>
+              </select>
               <Button onClick={handleAddCollaborator} variant="outline"
                 className="rounded-xl border-white/10 hover:border-primary/40 hover:text-primary gap-1.5 px-4 h-10">
                 <UserPlus className="w-4 h-4" /> Invite
               </Button>
             </div>
             {collabError && <p className="text-destructive text-sm mt-2">{collabError}</p>}
+
+            {/* Member list with role management */}
             {members.length > 0 && (
-              <div className="mt-6 flex flex-wrap gap-2">
-                {members.map(m => (
-                  <div key={m.user_id} className="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full">
-                    <div className="w-5 h-5 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-[10px] text-primary font-bold">
-                      {((m.profiles as any)?.full_name || (m.profiles as any)?.email || 'U')[0].toUpperCase()}
+              <div className="mt-5 space-y-2">
+                {members.map(m => {
+                  const isOwner = m.role === 'owner';
+                  const isProjectOwner = project.owner_id === user?.id;
+                  const memberName = (m.profiles as any)?.full_name || (m.profiles as any)?.email || 'User';
+                  const roleIcon = m.role === 'miner' ? <HardHat className="w-3 h-3" /> :
+                                   m.role === 'builder' ? <Hammer className="w-3 h-3" /> :
+                                   m.role === 'planner' ? <BrainCircuit className="w-3 h-3" /> :
+                                   m.role === 'owner' ? <Sparkles className="w-3 h-3" /> : null;
+                  const roleColor = m.role === 'miner' ? 'text-amber-400' :
+                                    m.role === 'builder' ? 'text-blue-400' :
+                                    m.role === 'planner' ? 'text-purple-400' :
+                                    m.role === 'owner' ? 'text-emerald-400' : 'text-muted-foreground';
+
+                  return (
+                    <div key={m.user_id} className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-colors">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-full bg-primary/15 border border-primary/25 flex items-center justify-center text-xs text-primary font-bold">
+                          {memberName[0].toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-foreground leading-tight">{memberName}</p>
+                          <div className={`flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider ${roleColor}`}>
+                            {roleIcon}
+                            <span>{m.role}</span>
+                          </div>
+                        </div>
+                      </div>
+                      {isProjectOwner && !isOwner && (
+                        <select
+                          value={m.role}
+                          onChange={e => handleChangeRole(m.user_id, e.target.value as MemberRole)}
+                          className="bg-secondary/60 border border-white/8 rounded-lg px-2 py-1 text-[11px] text-foreground cursor-pointer"
+                        >
+                          <option value="member">Member</option>
+                          <option value="miner">⛏ Miner</option>
+                          <option value="builder">🔨 Builder</option>
+                          <option value="planner">🧠 Planner</option>
+                        </select>
+                      )}
                     </div>
-                    <span className="text-xs text-foreground font-medium">
-                      {(m.profiles as any)?.full_name || (m.profiles as any)?.email}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground capitalize">{m.role}</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
+            )}
+          </div>
+
+          {/* Your Tasks (role-based suggestions) */}
+          {suggestedTasks.length > 0 && (
+            <div className="glass-strong rounded-2xl border border-white/5 p-6">
+              <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-widest mb-1 flex items-center gap-2">
+                <ClipboardList className="w-4 h-4 text-primary" /> Your Tasks
+              </h2>
+              <p className="text-[10px] text-muted-foreground mb-4">
+                Based on your role: <span className="font-bold text-foreground capitalize">{myRole}</span>
+              </p>
+              <div className="space-y-2">
+                {suggestedTasks.slice(0, 8).map(task => {
+                  const priorityColor = task.priority === 'high' ? 'border-red-500/25 bg-red-500/5' :
+                                        task.priority === 'medium' ? 'border-amber-500/25 bg-amber-500/5' :
+                                        'border-white/5 bg-white/[0.02]';
+                  const priorityDot = task.priority === 'high' ? 'bg-red-400' :
+                                      task.priority === 'medium' ? 'bg-amber-400' : 'bg-white/30';
+                  const actionIcon = task.action === 'collect' ? '📦' :
+                                     task.action === 'craft' ? '⚒' :
+                                     task.action === 'plan' ? '📋' : '🔍';
+
+                  return (
+                    <div key={task.id} className={`p-3 rounded-xl border ${priorityColor} transition-colors`}>
+                      <div className="flex items-start gap-2.5">
+                        <span className="text-sm mt-0.5">{actionIcon}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <div className={`w-1.5 h-1.5 rounded-full ${priorityDot}`} />
+                            <span className="text-xs font-bold text-foreground">{task.displayName}</span>
+                            <span className="text-[10px] text-muted-foreground">×{task.qty}</span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">{task.reason}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Plan Versioning */}
+          <div className="glass-strong rounded-2xl border border-white/5 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                <History className="w-4 h-4 text-primary" /> Plan Versions
+              </h2>
+              <span className="text-[10px] text-muted-foreground bg-white/5 px-2 py-0.5 rounded-full">
+                v{(project as any).plan_version || 1}
+              </span>
+            </div>
+
+            {/* Save snapshot */}
+            <div className="flex gap-2 mb-4">
+              <Input
+                value={snapshotLabel}
+                onChange={e => setSnapshotLabel(e.target.value)}
+                placeholder="Snapshot label (optional)…"
+                className="bg-secondary/60 border-white/8 rounded-xl h-9 text-sm focus:border-primary/50"
+              />
+              <Button
+                onClick={handleSaveSnapshot}
+                disabled={savingSnapshot}
+                variant="outline"
+                className="rounded-xl border-white/10 hover:border-primary/40 hover:text-primary gap-1.5 px-3 h-9 text-xs"
+              >
+                {savingSnapshot ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                Save
+              </Button>
+            </div>
+
+            {/* Snapshot list */}
+            {snapshots.length > 0 ? (
+              <div>
+                <button
+                  onClick={() => setShowVersions(!showVersions)}
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mb-2"
+                >
+                  {showVersions ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                  {snapshots.length} saved version{snapshots.length !== 1 ? 's' : ''}
+                </button>
+
+                {showVersions && (
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                    {snapshots.map(snap => (
+                      <div key={snap.id} className="flex items-center justify-between p-2.5 rounded-lg bg-white/[0.02] border border-white/5">
+                        <div>
+                          <p className="text-xs font-semibold text-foreground">
+                            v{snap.version} — {snap.label}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {new Date(snap.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                        {project.owner_id === user?.id && (
+                          <Button
+                            size="sm" variant="ghost"
+                            onClick={() => handleRestoreSnapshot(snap.version)}
+                            disabled={restoringVersion === snap.version}
+                            className="h-7 px-2.5 text-[10px] rounded-lg text-muted-foreground hover:text-primary"
+                          >
+                            {restoringVersion === snap.version
+                              ? <Loader2 className="w-3 h-3 animate-spin" />
+                              : 'Restore'}
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground/50 text-center py-2">No saved versions yet</p>
             )}
           </div>
         </div>
@@ -610,20 +834,32 @@ const ProjectDetail = () => {
               <div className="space-y-6 relative before:absolute before:left-[13px] before:top-2 before:bottom-2 before:w-px before:bg-white/5">
                 {contributions.slice(0, 10).map(c => (
                   <div key={c.id} className="flex gap-4 relative">
-                    <div className="w-7 h-7 rounded-full bg-secondary border border-white/10 flex items-center justify-center text-[10px] font-black text-primary z-10">
-                      {((c.profiles as any)?.full_name || (c.profiles as any)?.email || 'U')[0].toUpperCase()}
+                    <div className={`w-7 h-7 rounded-full border border-white/10 flex items-center justify-center text-[10px] font-black z-10 ${
+                      c.action === 'restored' ? 'bg-amber-900/50 text-amber-400' : 'bg-secondary text-primary'
+                    }`}>
+                      {c.action === 'restored' ? '↺' : ((c.profiles as any)?.full_name || (c.profiles as any)?.email || 'U')[0].toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs leading-normal">
-                        <span className="font-bold text-foreground">
-                          {(c.profiles as any)?.full_name || (c.profiles as any)?.email}
-                        </span>
-                        <span className="text-muted-foreground"> {c.action} </span>
-                        <span className="text-primary font-bold">
-                          {(c.crafting_nodes as any)?.display_name || 'item'}
-                        </span>
-                        <span className="text-muted-foreground"> ×{c.quantity}</span>
-                      </p>
+                      {c.action === 'restored' ? (
+                        <p className="text-xs leading-normal">
+                          <span className="font-bold text-amber-400">
+                            {(c.profiles as any)?.full_name || (c.profiles as any)?.email}
+                          </span>
+                          <span className="text-muted-foreground"> restored plan to </span>
+                          <span className="text-amber-400 font-bold">Version {c.quantity}</span>
+                        </p>
+                      ) : (
+                        <p className="text-xs leading-normal">
+                          <span className="font-bold text-foreground">
+                            {(c.profiles as any)?.full_name || (c.profiles as any)?.email}
+                          </span>
+                          <span className="text-muted-foreground"> {c.action} </span>
+                          <span className="text-primary font-bold">
+                            {(c.crafting_nodes as any)?.display_name || 'item'}
+                          </span>
+                          <span className="text-muted-foreground"> ×{c.quantity}</span>
+                        </p>
+                      )}
                       <p className="text-[10px] text-muted-foreground/50 mt-1 uppercase tracking-tighter">
                         {new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </p>
