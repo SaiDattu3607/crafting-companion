@@ -1,16 +1,36 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { getProjects, type Project } from '@/lib/storage';
+import { fetchProjects, type Project } from '@/lib/api';
 import { Button } from '@/components/ui/button';
-import { Plus, LogOut } from 'lucide-react';
+import { Plus, LogOut, Loader2 } from 'lucide-react';
 import ProjectCard from '@/components/ProjectCard';
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [projects] = useState<Project[]>(() => user ? getProjects(user.id) : []);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [loggingOut, setLoggingOut] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    loadProjects();
+  }, [user]);
+
+  const loadProjects = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const data = await fetchProjects();
+      setProjects(data);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!user) {
     navigate('/auth');
@@ -45,7 +65,18 @@ const Dashboard = () => {
           </Button>
         </div>
 
-        {projects.length === 0 ? (
+        {error && (
+          <div className="p-4 mb-4 pixel-border bg-destructive/10 text-destructive">
+            {error}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="text-center py-20 pixel-border bg-card">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+            <p className="text-xl text-muted-foreground">Loading projects...</p>
+          </div>
+        ) : projects.length === 0 ? (
           <div className="text-center py-20 pixel-border bg-card">
             <p className="text-3xl mb-2">🪨</p>
             <p className="text-xl text-muted-foreground mb-4">No crafting projects yet</p>

@@ -1,6 +1,6 @@
-import { calculateProgress, type Project } from '@/lib/storage';
+import { type Project } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
 
 interface Props {
   project: Project;
@@ -8,23 +8,27 @@ interface Props {
 }
 
 const ProjectCard = ({ project, onClick }: Props) => {
-  const progress = calculateProgress(project);
-
   return (
     <Card
       className="pixel-border cursor-pointer hover:border-primary transition-colors bg-card"
       onClick={onClick}
     >
       <CardHeader className="pb-2">
-        <CardTitle className="text-xs font-pixel">{project.name}</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-xs font-pixel">{project.name}</CardTitle>
+          <Badge variant={project.status === 'completed' ? 'default' : 'secondary'} className="text-xs">
+            {project.status}
+          </Badge>
+        </div>
         <p className="text-lg text-muted-foreground">{project.description}</p>
       </CardHeader>
       <CardContent>
-        <div className="flex items-center justify-between text-lg mb-2">
-          <span className="text-muted-foreground">{project.requirements.length} items</span>
-          <span className={progress === 100 ? 'text-craft-complete' : 'text-craft-pending'}>{progress}%</span>
+        <div className="flex items-center justify-between text-lg">
+          <span className="text-muted-foreground">🎯 {project.root_item_name?.replace(/_/g, ' ')}</span>
+          {project.role && (
+            <Badge variant="outline" className="text-xs">{project.role}</Badge>
+          )}
         </div>
-        <Progress value={progress} className="h-3 bg-secondary [&>div]:bg-primary" />
       </CardContent>
     </Card>
   );
