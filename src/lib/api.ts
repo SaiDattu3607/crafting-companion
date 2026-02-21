@@ -84,7 +84,7 @@ export interface ProjectMember {
 export interface Contribution {
   id: string;
   quantity: number;
-  action: 'collected' | 'crafted' | 'milestone' | 'restored';
+  action: 'collected' | 'crafted' | 'milestone' | 'restored' | 'saved';
   created_at: string;
   user_id: string;
   node_id: string;

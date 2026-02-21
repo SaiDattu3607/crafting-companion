@@ -301,8 +301,8 @@ router.post('/:projectId/members', async (req: Request, res: Response) => {
 });
 
 // ── PATCH /api/projects/:projectId/members/:userId/role ────────
-// Update a member's role (owner only)
-router.patch('/:projectId/members/:userId/role', async (req: Request, res: Response) => {
+// Update a member's role
+router.patch('/:projectId/members/:userId/role', authMiddleware, async (req: Request, res: Response) => {
   try {
     const { projectId, userId } = req.params;
     const { role } = req.body;
@@ -314,24 +314,28 @@ router.patch('/:projectId/members/:userId/role', async (req: Request, res: Respo
 
     const sb = supabaseForUser(req.accessToken!);
 
-    // Verify ownership
+    // Verify the caller is the project owner OR changing their own role
     const { data: project } = await sb
       .from('projects')
       .select('owner_id')
       .eq('id', projectId)
       .single();
 
-    if (!project || project.owner_id !== req.userId) {
-      res.status(403).json({ error: 'Only the project owner can update roles' });
+    if (!project) {
+      res.status(404).json({ error: 'Project not found' });
       return;
     }
 
-    // Can't change owner's role
-    if (userId === project.owner_id) {
-      res.status(400).json({ error: 'Cannot change the owner\'s role' });
+    const isProjectOwner = project.owner_id === req.userId;
+    const isSelf = userId === req.userId;
+
+    if (!isProjectOwner && !isSelf) {
+      res.status(403).json({ error: 'Only the project owner or yourself can update roles' });
       return;
     }
 
+    // Owner can change their own role (for task specialization)
+    // RLS policy now allows owners to update any member & members to update self
     const { error } = await sb
       .from('project_members')
       .update({ role })
@@ -339,6 +343,7 @@ router.patch('/:projectId/members/:userId/role', async (req: Request, res: Respo
       .eq('user_id', userId);
 
     if (error) {
+      console.error('[Role] Update error:', error.message);
       res.status(500).json({ error: error.message });
       return;
     }
@@ -382,13 +387,15 @@ router.get('/:projectId/tasks', projectMemberGuard, async (req: Request, res: Re
     const incomplete = nodes.filter((n: any) => n.collected_qty < n.required_qty);
     const tasks: { id: string; action: string; item: string; displayName: string; qty: number; priority: 'high' | 'medium' | 'low'; reason: string }[] = [];
 
-    if (role === 'miner' || role === 'member' || role === 'owner') {
-      // Miners: focus on raw resources
+    // Role-specific tasks: each role sees ONLY their relevant tasks
+    // 'member' and 'owner' see a general mix (fallback)
+    if (role === 'miner') {
+      // Miners: focus on raw resources only
       const resources = incomplete
         .filter((n: any) => n.is_resource)
         .sort((a: any, b: any) => (b.required_qty - b.collected_qty) - (a.required_qty - a.collected_qty));
 
-      for (const r of resources.slice(0, 8)) {
+      for (const r of resources.slice(0, 10)) {
         const remaining = r.required_qty - r.collected_qty;
         tasks.push({
           id: r.id,
@@ -397,12 +404,10 @@ router.get('/:projectId/tasks', projectMemberGuard, async (req: Request, res: Re
           displayName: r.display_name,
           qty: remaining,
           priority: remaining > 32 ? 'high' : remaining > 8 ? 'medium' : 'low',
-          reason: `Need ${remaining} more ${r.display_name}`,
+          reason: `Mine/collect ${remaining} more ${r.display_name}`,
         });
       }
-    }
-
-    if (role === 'builder' || role === 'member' || role === 'owner') {
+    } else if (role === 'builder') {
       // Builders: focus on craftable items whose children are done
       const craftable = incomplete.filter((n: any) => {
         if (n.is_resource) return false;
@@ -410,7 +415,7 @@ router.get('/:projectId/tasks', projectMemberGuard, async (req: Request, res: Re
         return children.length > 0 && children.every((c: any) => c.collected_qty >= c.required_qty);
       });
 
-      for (const c of craftable.slice(0, 6)) {
+      for (const c of craftable.slice(0, 8)) {
         const remaining = c.required_qty - c.collected_qty;
         tasks.push({
           id: c.id,
@@ -422,9 +427,7 @@ router.get('/:projectId/tasks', projectMemberGuard, async (req: Request, res: Re
           reason: `All ingredients ready — craft ${remaining}× ${c.display_name}`,
         });
       }
-    }
-
-    if (role === 'planner' || role === 'member' || role === 'owner') {
+    } else if (role === 'planner') {
       // Planners: highlight bottlenecks and enchantment requirements
       const enchanted = nodes.filter((n: any) => n.enchantments && n.enchantments.length > 0 && n.collected_qty < n.required_qty);
       for (const e of enchanted.slice(0, 3)) {
@@ -440,25 +443,82 @@ router.get('/:projectId/tasks', projectMemberGuard, async (req: Request, res: Re
         });
       }
 
-      // Also flag heavy-demand resources
+      // Flag heavy-demand resources for planning
       const heavyResources = incomplete
         .filter((n: any) => n.is_resource && (n.required_qty - n.collected_qty) > 16)
         .sort((a: any, b: any) => (b.required_qty - b.collected_qty) - (a.required_qty - a.collected_qty))
-        .slice(0, 3);
+        .slice(0, 5);
 
       for (const r of heavyResources) {
-        const already = tasks.find(t => t.id === r.id);
-        if (!already) {
-          tasks.push({
-            id: r.id,
-            action: 'review',
-            item: r.item_name,
-            displayName: r.display_name,
-            qty: r.required_qty - r.collected_qty,
-            priority: 'low',
-            reason: `High-demand resource: ${r.required_qty - r.collected_qty} needed`,
-          });
-        }
+        tasks.push({
+          id: r.id,
+          action: 'review',
+          item: r.item_name,
+          displayName: r.display_name,
+          qty: r.required_qty - r.collected_qty,
+          priority: 'low',
+          reason: `High-demand resource: ${r.required_qty - r.collected_qty} needed`,
+        });
+      }
+
+      // Also flag items that are close to being craftable (almost ready)
+      const almostReady = incomplete.filter((n: any) => {
+        if (n.is_resource) return false;
+        const children = nodes.filter((c: any) => c.parent_id === n.id);
+        if (children.length === 0) return false;
+        const doneCount = children.filter((c: any) => c.collected_qty >= c.required_qty).length;
+        return doneCount > 0 && doneCount < children.length; // partially done
+      }).slice(0, 4);
+
+      for (const a of almostReady) {
+        const children = nodes.filter((c: any) => c.parent_id === a.id);
+        const doneCount = children.filter((c: any) => c.collected_qty >= c.required_qty).length;
+        tasks.push({
+          id: a.id,
+          action: 'review',
+          item: a.item_name,
+          displayName: a.display_name,
+          qty: a.required_qty - a.collected_qty,
+          priority: 'medium',
+          reason: `${doneCount}/${children.length} ingredients ready — coordinate remaining`,
+        });
+      }
+    } else {
+      // 'member' or 'owner' (hasn't picked a specialization) — show a general mix
+      const resources = incomplete
+        .filter((n: any) => n.is_resource)
+        .sort((a: any, b: any) => (b.required_qty - b.collected_qty) - (a.required_qty - a.collected_qty));
+
+      for (const r of resources.slice(0, 5)) {
+        const remaining = r.required_qty - r.collected_qty;
+        tasks.push({
+          id: r.id,
+          action: 'collect',
+          item: r.item_name,
+          displayName: r.display_name,
+          qty: remaining,
+          priority: remaining > 32 ? 'high' : remaining > 8 ? 'medium' : 'low',
+          reason: `Need ${remaining} more ${r.display_name}`,
+        });
+      }
+
+      const craftable = incomplete.filter((n: any) => {
+        if (n.is_resource) return false;
+        const children = nodes.filter((c: any) => c.parent_id === n.id);
+        return children.length > 0 && children.every((c: any) => c.collected_qty >= c.required_qty);
+      });
+
+      for (const c of craftable.slice(0, 4)) {
+        const remaining = c.required_qty - c.collected_qty;
+        tasks.push({
+          id: c.id,
+          action: 'craft',
+          item: c.item_name,
+          displayName: c.display_name,
+          qty: remaining,
+          priority: c.depth === 0 ? 'high' : c.depth <= 2 ? 'medium' : 'low',
+          reason: `All ingredients ready — craft ${remaining}× ${c.display_name}`,
+        });
       }
     }
 
@@ -539,6 +599,18 @@ router.post('/:projectId/snapshots', projectMemberGuard, async (req: Request, re
       .update({ plan_version: newVersion })
       .eq('id', projectId);
 
+    // Log a "saved" activity entry in the feed
+    const rootNode = (nodes || []).find((n: any) => n.depth === 0);
+    if (rootNode) {
+      await sb.from('contributions').insert({
+        project_id: projectId,
+        node_id: rootNode.id,
+        user_id: req.userId!,
+        quantity: newVersion,
+        action: 'saved',
+      });
+    }
+
     res.status(201).json({ success: true, version: newVersion });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
@@ -571,12 +643,14 @@ router.get('/:projectId/snapshots', projectMemberGuard, async (req: Request, res
 
 // ── POST /api/projects/:projectId/snapshots/:version/restore ───
 // Restore a previous plan snapshot (nodes, contributions, member roles)
+// Restore uses the authenticated user's client — RLS policies allow owners to
+// DELETE nodes, INSERT nodes/contributions, and UPDATE member roles.
 router.post('/:projectId/snapshots/:version/restore', projectMemberGuard, async (req: Request, res: Response) => {
   try {
     const { projectId, version } = req.params;
     const sb = supabaseForUser(req.accessToken!);
 
-    // Verify ownership
+    // Verify ownership (via user's client for proper RLS)
     const { data: project } = await sb
       .from('projects')
       .select('owner_id')
@@ -588,18 +662,21 @@ router.post('/:projectId/snapshots/:version/restore', projectMemberGuard, async 
       return;
     }
 
-    // Get snapshot
-    const { data: snapshot } = await sb
+    // Get snapshot — try user client first (has RLS read access), fall back to admin
+    let snapshot: any = null;
+    const { data: snapData, error: snapErr1 } = await sb
       .from('plan_snapshots')
       .select('snapshot')
       .eq('project_id', projectId)
       .eq('version', Number(version))
-      .single();
+      .maybeSingle();
 
-    if (!snapshot) {
+    if (snapErr1 || !snapData) {
+      console.error('[Restore] Snapshot not found:', snapErr1?.message);
       res.status(404).json({ error: 'Snapshot not found' });
       return;
     }
+    snapshot = snapData;
 
     // Handle both old format (plain array) and new format ({ nodes, members, contributions })
     const rawSnapshot = snapshot.snapshot as any;
@@ -608,11 +685,20 @@ router.post('/:projectId/snapshots/:version/restore', projectMemberGuard, async 
     const snapshotMembers: any[] = isOldFormat ? [] : (rawSnapshot.members || []);
     const snapshotContributions: any[] = isOldFormat ? [] : (rawSnapshot.contributions || []);
 
+    console.log(`[Restore] Project ${projectId} → v${version}: ${snapshotNodes.length} nodes, ${snapshotMembers.length} members, ${snapshotContributions.length} contributions`);
+
     // ─── 1. Delete current nodes (cascades contributions via FK) ───
-    await sb
+    // RLS policy now allows project owners to delete nodes
+    const { error: deleteErr } = await sb
       .from('crafting_nodes')
       .delete()
       .eq('project_id', projectId);
+
+    if (deleteErr) {
+      console.error('[Restore] Delete nodes error:', deleteErr.message);
+      res.status(500).json({ error: `Failed to clear current nodes: ${deleteErr.message}` });
+      return;
+    }
 
     // ─── 2. Re-insert nodes level by level ─────────────────────────
     const oldIdToNew = new Map<string, string>();
@@ -656,6 +742,7 @@ router.post('/:projectId/snapshots/:version/restore', projectMemberGuard, async 
         .select('id');
 
       if (error) {
+        console.error(`[Restore] Insert nodes depth ${d} error:`, error.message);
         res.status(500).json({ error: `Restore failed at depth ${d}: ${error.message}` });
         return;
       }
@@ -667,14 +754,16 @@ router.post('/:projectId/snapshots/:version/restore', projectMemberGuard, async 
       }
     }
 
+    console.log(`[Restore] Inserted ${oldIdToNew.size} nodes`);
+
     // ─── 3. Restore contributions with remapped node_ids ───────────
+    // RLS policy now allows project owners to insert contributions for any user
     if (snapshotContributions.length > 0) {
-      // Build contribution rows with updated node_ids
       const contribRows = snapshotContributions
         .filter((c: any) => c.action !== 'restored') // skip old restore markers
         .map((c: any) => {
           const newNodeId = oldIdToNew.get(c.node_id);
-          if (!newNodeId) return null; // skip if node wasn't in snapshot
+          if (!newNodeId) return null;
           return {
             project_id: projectId,
             node_id: newNodeId,
@@ -687,41 +776,52 @@ router.post('/:projectId/snapshots/:version/restore', projectMemberGuard, async 
         .filter(Boolean);
 
       if (contribRows.length > 0) {
-        // Insert in batches to avoid payload limits
         const BATCH = 200;
         for (let i = 0; i < contribRows.length; i += BATCH) {
           const batch = contribRows.slice(i, i + BATCH);
-          await sb.from('contributions').insert(batch);
+          const { error: contribErr } = await sb.from('contributions').insert(batch);
+          if (contribErr) {
+            console.error('[Restore] Insert contributions error:', contribErr.message);
+          }
         }
       }
+      console.log(`[Restore] Restored ${contribRows.length} contributions`);
     }
 
     // ─── 4. Add a "restored" activity entry ────────────────────────
-    // Find a root node to attach the restore event to
     const rootNodeOldId = snapshotNodes.find((n: any) => n.depth === 0)?.id;
     const rootNodeNewId = rootNodeOldId ? oldIdToNew.get(rootNodeOldId) : null;
     if (rootNodeNewId) {
-      await sb.from('contributions').insert({
+      const { error: restoreLogErr } = await sb.from('contributions').insert({
         project_id: projectId,
         node_id: rootNodeNewId,
         user_id: req.userId!,
         quantity: Number(version),
         action: 'restored',
       });
+      if (restoreLogErr) {
+        console.error('[Restore] Log restore event error:', restoreLogErr.message);
+      }
     }
 
     // ─── 5. Restore member roles ───────────────────────────────────
+    // RLS policy allows project owners to update any member's role
     if (snapshotMembers.length > 0) {
       for (const m of snapshotMembers) {
-        // Don't change owner role
         if (m.role === 'owner') continue;
-        await sb
+        const { error: roleErr } = await sb
           .from('project_members')
           .update({ role: m.role })
           .eq('project_id', projectId)
           .eq('user_id', m.user_id);
+        if (roleErr) {
+          console.error(`[Restore] Role update error for ${m.user_id}:`, roleErr.message);
+        }
       }
+      console.log(`[Restore] Restored ${snapshotMembers.length} member roles`);
     }
+
+    console.log(`[Restore] ✓ Complete — v${version} restored for project ${projectId}`);
 
     res.json({
       success: true,
@@ -731,6 +831,7 @@ router.post('/:projectId/snapshots/:version/restore', projectMemberGuard, async 
       membersRestored: snapshotMembers.length,
     });
   } catch (err) {
+    console.error('[Restore] Uncaught error:', (err as Error).message);
     res.status(500).json({ error: (err as Error).message });
   }
 });

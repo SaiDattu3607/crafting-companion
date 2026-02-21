@@ -639,16 +639,17 @@ const ProjectDetail = () => {
                           </div>
                         </div>
                       </div>
-                      {isProjectOwner && !isOwner && (
+                      {/* Role dropdown: project owner can change anyone's role including their own */}
+                      {(isProjectOwner || isCurrentUser) && (
                         <select
                           value={m.role}
                           onChange={e => handleChangeRole(m.user_id, e.target.value as MemberRole)}
                           className="bg-secondary/60 border border-white/8 rounded-lg px-2 py-1 text-[11px] text-foreground cursor-pointer"
                         >
-                          <option value="member">Member</option>
                           <option value="miner">⛏ Miner</option>
                           <option value="builder">🔨 Builder</option>
                           <option value="planner">🧠 Planner</option>
+                          <option value="member">General</option>
                         </select>
                       )}
                     </div>
@@ -659,14 +660,19 @@ const ProjectDetail = () => {
           </div>
 
           {/* Your Tasks (role-based suggestions) */}
-          {suggestedTasks.length > 0 && (
-            <div className="glass-strong rounded-2xl border border-white/5 p-6">
-              <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-widest mb-1 flex items-center gap-2">
-                <ClipboardList className="w-4 h-4 text-primary" /> Your Tasks
-              </h2>
-              <p className="text-[10px] text-muted-foreground mb-4">
-                Based on your role: <span className="font-bold text-foreground capitalize">{myRole}</span>
-              </p>
+          <div className="glass-strong rounded-2xl border border-white/5 p-6">
+            <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-widest mb-1 flex items-center gap-2">
+              <ClipboardList className="w-4 h-4 text-primary" /> Your Tasks
+            </h2>
+            <p className="text-[10px] text-muted-foreground mb-4">
+              Based on your role: <span className="font-bold text-foreground capitalize">{myRole === 'owner' ? 'General (pick a role above!)' : myRole}</span>
+            </p>
+            {(myRole === 'owner' || myRole === 'member') && (
+              <div className="mb-4 p-3 rounded-xl bg-amber-500/5 border border-amber-500/15 text-xs text-amber-300/80">
+                💡 Pick a specialization (Miner, Builder, or Planner) in the Team section above to get focused tasks!
+              </div>
+            )}
+            {suggestedTasks.length > 0 ? (
               <div className="space-y-2">
                 {suggestedTasks.slice(0, 8).map(task => {
                   const priorityColor = task.priority === 'high' ? 'border-red-500/25 bg-red-500/5' :
@@ -695,8 +701,10 @@ const ProjectDetail = () => {
                   );
                 })}
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="text-xs text-muted-foreground/50 text-center py-4">No tasks to show right now</p>
+            )}
+          </div>
 
           {/* Plan Versioning */}
           <div className="glass-strong rounded-2xl border border-white/5 p-6">
@@ -886,6 +894,28 @@ const ProjectDetail = () => {
                             <span className="text-amber-400 font-bold">Version {c.quantity}</span>
                           </p>
                           <p className="text-[10px] text-muted-foreground/50 mt-1 uppercase tracking-tighter">
+                            {new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (c.action === 'saved') {
+                    return (
+                      <div key={c.id} className="flex gap-4 relative group">
+                        <div className="w-7 h-7 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center z-10">
+                          <Save className="w-3.5 h-3.5 text-blue-400" />
+                        </div>
+                        <div className="flex-1 min-w-0 bg-blue-500/5 border border-blue-500/10 rounded-xl p-3 transition-all group-hover:bg-blue-500/10">
+                          <p className="text-xs leading-normal">
+                            <span className="font-bold text-blue-400">
+                              {(c.profiles as any)?.full_name || (c.profiles as any)?.email}
+                            </span>
+                            <span className="text-muted-foreground"> saved plan as </span>
+                            <span className="text-blue-400 font-bold">Version {c.quantity}</span>
+                          </p>
+                          <p className="text-[10px] text-blue-500/50 mt-1 uppercase tracking-tighter">
                             {new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </p>
                         </div>
