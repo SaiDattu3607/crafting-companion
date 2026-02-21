@@ -38,4 +38,5 @@ router.post('/run-enchantments-migration', async (req: Request, res: Response) =
     }
 });
 
+
 export default router;

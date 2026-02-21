@@ -15,7 +15,7 @@ import { Progress } from '@/components/ui/progress';
 import {
   ArrowLeft, AlertTriangle, CheckCircle, Clock, Ban,
   UserPlus, RefreshCw, Loader2, Layers, Activity,
-  Sparkles, Pencil, Check, X, BookOpen, ChevronDown, ChevronUp
+  Sparkles, Pencil, Check, X, BookOpen, ChevronDown, ChevronUp, Trophy
 } from 'lucide-react';
 import { getBookRequirements, toRoman, getBestStrategy } from '@/lib/enchantmentBooks';
 
@@ -617,28 +617,54 @@ const ProjectDetail = () => {
               </div>
             ) : (
               <div className="space-y-6 relative before:absolute before:left-[13px] before:top-2 before:bottom-2 before:w-px before:bg-white/5">
-                {contributions.slice(0, 10).map(c => (
-                  <div key={c.id} className="flex gap-4 relative">
-                    <div className="w-7 h-7 rounded-full bg-secondary border border-white/10 flex items-center justify-center text-[10px] font-black text-primary z-10">
-                      {((c.profiles as any)?.full_name || (c.profiles as any)?.email || 'U')[0].toUpperCase()}
+                {contributions.slice(0, 15).map(c => {
+                  const isMilestone = c.action === 'milestone';
+                  const initials = ((c.profiles as any)?.full_name || (c.profiles as any)?.email || 'U')[0].toUpperCase();
+
+                  if (isMilestone) {
+                    return (
+                      <div key={c.id} className="flex gap-4 relative group">
+                        <div className="w-7 h-7 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center z-10 animate-pulse">
+                          <Trophy className="w-3.5 h-3.5 text-emerald-400" />
+                        </div>
+                        <div className="flex-1 min-w-0 bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-3 transform transition-all group-hover:scale-[1.02] group-hover:bg-emerald-500/10">
+                          <p className="text-xs leading-normal">
+                            <span className="font-black text-emerald-400 uppercase tracking-wider mr-2">Milestone</span>
+                            <span className="text-foreground">
+                              The team completed <span className="text-emerald-400 font-bold">{(c.crafting_nodes as any)?.display_name}</span>!
+                            </span>
+                          </p>
+                          <p className="text-[10px] text-emerald-500/50 mt-1 uppercase tracking-tighter">
+                            {new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={c.id} className="flex gap-4 relative">
+                      <div className="w-7 h-7 rounded-full bg-secondary border border-white/10 flex items-center justify-center text-[10px] font-black text-primary z-10">
+                        {initials}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs leading-normal">
+                          <span className="font-bold text-foreground">
+                            {(c.profiles as any)?.full_name || (c.profiles as any)?.email}
+                          </span>
+                          <span className="text-muted-foreground"> {c.action} </span>
+                          <span className="text-primary font-bold">
+                            {(c.crafting_nodes as any)?.display_name || 'item'}
+                          </span>
+                          <span className="text-muted-foreground"> ×{c.quantity}</span>
+                        </p>
+                        <p className="text-[10px] text-muted-foreground/50 mt-1 uppercase tracking-tighter">
+                          {new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs leading-normal">
-                        <span className="font-bold text-foreground">
-                          {(c.profiles as any)?.full_name || (c.profiles as any)?.email}
-                        </span>
-                        <span className="text-muted-foreground"> {c.action} </span>
-                        <span className="text-primary font-bold">
-                          {(c.crafting_nodes as any)?.display_name || 'item'}
-                        </span>
-                        <span className="text-muted-foreground"> ×{c.quantity}</span>
-                      </p>
-                      <p className="text-[10px] text-muted-foreground/50 mt-1 uppercase tracking-tighter">
-                        {new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

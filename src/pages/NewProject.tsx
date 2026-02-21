@@ -55,10 +55,7 @@ const NewProject = () => {
     e.preventDefault();
     if (!name.trim() || !selectedItem) return;
 
-<<<<<<< HEAD
-=======
     soundManager.playSound('button');
->>>>>>> 1aa224ae2bb03f9b6a9f54cc44589e999d964403
     setCreating(true);
     setError('');
     try {
