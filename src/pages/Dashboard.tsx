@@ -4,7 +4,7 @@ import { soundManager } from '@/lib/sound';
 import { useNavigate } from 'react-router-dom';
 import { fetchProjects, type Project } from '@/lib/api';
 import { Button } from '@/components/ui/button';
-import { Plus, LogOut, Loader2, FolderOpen, Pickaxe } from 'lucide-react';
+import { Plus, LogOut, Loader2, Pickaxe } from 'lucide-react';
 import ProjectCard from '@/components/ProjectCard';
 
 const Dashboard = () => {
@@ -41,11 +41,23 @@ const Dashboard = () => {
     navigate('/');
   };
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> f3740b6d1b476ba64aca0c6a48871c0e671277b8
   const handleNewProject = () => {
     soundManager.playSound('button');
     navigate('/new-project');
   };
 
+<<<<<<< HEAD
+=======
+>>>>>>> ba21255c2c8569e985ddf295ca732f654d9d2c1d
+>>>>>>> d8a183a6c9241ff83e2a9d8542fc353a485dbc01
+>>>>>>> f3740b6d1b476ba64aca0c6a48871c0e671277b8
   const initials = (user.full_name || user.email || 'U')
     .split(' ')
     .map((w: string) => w[0])
@@ -101,8 +113,13 @@ const Dashboard = () => {
             </p>
           </div>
           <Button
+<<<<<<< HEAD
+            onClick={() => { soundManager.playSound('button'); navigate('/new-project'); }}
+            className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl gap-2 px-5"
+=======
             onClick={handleNewProject}
             className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl gap-2"
+>>>>>>> d8a183a6c9241ff83e2a9d8542fc353a485dbc01
           >
             <Plus className="w-4 h-4" />
             New Project
@@ -133,7 +150,11 @@ const Dashboard = () => {
               Create your first crafting project to start tracking recipes and progress.
             </p>
             <Button
+<<<<<<< HEAD
+              onClick={() => { soundManager.playSound('button'); navigate('/new-project'); }}
+=======
               onClick={handleNewProject}
+>>>>>>> d8a183a6c9241ff83e2a9d8542fc353a485dbc01
               className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl gap-2"
             >
               <Plus className="w-4 h-4" />
@@ -143,7 +164,7 @@ const Dashboard = () => {
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {projects.map(p => (
-              <ProjectCard key={p.id} project={p} onClick={() => navigate(`/project/${p.id}`)} />
+              <ProjectCard key={p.id} project={p} onClick={() => { soundManager.playSound('button'); navigate(`/project/${p.id}`); }} />
             ))}
           </div>
         )}

@@ -22,6 +22,34 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <AuthProvider>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/auth" element={<AuthPage />} />
+            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/new-project" element={<ProtectedRoute><NewProject /></ProtectedRoute>} />
+            <Route path="/project/:id" element={<ProtectedRoute><ProjectDetail /></ProtectedRoute>} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
+      </BrowserRouter>
+    </TooltipProvider>
+  </QueryClientProvider>
+);
+=======
+>>>>>>> d8a183a6c9241ff83e2a9d8542fc353a485dbc01
+>>>>>>> f3740b6d1b476ba64aca0c6a48871c0e671277b8
 const App = () => {
   useEffect(() => {
     try {
@@ -57,5 +85,12 @@ const App = () => {
     </QueryClientProvider>
   );
 };
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> ba21255c2c8569e985ddf295ca732f654d9d2c1d
+>>>>>>> d8a183a6c9241ff83e2a9d8542fc353a485dbc01
+>>>>>>> f3740b6d1b476ba64aca0c6a48871c0e671277b8
 
 export default App;

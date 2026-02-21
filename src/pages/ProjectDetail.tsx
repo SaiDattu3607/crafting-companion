@@ -117,11 +117,27 @@ const ProjectDetail = () => {
     setContributing(nodeId);
     try {
       const result = await contributeToNode(id!, nodeId, 1, action);
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+      if (!result.success) setError(result.error || 'Contribution failed');
+=======
+>>>>>>> d8a183a6c9241ff83e2a9d8542fc353a485dbc01
+>>>>>>> f3740b6d1b476ba64aca0c6a48871c0e671277b8
       if (!result.success) {
         setError(result.error || 'Contribution failed');
       } else {
         soundManager.playSound(action === 'crafted' ? 'craft' : 'collect');
       }
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> ba21255c2c8569e985ddf295ca732f654d9d2c1d
+>>>>>>> d8a183a6c9241ff83e2a9d8542fc353a485dbc01
+>>>>>>> f3740b6d1b476ba64aca0c6a48871c0e671277b8
       await loadProject();
     } catch (err) {
       setError((err as Error).message);
@@ -336,47 +352,53 @@ const ProjectDetail = () => {
       </header>
 
       {/* Bottleneck banner */}
-      {topBottleneck && (
-        <div className="mx-6 mt-4 flex items-center gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/20">
-          <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0" />
-          <span className="text-sm">
-            <strong className="text-red-400">{topBottleneck.display_name}</strong>
-            {' '}is blocking {topBottleneck.blocked_ancestors} item{topBottleneck.blocked_ancestors > 1 ? 's' : ''} — needs {topBottleneck.remaining_qty} more
-          </span>
-        </div>
-      )}
+      {
+        topBottleneck && (
+          <div className="mx-6 mt-4 flex items-center gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/20">
+            <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0" />
+            <span className="text-sm">
+              <strong className="text-red-400">{topBottleneck.display_name}</strong>
+              {' '}is blocking {topBottleneck.blocked_ancestors} item{topBottleneck.blocked_ancestors > 1 ? 's' : ''} — needs {topBottleneck.remaining_qty} more
+            </span>
+          </div>
+        )
+      }
 
       {/* Enchantment Summary Panel */}
-      {rootNode && Array.isArray(rootNode.enchantments) && rootNode.enchantments.length > 0 && (
-        <div className="mx-6 mt-4 p-5 glass-strong border border-purple-500/20 rounded-2xl">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20">
-              <Sparkles className="w-5 h-5 text-purple-400" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-foreground">✨ Master Enchantment Plan</h2>
-              <p className="text-xs text-muted-foreground">Requirements for your {rootNode.display_name}</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            {rootNode.enchantments.map((en: any, i: number) => (
-              <div key={i} className="bg-purple-500/5 border border-purple-500/10 px-4 py-3 rounded-xl flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-300 font-mono text-sm">
-                  {toRoman(en.level)}
-                </div>
-                <span className="text-sm font-semibold text-purple-200">{en.name.replace(/_/g, ' ')}</span>
+      {
+        rootNode && Array.isArray(rootNode.enchantments) && rootNode.enchantments.length > 0 && (
+          <div className="mx-6 mt-4 p-5 glass-strong border border-purple-500/20 rounded-2xl">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20">
+                <Sparkles className="w-5 h-5 text-purple-400" />
               </div>
-            ))}
+              <div>
+                <h2 className="text-lg font-bold text-foreground">✨ Master Enchantment Plan</h2>
+                <p className="text-xs text-muted-foreground">Requirements for your {rootNode.display_name}</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {rootNode.enchantments.map((en: any, i: number) => (
+                <div key={i} className="bg-purple-500/5 border border-purple-500/10 px-4 py-3 rounded-xl flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-300 font-mono text-sm">
+                    {toRoman(en.level)}
+                  </div>
+                  <span className="text-sm font-semibold text-purple-200">{en.name.replace(/_/g, ' ')}</span>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
-      {error && (
-        <div className="mx-6 mt-4 flex items-center justify-between p-4 rounded-xl bg-destructive/10 border border-destructive/20">
-          <span className="text-destructive text-sm">{error}</span>
-          <Button variant="ghost" size="sm" onClick={() => setError('')} className="rounded-lg text-destructive hover:bg-destructive/10">✕</Button>
-        </div>
-      )}
+      {
+        error && (
+          <div className="mx-6 mt-4 flex items-center justify-between p-4 rounded-xl bg-destructive/10 border border-destructive/20">
+            <span className="text-destructive text-sm">{error}</span>
+            <Button variant="ghost" size="sm" onClick={() => setError('')} className="rounded-lg text-destructive hover:bg-destructive/10">✕</Button>
+          </div>
+        )
+      }
 
       <main className="max-w-7xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
 
@@ -621,7 +643,7 @@ const ProjectDetail = () => {
           </div>
         </div>
       </main>
-    </div>
+    </div >
   );
 };
 
