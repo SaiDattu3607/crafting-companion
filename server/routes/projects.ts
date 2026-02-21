@@ -229,6 +229,58 @@ router.post('/:projectId/members', async (req: Request, res: Response) => {
   }
 });
 
+// ── PATCH /api/projects/:projectId/nodes/:nodeId/enchantments ──
+// Update enchantment levels on a crafting node
+router.patch('/:projectId/nodes/:nodeId/enchantments', projectMemberGuard, async (req: Request, res: Response) => {
+  try {
+    const { projectId, nodeId } = req.params;
+    const { enchantments } = req.body;
+
+    if (!Array.isArray(enchantments)) {
+      res.status(400).json({ error: 'enchantments must be an array of { name, level }' });
+      return;
+    }
+
+    // Validate each enchantment has name and level
+    for (const e of enchantments) {
+      if (!e.name || typeof e.level !== 'number' || e.level < 1) {
+        res.status(400).json({ error: `Invalid enchantment: ${JSON.stringify(e)}` });
+        return;
+      }
+    }
+
+    const sb = supabaseForUser(req.accessToken!);
+
+    // Verify the node belongs to this project
+    const { data: node, error: nodeError } = await sb
+      .from('crafting_nodes')
+      .select('id, enchantments')
+      .eq('id', nodeId)
+      .eq('project_id', projectId)
+      .single();
+
+    if (nodeError || !node) {
+      res.status(404).json({ error: 'Node not found in this project' });
+      return;
+    }
+
+    // Update enchantments
+    const { error: updateError } = await sb
+      .from('crafting_nodes')
+      .update({ enchantments })
+      .eq('id', nodeId);
+
+    if (updateError) {
+      res.status(500).json({ error: `Failed to update enchantments: ${updateError.message}` });
+      return;
+    }
+
+    res.json({ success: true, enchantments });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
 // ── GET /api/items/search?q=... ────────────────────────────────
 // Search Minecraft items by name
 router.get('/items/search', async (req: Request, res: Response) => {

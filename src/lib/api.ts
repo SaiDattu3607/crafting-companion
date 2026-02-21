@@ -223,6 +223,18 @@ export async function fetchProgress(projectId: string): Promise<ProjectProgress>
   return data.progress;
 }
 
+/** Update enchantment levels on a crafting node */
+export async function updateNodeEnchantments(
+  projectId: string,
+  nodeId: string,
+  enchantments: { name: string; level: number }[],
+): Promise<{ success: boolean; enchantments: { name: string; level: number }[] }> {
+  return apiFetch(`/projects/${projectId}/nodes/${nodeId}/enchantments`, {
+    method: 'PATCH',
+    body: JSON.stringify({ enchantments }),
+  });
+}
+
 /** Search Minecraft items */
 export async function searchMinecraftItems(query: string): Promise<MinecraftItem[]> {
   if (query.length < 2) return [];
