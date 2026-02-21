@@ -117,27 +117,11 @@ const ProjectDetail = () => {
     setContributing(nodeId);
     try {
       const result = await contributeToNode(id!, nodeId, 1, action);
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-      if (!result.success) setError(result.error || 'Contribution failed');
-=======
->>>>>>> d8a183a6c9241ff83e2a9d8542fc353a485dbc01
->>>>>>> f3740b6d1b476ba64aca0c6a48871c0e671277b8
       if (!result.success) {
         setError(result.error || 'Contribution failed');
       } else {
         soundManager.playSound(action === 'crafted' ? 'craft' : 'collect');
       }
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
->>>>>>> ba21255c2c8569e985ddf295ca732f654d9d2c1d
->>>>>>> d8a183a6c9241ff83e2a9d8542fc353a485dbc01
->>>>>>> f3740b6d1b476ba64aca0c6a48871c0e671277b8
       await loadProject();
     } catch (err) {
       setError((err as Error).message);
