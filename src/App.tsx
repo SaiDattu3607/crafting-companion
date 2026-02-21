@@ -1,11 +1,9 @@
-import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { soundManager } from "@/lib/sound";
 import AuthPage from "./pages/AuthPage";
 import HomePage from "./pages/HomePage";
 import Dashboard from "./pages/Dashboard";
@@ -22,43 +20,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-<<<<<<< HEAD
-const App = () => {
-  useEffect(() => {
-    try {
-      soundManager.init();
-      // Start background music after user interaction (browsers require user gesture)
-      const startMusic = () => {
-        soundManager.playBackgroundMusic();
-        document.removeEventListener('click', startMusic);
-      };
-      document.addEventListener('click', startMusic);
-    } catch (error) {
-      console.warn('Sound system initialization failed:', error);
-    }
-  }, []);
-
-  return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AuthProvider>
-            <Routes>
-              <Route path="/auth" element={<AuthPage />} />
-              <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-              <Route path="/new-project" element={<ProtectedRoute><NewProject /></ProtectedRoute>} />
-              <Route path="/project/:id" element={<ProtectedRoute><ProjectDetail /></ProtectedRoute>} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </AuthProvider>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
-  );
-};
-=======
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -79,6 +40,5 @@ const App = () => (
     </TooltipProvider>
   </QueryClientProvider>
 );
->>>>>>> 4e77ce56015b279a2db7bef5705c277d7dd2bec5
 
 export default App;

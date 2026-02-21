@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { createProject, searchMinecraftItems, lookupMinecraftItem, type MinecraftItem } from '@/lib/api';
-import { soundManager } from '@/lib/sound';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -54,11 +53,6 @@ const NewProject = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !selectedItem) return;
-<<<<<<< HEAD
-
-    soundManager.playSound('button');
-=======
->>>>>>> 4e77ce56015b279a2db7bef5705c277d7dd2bec5
     setCreating(true);
     setError('');
     try {
@@ -71,14 +65,6 @@ const NewProject = () => {
   };
 
   return (
-<<<<<<< HEAD
-    <div className="min-h-screen">
-      <header className="pixel-border border-x-0 border-t-0 bg-card p-4 flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => { soundManager.playSound('button'); navigate('/'); }}>
-          <ArrowLeft className="w-4 h-4" />
-        </Button>
-        <h1 className="text-sm text-primary">New Crafting Project</h1>
-=======
     <div className="min-h-screen mesh-bg text-foreground">
 
       {/* Header */}
@@ -93,7 +79,6 @@ const NewProject = () => {
           </div>
           <span className="text-muted-foreground text-sm">/ New Project</span>
         </div>
->>>>>>> 4e77ce56015b279a2db7bef5705c277d7dd2bec5
       </header>
 
       <main className="max-w-2xl mx-auto px-6 py-10">
@@ -145,14 +130,9 @@ const NewProject = () => {
                     <span className="text-xs badge-pending px-2 py-0.5 rounded-full">Resource</span>
                   )}
                 </div>
-<<<<<<< HEAD
-                <Button type="button" variant="ghost" size="sm" onClick={() => { soundManager.playSound('button'); setSelectedItem(null); setItemSearch(''); }}>
-                  Change
-=======
                 <Button type="button" variant="ghost" size="sm" onClick={() => { setSelectedItem(null); setItemSearch(''); }}
                   className="rounded-xl text-muted-foreground hover:text-foreground">
                   <X className="w-4 h-4" />
->>>>>>> 4e77ce56015b279a2db7bef5705c277d7dd2bec5
                 </Button>
               </div>
             ) : (
@@ -174,11 +154,6 @@ const NewProject = () => {
                         type="button"
                         className="w-full text-left px-4 py-3 hover:bg-primary/10 transition-colors flex items-center justify-between group border-b border-white/5 last:border-0"
                         onClick={async () => {
-<<<<<<< HEAD
-                          soundManager.playSound('button');
-                          // Fetch full item details (may include possibleEnchantments)
-=======
->>>>>>> 4e77ce56015b279a2db7bef5705c277d7dd2bec5
                           try {
                             const full = await lookupMinecraftItem(item.name);
                             setSelectedItem(full || item);
@@ -205,25 +180,6 @@ const NewProject = () => {
                 className="bg-secondary/60 border-white/8 rounded-xl h-11 focus:border-primary/50"
               />
             </div>
-<<<<<<< HEAD
-            {/* Enchantments */}
-            {!selectedItem?.isResource && (
-              <div className="pixel-border bg-card p-4 space-y-3">
-                <label className="text-xs font-pixel text-muted-foreground block">Enchantments (optional)</label>
-                <div className="flex items-center gap-2">
-                  <select value={enchantName} onChange={e => setEnchantName(e.target.value)} className="bg-secondary border-border p-2 rounded">
-                    <option value="">Select enchantment</option>
-                    {selectedItem?.possibleEnchantments?.map(pe => (
-                      <option key={pe.name} value={pe.name}>{pe.name.replace(/_/g, ' ')}</option>
-                    ))}
-                  </select>
-                  <select value={enchantLevel} onChange={e => setEnchantLevel(parseInt(e.target.value) || 1)} className="bg-secondary border-border p-2 rounded">
-                    {[1, 2, 3, 4, 5].map(l => <option key={l} value={l}>{l}</option>)}
-                  </select>
-                  <Button type="button" size="sm" onClick={() => {
-                    soundManager.playSound('button');
-                    // avoid duplicates of same enchant
-=======
           </div>
 
           {/* Section 3: Enchantments */}
@@ -254,34 +210,17 @@ const NewProject = () => {
                 <Button
                   type="button" size="sm"
                   onClick={() => {
->>>>>>> 4e77ce56015b279a2db7bef5705c277d7dd2bec5
                     if (!enchantName) return;
                     setEnchantments(es => {
                       const exists = es.find(e => e.name === enchantName);
                       if (exists) return es.map(e => e.name === enchantName ? { ...e, level: enchantLevel } : e);
                       return [...es, { name: enchantName, level: enchantLevel }];
                     });
-<<<<<<< HEAD
-                  }}>Add</Button>
-                </div>
-                {enchantments.length > 0 && (
-                  <div className="flex gap-2 flex-wrap">
-                    {enchantments.map(e => (
-                      <div key={e.name} className="bg-secondary/20 px-2 py-1 rounded flex items-center gap-2">
-                        <span className="text-sm font-bold">{e.name}</span>
-                        <span className="text-xs text-muted-foreground">Level {e.level}</span>
-                        <Button type="button" variant="ghost" size="sm" onClick={() => { soundManager.playSound('button'); setEnchantments(es => es.filter(x => x.name !== e.name)); }}>✕</Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-=======
                   }}
                   className="bg-purple-500/20 border border-purple-500/30 text-purple-300 hover:bg-purple-500/30 rounded-xl"
                 >
                   Add
                 </Button>
->>>>>>> 4e77ce56015b279a2db7bef5705c277d7dd2bec5
               </div>
 
               {enchantments.length > 0 && (

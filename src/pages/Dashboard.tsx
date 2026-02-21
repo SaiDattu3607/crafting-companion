@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { fetchProjects, type Project } from '@/lib/api';
-import { soundManager } from '@/lib/sound';
 import { Button } from '@/components/ui/button';
 import { Plus, LogOut, Loader2, FolderOpen, Pickaxe } from 'lucide-react';
 import ProjectCard from '@/components/ProjectCard';
@@ -37,29 +36,16 @@ const Dashboard = () => {
 
   const handleLogout = async () => {
     setLoggingOut(true);
-    soundManager.playSound('button');
     await logout();
     navigate('/');
   };
 
-<<<<<<< HEAD
-  const handleNewProject = () => {
-    soundManager.playSound('button');
-    navigate('/new-project');
-  };
-
-  const handleCreateFirstProject = () => {
-    soundManager.playSound('button');
-    navigate('/new-project');
-  };
-=======
   const initials = (user.full_name || user.email || 'U')
     .split(' ')
     .map((w: string) => w[0])
     .join('')
     .toUpperCase()
     .slice(0, 2);
->>>>>>> 4e77ce56015b279a2db7bef5705c277d7dd2bec5
 
   return (
     <div className="min-h-screen mesh-bg text-foreground">
@@ -97,14 +83,6 @@ const Dashboard = () => {
         </div>
       </header>
 
-<<<<<<< HEAD
-      {/* Main */}
-      <main className="max-w-6xl mx-auto p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-sm text-foreground">Your Projects</h2>
-          <Button onClick={handleNewProject} className="pixel-border-accent text-lg">
-            <Plus className="w-4 h-4 mr-2" /> New Project
-=======
       {/* ── Main ─────────────────────────────────────────────── */}
       <main className="max-w-7xl mx-auto px-6 py-10">
 
@@ -122,7 +100,6 @@ const Dashboard = () => {
           >
             <Plus className="w-4 h-4" />
             New Project
->>>>>>> 4e77ce56015b279a2db7bef5705c277d7dd2bec5
           </Button>
         </div>
 
@@ -141,13 +118,6 @@ const Dashboard = () => {
             ))}
           </div>
         ) : projects.length === 0 ? (
-<<<<<<< HEAD
-          <div className="text-center py-20 pixel-border bg-card">
-            <p className="text-3xl mb-2">🪨</p>
-            <p className="text-xl text-muted-foreground mb-4">No crafting projects yet</p>
-            <Button onClick={handleCreateFirstProject} variant="outline" className="text-lg">
-              Create your first project
-=======
           <div className="flex flex-col items-center justify-center py-32 text-center">
             <div className="w-20 h-20 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-6 animate-float">
               <Pickaxe className="w-10 h-10 text-primary" />
@@ -162,7 +132,6 @@ const Dashboard = () => {
             >
               <Plus className="w-4 h-4" />
               Create first project
->>>>>>> 4e77ce56015b279a2db7bef5705c277d7dd2bec5
             </Button>
           </div>
         ) : (
