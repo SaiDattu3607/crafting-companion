@@ -17,7 +17,7 @@ const mcData = mcDataLoader(MC_VERSION);
 // reverse recipe, not a crafting path)
 const FORCE_RESOURCE_ITEMS = new Set([
   'diamond', 'emerald', 'lapis_lazuli', 'redstone', 'coal',
-  'iron_ingot', 'gold_ingot', 'copper_ingot', 'netherite_ingot',
+  'iron_ingot', 'gold_ingot', 'copper_ingot',
   'iron_nugget', 'gold_nugget',
   'quartz', 'amethyst_shard', 'echo_shard',
   'clay_ball', 'brick', 'nether_brick',
@@ -49,15 +49,54 @@ const FORCE_RESOURCE_ITEMS = new Set([
   'wheat', 'sugar_cane', 'cactus', 'kelp',
   'apple', 'melon_slice', 'pumpkin', 'cocoa_beans',
   'sweet_berries', 'glow_berries',
+  // Netherite raw components
+  'netherite_scrap', 'ancient_debris',
+  // Smithing template (obtained from bastion remnants, not crafted)
+  'netherite_upgrade_smithing_template',
 ]);
+
+/**
+ * Manual recipes for items that use smithing table or other non-crafting-table
+ * mechanics. minecraft-data only has crafting table recipes.
+ * Map of itemName → array of { ingredientName, qty }
+ */
+const MANUAL_RECIPES: Record<string, { ingredientName: string; qty: number }[]> = {
+  // Netherite tools & armor: smithing table = diamond item + netherite ingot + template
+  netherite_sword:      [{ ingredientName: 'diamond_sword', qty: 1 },      { ingredientName: 'netherite_ingot', qty: 1 }, { ingredientName: 'netherite_upgrade_smithing_template', qty: 1 }],
+  netherite_pickaxe:    [{ ingredientName: 'diamond_pickaxe', qty: 1 },    { ingredientName: 'netherite_ingot', qty: 1 }, { ingredientName: 'netherite_upgrade_smithing_template', qty: 1 }],
+  netherite_axe:        [{ ingredientName: 'diamond_axe', qty: 1 },        { ingredientName: 'netherite_ingot', qty: 1 }, { ingredientName: 'netherite_upgrade_smithing_template', qty: 1 }],
+  netherite_shovel:     [{ ingredientName: 'diamond_shovel', qty: 1 },     { ingredientName: 'netherite_ingot', qty: 1 }, { ingredientName: 'netherite_upgrade_smithing_template', qty: 1 }],
+  netherite_hoe:        [{ ingredientName: 'diamond_hoe', qty: 1 },        { ingredientName: 'netherite_ingot', qty: 1 }, { ingredientName: 'netherite_upgrade_smithing_template', qty: 1 }],
+  netherite_helmet:     [{ ingredientName: 'diamond_helmet', qty: 1 },     { ingredientName: 'netherite_ingot', qty: 1 }, { ingredientName: 'netherite_upgrade_smithing_template', qty: 1 }],
+  netherite_chestplate: [{ ingredientName: 'diamond_chestplate', qty: 1 }, { ingredientName: 'netherite_ingot', qty: 1 }, { ingredientName: 'netherite_upgrade_smithing_template', qty: 1 }],
+  netherite_leggings:   [{ ingredientName: 'diamond_leggings', qty: 1 },   { ingredientName: 'netherite_ingot', qty: 1 }, { ingredientName: 'netherite_upgrade_smithing_template', qty: 1 }],
+  netherite_boots:      [{ ingredientName: 'diamond_boots', qty: 1 },      { ingredientName: 'netherite_ingot', qty: 1 }, { ingredientName: 'netherite_upgrade_smithing_template', qty: 1 }],
+  // Netherite ingot: 4 netherite scrap + 4 gold ingot
+  netherite_ingot:      [{ ingredientName: 'netherite_scrap', qty: 4 }, { ingredientName: 'gold_ingot', qty: 4 }],
+};
 
 /**
  * Determines the ingredients needed for one craft of an item.
  * Returns a Map of itemId → quantity needed.
+ * Falls back to MANUAL_RECIPES if minecraft-data has no recipe.
  */
 function getRecipeIngredients(itemId: number): Map<number, number> | null {
   const recipes = mcData.recipes[itemId];
-  if (!recipes || recipes.length === 0) return null;
+  if (!recipes || recipes.length === 0) {
+    // Check manual recipes
+    const item = mcData.items[itemId];
+    if (item && MANUAL_RECIPES[item.name]) {
+      const ingredientCounts = new Map<number, number>();
+      for (const ing of MANUAL_RECIPES[item.name]) {
+        const ingItem = mcData.itemsByName[ing.ingredientName];
+        if (ingItem) {
+          ingredientCounts.set(ingItem.id, (ingredientCounts.get(ingItem.id) || 0) + ing.qty);
+        }
+      }
+      return ingredientCounts.size > 0 ? ingredientCounts : null;
+    }
+    return null;
+  }
 
   // Use the first recipe available
   const recipe = recipes[0] as any;
@@ -87,7 +126,12 @@ function getRecipeIngredients(itemId: number): Map<number, number> | null {
  */
 function getRecipeOutputCount(itemId: number): number {
   const recipes = mcData.recipes[itemId];
-  if (!recipes || recipes.length === 0) return 1;
+  if (!recipes || recipes.length === 0) {
+    // Manual recipes always produce 1
+    const item = mcData.items[itemId];
+    if (item && MANUAL_RECIPES[item.name]) return 1;
+    return 1;
+  }
   const result = (recipes[0] as any).result;
   if (!result) return 1;
   return typeof result.count === 'number' ? result.count : 1;
@@ -98,8 +142,10 @@ function getRecipeOutputCount(itemId: number): number {
  */
 function isRawResource(itemName: string, itemId: number): boolean {
   if (FORCE_RESOURCE_ITEMS.has(itemName)) return true;
+  // Check both minecraft-data recipes and manual recipes
   const recipes = mcData.recipes[itemId];
-  return !recipes || recipes.length === 0;
+  const hasRecipe = (recipes && recipes.length > 0) || !!MANUAL_RECIPES[itemName];
+  return !hasRecipe;
 }
 
 // ── Types ──────────────────────────────────────────────────────
@@ -302,7 +348,10 @@ export function lookupItem(itemName: string) {
     name: item.name,
     displayName: item.displayName,
     isResource: isRawResource(item.name, item.id),
-    hasRecipe: !!(mcData.recipes[item.id] && mcData.recipes[item.id].length > 0),
+    hasRecipe: !!(
+      (mcData.recipes[item.id] && mcData.recipes[item.id].length > 0)
+      || MANUAL_RECIPES[item.name]
+    ),
   };
 }
 

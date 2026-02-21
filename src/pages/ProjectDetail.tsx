@@ -144,56 +144,77 @@ const ProjectDetail = () => {
   const rootNodes = nodes.filter(n => n.parent_id === null);
   const getChildren = (parentId: string) => nodes.filter(n => n.parent_id === parentId);
 
-  const renderNodeTree = (node: CraftingNode, depth: number = 0) => {
+  const renderNodeTree = (node: CraftingNode, depth: number = 0, isLast: boolean = true, prefix: string = '') => {
     const children = getChildren(node.id);
     const isComplete = node.collected_qty >= node.required_qty;
     const isContributing = contributing === node.id;
+    const hasChildren = children.length > 0;
+
+    // Build the branch prefix for nested items
+    const connector = depth === 0 ? '' : isLast ? '└── ' : '├── ';
+    const childPrefix = depth === 0 ? '' : prefix + (isLast ? '    ' : '│   ');
 
     return (
-      <div key={node.id} style={{ marginLeft: depth * 20 }}>
-        <div className={`flex items-center justify-between p-3 rounded mb-1 ${statusBg(node)}`}>
-          <div className="flex items-center gap-3">
-            {statusIcon(node)}
-            <div>
-              <span className="text-lg font-bold">{node.display_name}</span>
-              <span className="text-muted-foreground text-base ml-2">
-                {node.collected_qty}/{node.required_qty}
-              </span>
-              {node.is_resource && (
-                <span className="ml-2 text-xs bg-yellow-500/20 text-yellow-600 px-1.5 py-0.5 rounded">resource</span>
-              )}
+      <div key={node.id}>
+        <div className="flex items-center">
+          {/* Tree branch characters */}
+          {depth > 0 && (
+            <span className="text-muted-foreground font-mono text-sm whitespace-pre select-none flex-shrink-0">
+              {prefix}{connector}
+            </span>
+          )}
+          {/* Node card */}
+          <div className={`flex-1 flex items-center justify-between p-2.5 rounded mb-0.5 ${statusBg(node)}`}>
+            <div className="flex items-center gap-2">
+              {statusIcon(node)}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`font-bold ${depth === 0 ? 'text-lg' : 'text-base'}`}>
+                  {node.display_name}
+                </span>
+                <span className="text-muted-foreground text-sm">
+                  {node.collected_qty}/{node.required_qty}
+                </span>
+                {node.is_resource && (
+                  <span className="text-xs bg-yellow-500/20 text-yellow-600 px-1.5 py-0.5 rounded">resource</span>
+                )}
+                {!node.is_resource && hasChildren && (
+                  <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">
+                    {node.depth === 0 ? 'final goal' : 'craftable'}
+                  </span>
+                )}
+              </div>
             </div>
+            {!isComplete && (
+              <div className="flex gap-1 flex-shrink-0 ml-2">
+                {node.is_resource ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!canContribute(node) || isContributing}
+                    onClick={() => handleContribute(node.id, 'collected')}
+                    className="text-xs h-7 px-2"
+                  >
+                    {isContributing ? <Loader2 className="w-3 h-3 animate-spin" /> : '📦 Collect'}
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!canContribute(node) || isContributing}
+                    onClick={() => handleContribute(node.id, 'crafted')}
+                    className="text-xs h-7 px-2"
+                  >
+                    {isContributing ? <Loader2 className="w-3 h-3 animate-spin" /> : '⚒ Craft'}
+                  </Button>
+                )}
+              </div>
+            )}
+            {isComplete && (
+              <span className="text-xs text-craft-complete uppercase flex-shrink-0 ml-2">✓ Done</span>
+            )}
           </div>
-          {!isComplete && (
-            <div className="flex gap-1">
-              {node.is_resource ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={!canContribute(node) || isContributing}
-                  onClick={() => handleContribute(node.id, 'collected')}
-                  className="text-sm"
-                >
-                  {isContributing ? <Loader2 className="w-3 h-3 animate-spin" /> : '📦 Collect'}
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={!canContribute(node) || isContributing}
-                  onClick={() => handleContribute(node.id, 'crafted')}
-                  className="text-sm"
-                >
-                  {isContributing ? <Loader2 className="w-3 h-3 animate-spin" /> : '⚒ Craft'}
-                </Button>
-              )}
-            </div>
-          )}
-          {isComplete && (
-            <span className="text-sm text-craft-complete uppercase">✓ Done</span>
-          )}
         </div>
-        {children.map(c => renderNodeTree(c, depth + 1))}
+        {children.map((c, i) => renderNodeTree(c, depth + 1, i === children.length - 1, childPrefix))}
       </div>
     );
   };
