@@ -20,6 +20,7 @@ dotenv.config({ path: path.resolve(__dirname, '.env') });
 import projectRoutes from './routes/projects.js';
 import contributionRoutes from './routes/contributions.js';
 import itemRoutes from './routes/items.js';
+import adminRoutes from './routes/admin.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -44,6 +45,7 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/projects', projectRoutes);
 app.use('/api/projects', contributionRoutes);
 app.use('/api/items', itemRoutes);
+app.use('/api/admin', adminRoutes);
 
 // ── Error Handler ──────────────────────────────────────────────
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

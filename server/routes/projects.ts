@@ -50,7 +50,7 @@ router.get('/', async (req: Request, res: Response) => {
 // Create a new project and parse the recipe tree
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { name, description, rootItemName, quantity = 1 } = req.body;
+    const { name, description, rootItemName, quantity = 1, enchantments = null } = req.body;
 
     if (!name || !rootItemName) {
       res.status(400).json({ error: 'name and rootItemName are required' });
@@ -83,7 +83,7 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     // Parse the recipe tree and populate crafting_nodes
-    const parseResult = await parseRecipeTree(project.id, rootItemName, quantity, sb);
+    const parseResult = await parseRecipeTree(project.id, rootItemName, quantity, sb, enchantments);
 
     res.status(201).json({
       project,

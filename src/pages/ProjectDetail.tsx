@@ -16,14 +16,14 @@ const ProjectDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
-  
+
   const [project, setProject] = useState<Project | null>(null);
   const [nodes, setNodes] = useState<CraftingNode[]>([]);
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [bottlenecks, setBottlenecks] = useState<BottleneckItem[]>([]);
   const [progress, setProgress] = useState<ProjectProgress | null>(null);
-  
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [collabEmail, setCollabEmail] = useState('');
@@ -40,7 +40,7 @@ const ProjectDetail = () => {
         fetchBottleneck(id).catch(() => []),
         fetchProgress(id).catch(() => null),
       ]);
-      
+
       setProject(projectData.project);
       setNodes(projectData.nodes);
       setMembers(projectData.members);
@@ -174,6 +174,15 @@ const ProjectDetail = () => {
                 <span className="text-muted-foreground text-sm">
                   {node.collected_qty}/{node.required_qty}
                 </span>
+                {node.enchantments && node.enchantments.length > 0 && (
+                  <div className="flex gap-2">
+                    {node.enchantments.map((en, i) => (
+                      <span key={`${en.name}-${i}`} className="text-xs bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded">
+                        {en.name} {en.level}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 {node.is_resource && (
                   <span className="text-xs bg-yellow-500/20 text-yellow-600 px-1.5 py-0.5 rounded">resource</span>
                 )}

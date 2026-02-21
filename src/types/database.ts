@@ -130,6 +130,7 @@ export type Database = {
                     is_resource: boolean
                     depth: number
                     status: string
+                    enchantments: Json | null
                     created_at: string
                 }
                 Insert: {
@@ -143,6 +144,7 @@ export type Database = {
                     is_resource?: boolean
                     depth?: number
                     status?: string
+                    enchantments?: Json | null
                     created_at?: string
                 }
                 Update: {
@@ -156,6 +158,7 @@ export type Database = {
                     is_resource?: boolean
                     depth?: number
                     status?: string
+                    enchantments?: Json | null
                 }
                 Relationships: [
                     {

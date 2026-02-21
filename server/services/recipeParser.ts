@@ -62,17 +62,17 @@ const FORCE_RESOURCE_ITEMS = new Set([
  */
 const MANUAL_RECIPES: Record<string, { ingredientName: string; qty: number }[]> = {
   // Netherite tools & armor: smithing table = diamond item + netherite ingot + template
-  netherite_sword:      [{ ingredientName: 'diamond_sword', qty: 1 },      { ingredientName: 'netherite_ingot', qty: 1 }, { ingredientName: 'netherite_upgrade_smithing_template', qty: 1 }],
-  netherite_pickaxe:    [{ ingredientName: 'diamond_pickaxe', qty: 1 },    { ingredientName: 'netherite_ingot', qty: 1 }, { ingredientName: 'netherite_upgrade_smithing_template', qty: 1 }],
-  netherite_axe:        [{ ingredientName: 'diamond_axe', qty: 1 },        { ingredientName: 'netherite_ingot', qty: 1 }, { ingredientName: 'netherite_upgrade_smithing_template', qty: 1 }],
-  netherite_shovel:     [{ ingredientName: 'diamond_shovel', qty: 1 },     { ingredientName: 'netherite_ingot', qty: 1 }, { ingredientName: 'netherite_upgrade_smithing_template', qty: 1 }],
-  netherite_hoe:        [{ ingredientName: 'diamond_hoe', qty: 1 },        { ingredientName: 'netherite_ingot', qty: 1 }, { ingredientName: 'netherite_upgrade_smithing_template', qty: 1 }],
-  netherite_helmet:     [{ ingredientName: 'diamond_helmet', qty: 1 },     { ingredientName: 'netherite_ingot', qty: 1 }, { ingredientName: 'netherite_upgrade_smithing_template', qty: 1 }],
+  netherite_sword: [{ ingredientName: 'diamond_sword', qty: 1 }, { ingredientName: 'netherite_ingot', qty: 1 }, { ingredientName: 'netherite_upgrade_smithing_template', qty: 1 }],
+  netherite_pickaxe: [{ ingredientName: 'diamond_pickaxe', qty: 1 }, { ingredientName: 'netherite_ingot', qty: 1 }, { ingredientName: 'netherite_upgrade_smithing_template', qty: 1 }],
+  netherite_axe: [{ ingredientName: 'diamond_axe', qty: 1 }, { ingredientName: 'netherite_ingot', qty: 1 }, { ingredientName: 'netherite_upgrade_smithing_template', qty: 1 }],
+  netherite_shovel: [{ ingredientName: 'diamond_shovel', qty: 1 }, { ingredientName: 'netherite_ingot', qty: 1 }, { ingredientName: 'netherite_upgrade_smithing_template', qty: 1 }],
+  netherite_hoe: [{ ingredientName: 'diamond_hoe', qty: 1 }, { ingredientName: 'netherite_ingot', qty: 1 }, { ingredientName: 'netherite_upgrade_smithing_template', qty: 1 }],
+  netherite_helmet: [{ ingredientName: 'diamond_helmet', qty: 1 }, { ingredientName: 'netherite_ingot', qty: 1 }, { ingredientName: 'netherite_upgrade_smithing_template', qty: 1 }],
   netherite_chestplate: [{ ingredientName: 'diamond_chestplate', qty: 1 }, { ingredientName: 'netherite_ingot', qty: 1 }, { ingredientName: 'netherite_upgrade_smithing_template', qty: 1 }],
-  netherite_leggings:   [{ ingredientName: 'diamond_leggings', qty: 1 },   { ingredientName: 'netherite_ingot', qty: 1 }, { ingredientName: 'netherite_upgrade_smithing_template', qty: 1 }],
-  netherite_boots:      [{ ingredientName: 'diamond_boots', qty: 1 },      { ingredientName: 'netherite_ingot', qty: 1 }, { ingredientName: 'netherite_upgrade_smithing_template', qty: 1 }],
+  netherite_leggings: [{ ingredientName: 'diamond_leggings', qty: 1 }, { ingredientName: 'netherite_ingot', qty: 1 }, { ingredientName: 'netherite_upgrade_smithing_template', qty: 1 }],
+  netherite_boots: [{ ingredientName: 'diamond_boots', qty: 1 }, { ingredientName: 'netherite_ingot', qty: 1 }, { ingredientName: 'netherite_upgrade_smithing_template', qty: 1 }],
   // Netherite ingot: 4 netherite scrap + 4 gold ingot
-  netherite_ingot:      [{ ingredientName: 'netherite_scrap', qty: 4 }, { ingredientName: 'gold_ingot', qty: 4 }],
+  netherite_ingot: [{ ingredientName: 'netherite_scrap', qty: 4 }, { ingredientName: 'gold_ingot', qty: 4 }],
 };
 
 /**
@@ -161,6 +161,7 @@ export interface CraftingNode {
   is_resource: boolean;
   depth: number;
   status: string;
+  enchantments?: { name: string; level: number }[] | null;
 }
 
 export interface ParseResult {
@@ -185,11 +186,21 @@ export async function parseRecipeTree(
   projectId: string,
   rootItemName: string,
   totalQuantity: number = 1,
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
+  enchantments: { name: string; level: number }[] | null = null
 ): Promise<ParseResult> {
   const rootItem = mcData.itemsByName[rootItemName];
   if (!rootItem) {
     throw new Error(`Unknown Minecraft item: "${rootItemName}". Check the item name.`);
+  }
+
+  // If enchantments were requested on the final item, apply a simple
+  // planning multiplier so enchantments affect required quantities.
+  // Each enchant level increases resource needs by 20% (rounded up).
+  const totalEnchantLevels = (enchantments || []).reduce((s, e) => s + (e?.level || 0), 0);
+  if (totalEnchantLevels > 0) {
+    const multiplier = 1 + 0.2 * totalEnchantLevels;
+    totalQuantity = Math.ceil(totalQuantity * multiplier);
   }
 
   // Track all nodes to batch insert
@@ -221,6 +232,11 @@ export async function parseRecipeTree(
       depth,
       status: 'pending',
     };
+
+    // Attach enchantments to root node only
+    if (parentTempIndex === null && depth === 0 && enchantments && enchantments.length > 0) {
+      node.enchantments = enchantments;
+    }
 
     // Store parent index for later resolution
     allNodes.push(node);
@@ -297,16 +313,40 @@ export async function parseRecipeTree(
         is_resource: node.is_resource,
         depth: node.depth,
         status: 'pending',
+        enchantments: node.enchantments || null,
       };
     });
 
-    const { data: inserted, error } = await supabase
+    let { data: inserted, error } = await supabase
       .from('crafting_nodes')
       .insert(rowsToInsert)
       .select('id');
 
+    // If the insert failed due to missing 'enchantments' column in the DB
+    // (e.g. migration not applied), retry without the enchantments property.
     if (error) {
-      throw new Error(`Failed to insert crafting nodes at depth ${d}: ${error.message}`);
+      const msg = (error.message || '').toLowerCase();
+      if (msg.includes("could not find the 'enchantments' column") || msg.includes('enchantments') && msg.includes('schema')) {
+        console.warn('Database missing `enchantments` column; retrying insert without enchantments.');
+        const rowsNoEnchant = rowsToInsert.map(r => {
+          const copy: any = { ...r };
+          delete copy.enchantments;
+          return copy;
+        });
+
+        const retry = await supabase
+          .from('crafting_nodes')
+          .insert(rowsNoEnchant)
+          .select('id');
+
+        inserted = retry.data;
+        error = retry.error;
+        if (error) {
+          throw new Error(`Failed to insert crafting nodes at depth ${d} (after stripping enchantments): ${error.message}`);
+        }
+      } else {
+        throw new Error(`Failed to insert crafting nodes at depth ${d}: ${error.message}`);
+      }
     }
 
     // Map inserted IDs back
@@ -343,6 +383,9 @@ export async function parseRecipeTree(
 export function lookupItem(itemName: string) {
   const item = mcData.itemsByName[itemName];
   if (!item) return null;
+  const category = determineItemCategory(item.name);
+  const possibleEnchantments = getEnchantmentsForCategory(category);
+
   return {
     id: item.id,
     name: item.name,
@@ -352,6 +395,8 @@ export function lookupItem(itemName: string) {
       (mcData.recipes[item.id] && mcData.recipes[item.id].length > 0)
       || MANUAL_RECIPES[item.name]
     ),
+    category,
+    possibleEnchantments,
   };
 }
 
@@ -371,10 +416,77 @@ export function searchItems(query: string, limit: number = 20) {
         name: item.name,
         displayName: item.displayName,
         isResource: isRawResource(item.name, item.id),
-      });
+        // include category and enchantment hints in search results where helpful
+        // (frontend may call /items/:itemName for full details)
+      } as any);
       if (results.length >= limit) break;
     }
   }
 
   return results;
+}
+
+// Determine a broad item category from item name heuristics
+function determineItemCategory(itemName: string): string {
+  if (itemName.endsWith('_sword')) return 'sword';
+  if (itemName.endsWith('_pickaxe')) return 'pickaxe';
+  if (itemName.endsWith('_axe')) return 'axe';
+  if (itemName.endsWith('_shovel')) return 'shovel';
+  if (itemName.endsWith('_hoe')) return 'hoe';
+  if (itemName.endsWith('_bow') || itemName === 'bow') return 'bow';
+  if (itemName.includes('trident')) return 'trident';
+  if (itemName.includes('fishing_rod')) return 'fishing_rod';
+  if (itemName.endsWith('_helmet') || itemName.endsWith('_chestplate') || itemName.endsWith('_leggings') || itemName.endsWith('_boots')) return 'armor';
+  if (itemName.includes('pickaxe') || itemName.includes('axe') || itemName.includes('shovel')) return 'tool';
+  return 'generic';
+}
+
+// Map categories to common enchantments
+function getEnchantmentsForCategory(category: string): { name: string; level?: number }[] {
+  // Preferred approach: use minecraft-data's enchantment list when available
+  const enchantmentsArray: any[] = (mcData as any).enchantmentsArray || [];
+
+  // Helper to check presence in mcData and map to a simple object
+  const pick = (names: string[]) => {
+    const set = new Set(enchantmentsArray.map(e => e.name));
+    const out: { name: string }[] = [];
+    for (const n of names) {
+      if (set.has(n)) out.push({ name: n });
+    }
+    return out;
+  };
+
+  // Common enchantments useful for many tools
+  const common = pick(['unbreaking', 'mending']);
+
+  // Category → candidate enchantment names (fall back to heuristics)
+  const candidates: Record<string, string[]> = {
+    sword: ['sharpness', 'smite', 'bane_of_arthropods', 'knockback', 'fire_aspect', 'looting', 'sweeping_edge'],
+    pickaxe: ['efficiency', 'silk_touch', 'fortune'],
+    axe: ['efficiency', 'silk_touch', 'fortune'],
+    shovel: ['efficiency', 'silk_touch', 'fortune'],
+    hoe: ['efficiency'],
+    bow: ['power', 'punch', 'flame', 'infinity'],
+    trident: ['impaling', 'loyalty', 'channeling', 'riptide'],
+    fishing_rod: ['luck_of_the_sea', 'lure'],
+    armor: ['protection', 'projectile_protection', 'blast_protection', 'fire_protection', 'thorns'],
+  };
+
+  const names = candidates[category] || [];
+  const found = pick(names);
+
+  // append common enchants that exist
+  for (const c of common) {
+    if (!found.find(f => f.name === c.name)) found.push(c);
+  }
+
+  // If none found from mcData, fall back to returning common or basic list
+  if (found.length === 0) {
+    // fallback hard-coded (ensures UI still has options)
+    return (
+      candidates[category] ? candidates[category].map(n => ({ name: n })) : []
+    ).concat(common.length ? common : []);
+  }
+
+  return found;
 }

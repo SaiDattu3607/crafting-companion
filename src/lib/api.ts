@@ -64,6 +64,7 @@ export interface CraftingNode {
   depth: number;
   status: string;
   created_at: string;
+  enchantments?: { name: string; level: number }[] | null;
 }
 
 export interface ProjectMember {
@@ -117,6 +118,8 @@ export interface MinecraftItem {
   displayName: string;
   isResource: boolean;
   hasRecipe?: boolean;
+  category?: string;
+  possibleEnchantments?: { name: string; level?: number }[] | null;
 }
 
 export interface ParseResult {
@@ -140,10 +143,11 @@ export async function createProject(
   rootItemName: string,
   description?: string,
   quantity?: number,
+  enchantments?: { name: string; level: number }[] | null,
 ): Promise<{ project: Project; tree: ParseResult }> {
   return apiFetch('/projects', {
     method: 'POST',
-    body: JSON.stringify({ name, rootItemName, description, quantity }),
+    body: JSON.stringify({ name, rootItemName, description, quantity, enchantments }),
   });
 }
 
