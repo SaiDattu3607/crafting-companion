@@ -118,17 +118,12 @@ const ProjectDetail = () => {
     setContributing(nodeId);
     try {
       const result = await contributeToNode(id!, nodeId, 1, action);
-<<<<<<< HEAD
       if (!result.success) {
         setError(result.error || 'Contribution failed');
       } else {
         // Play sound effect
         soundManager.playSound(action === 'crafted' ? 'craft' : 'collect');
       }
-      // Reload project to get updated state
-=======
-      if (!result.success) setError(result.error || 'Contribution failed');
->>>>>>> 4e77ce56015b279a2db7bef5705c277d7dd2bec5
       await loadProject();
     } catch (err) {
       setError((err as Error).message);
@@ -325,12 +320,6 @@ const ProjectDetail = () => {
     <div className="min-h-screen mesh-bg text-foreground">
 
       {/* Header */}
-<<<<<<< HEAD
-      <header className="pixel-border border-x-0 border-t-0 bg-card p-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={handleGoHome}>
-            <ArrowLeft className="w-4 h-4" />
-=======
       <header className="sticky top-0 z-40 glass-strong border-b border-white/5">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -345,59 +334,58 @@ const ProjectDetail = () => {
           </div>
           <Button variant="ghost" size="sm" onClick={loadProject} className="text-muted-foreground hover:text-foreground rounded-xl gap-1.5">
             <RefreshCw className="w-4 h-4" /> <span className="hidden sm:inline text-sm">Refresh</span>
->>>>>>> 4e77ce56015b279a2db7bef5705c277d7dd2bec5
           </Button>
         </div>
-<<<<<<< HEAD
-        <Button variant="ghost" size="sm" onClick={handleRefresh} className="text-muted-foreground">
-          <RefreshCw className="w-4 h-4 mr-1" /> Refresh
-        </Button>
-=======
->>>>>>> 4e77ce56015b279a2db7bef5705c277d7dd2bec5
       </header>
 
       {/* Bottleneck banner */}
-      {topBottleneck && (
-        <div className="mx-6 mt-4 flex items-center gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/20">
-          <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0" />
-          <span className="text-sm">
-            <strong className="text-red-400">{topBottleneck.display_name}</strong>
-            {' '}is blocking {topBottleneck.blocked_ancestors} item{topBottleneck.blocked_ancestors > 1 ? 's' : ''} — needs {topBottleneck.remaining_qty} more
-          </span>
-        </div>
-      )}
+      {
+        topBottleneck && (
+          <div className="mx-6 mt-4 flex items-center gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/20">
+            <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0" />
+            <span className="text-sm">
+              <strong className="text-red-400">{topBottleneck.display_name}</strong>
+              {' '}is blocking {topBottleneck.blocked_ancestors} item{topBottleneck.blocked_ancestors > 1 ? 's' : ''} — needs {topBottleneck.remaining_qty} more
+            </span>
+          </div>
+        )
+      }
 
       {/* Enchantment Summary Panel */}
-      {rootNode && Array.isArray(rootNode.enchantments) && rootNode.enchantments.length > 0 && (
-        <div className="mx-6 mt-4 p-5 glass-strong border border-purple-500/20 rounded-2xl">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20">
-              <Sparkles className="w-5 h-5 text-purple-400" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-foreground">✨ Master Enchantment Plan</h2>
-              <p className="text-xs text-muted-foreground">Requirements for your {rootNode.display_name}</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            {rootNode.enchantments.map((en: any, i: number) => (
-              <div key={i} className="bg-purple-500/5 border border-purple-500/10 px-4 py-3 rounded-xl flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-300 font-mono text-sm">
-                  {toRoman(en.level)}
-                </div>
-                <span className="text-sm font-semibold text-purple-200">{en.name.replace(/_/g, ' ')}</span>
+      {
+        rootNode && Array.isArray(rootNode.enchantments) && rootNode.enchantments.length > 0 && (
+          <div className="mx-6 mt-4 p-5 glass-strong border border-purple-500/20 rounded-2xl">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20">
+                <Sparkles className="w-5 h-5 text-purple-400" />
               </div>
-            ))}
+              <div>
+                <h2 className="text-lg font-bold text-foreground">✨ Master Enchantment Plan</h2>
+                <p className="text-xs text-muted-foreground">Requirements for your {rootNode.display_name}</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {rootNode.enchantments.map((en: any, i: number) => (
+                <div key={i} className="bg-purple-500/5 border border-purple-500/10 px-4 py-3 rounded-xl flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-300 font-mono text-sm">
+                    {toRoman(en.level)}
+                  </div>
+                  <span className="text-sm font-semibold text-purple-200">{en.name.replace(/_/g, ' ')}</span>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
-      {error && (
-        <div className="mx-6 mt-4 flex items-center justify-between p-4 rounded-xl bg-destructive/10 border border-destructive/20">
-          <span className="text-destructive text-sm">{error}</span>
-          <Button variant="ghost" size="sm" onClick={() => setError('')} className="rounded-lg text-destructive hover:bg-destructive/10">✕</Button>
-        </div>
-      )}
+      {
+        error && (
+          <div className="mx-6 mt-4 flex items-center justify-between p-4 rounded-xl bg-destructive/10 border border-destructive/20">
+            <span className="text-destructive text-sm">{error}</span>
+            <Button variant="ghost" size="sm" onClick={() => setError('')} className="rounded-lg text-destructive hover:bg-destructive/10">✕</Button>
+          </div>
+        )
+      }
 
       <main className="max-w-7xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
 
@@ -642,7 +630,7 @@ const ProjectDetail = () => {
           </div>
         </div>
       </main>
-    </div>
+    </div >
   );
 };
 

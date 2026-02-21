@@ -22,7 +22,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-<<<<<<< HEAD
 const App = () => {
   useEffect(() => {
     try {
@@ -46,8 +45,9 @@ const App = () => {
         <BrowserRouter>
           <AuthProvider>
             <Routes>
+              <Route path="/" element={<HomePage />} />
               <Route path="/auth" element={<AuthPage />} />
-              <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/new-project" element={<ProtectedRoute><NewProject /></ProtectedRoute>} />
               <Route path="/project/:id" element={<ProtectedRoute><ProjectDetail /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
@@ -58,27 +58,5 @@ const App = () => {
     </QueryClientProvider>
   );
 };
-=======
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/auth" element={<AuthPage />} />
-            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/new-project" element={<ProtectedRoute><NewProject /></ProtectedRoute>} />
-            <Route path="/project/:id" element={<ProtectedRoute><ProjectDetail /></ProtectedRoute>} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
->>>>>>> 4e77ce56015b279a2db7bef5705c277d7dd2bec5
 
 export default App;
