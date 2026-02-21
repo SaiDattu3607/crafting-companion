@@ -178,12 +178,12 @@ const ProjectDetail = () => {
   };
 
   const rootNodes = nodes.filter(n => n.parent_id === null);
-  const rootNode = rootNodes[0] ?? null;
   const getChildren = (parentId: string) => nodes.filter(n => n.parent_id === parentId);
-  const rootChildren = rootNode ? getChildren(rootNode.id) : [];
-  const itemChildren = rootChildren.filter(c => c.item_name !== 'enchanted_book');
-  const bookChildren = rootChildren.filter(c => c.item_name === 'enchanted_book');
-  const hasEnchantment = (rootNode?.enchantments?.length ?? 0) > 0;
+
+  // Per-root helpers (for multi-item projects)
+  const getRootItemChildren = (root: CraftingNode) => getChildren(root.id).filter(c => c.item_name !== 'enchanted_book');
+  const getRootBookChildren = (root: CraftingNode) => getChildren(root.id).filter(c => c.item_name === 'enchanted_book');
+  const enchantedRoots = rootNodes.filter(r => Array.isArray(r.enchantments) && r.enchantments.length > 0);
 
   const NodeStatusIcon = ({ node }: { node: CraftingNode }) => {
     const s = getNodeStatus(node);
@@ -348,32 +348,30 @@ const ProjectDetail = () => {
         )
       }
 
-      {/* Enchantment Summary Panel */}
-      {
-        rootNode && Array.isArray(rootNode.enchantments) && rootNode.enchantments.length > 0 && (
-          <div className="mx-6 mt-4 p-5 glass-strong border border-purple-500/20 rounded-2xl">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20">
-                <Sparkles className="w-5 h-5 text-purple-400" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-foreground">✨ Master Enchantment Plan</h2>
-                <p className="text-xs text-muted-foreground">Requirements for your {rootNode.display_name}</p>
-              </div>
+      {/* Enchantment Summary Panel (all enchanted roots) */}
+      {enchantedRoots.map(eRoot => (
+        <div key={eRoot.id} className="mx-6 mt-4 p-5 glass-strong border border-purple-500/20 rounded-2xl">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20">
+              <Sparkles className="w-5 h-5 text-purple-400" />
             </div>
-            <div className="flex flex-wrap gap-3">
-              {rootNode.enchantments.map((en: any, i: number) => (
-                <div key={i} className="bg-purple-500/5 border border-purple-500/10 px-4 py-3 rounded-xl flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-300 font-mono text-sm">
-                    {toRoman(en.level)}
-                  </div>
-                  <span className="text-sm font-semibold text-purple-200">{en.name.replace(/_/g, ' ')}</span>
-                </div>
-              ))}
+            <div>
+              <h2 className="text-lg font-bold text-foreground">✨ Enchantment Plan</h2>
+              <p className="text-xs text-muted-foreground">Requirements for your {eRoot.display_name}</p>
             </div>
           </div>
-        )
-      }
+          <div className="flex flex-wrap gap-3">
+            {(eRoot.enchantments || []).map((en: any, i: number) => (
+              <div key={i} className="bg-purple-500/5 border border-purple-500/10 px-4 py-3 rounded-xl flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-300 font-mono text-sm">
+                  {toRoman(en.level)}
+                </div>
+                <span className="text-sm font-semibold text-purple-200">{en.name.replace(/_/g, ' ')}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
 
       {
         error && (
@@ -397,29 +395,39 @@ const ProjectDetail = () => {
               <span className="text-xs text-muted-foreground bg-white/5 px-3 py-1 rounded-full">{nodes.length} nodes total</span>
             </div>
 
-            {/* Item section */}
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mb-3">Main Recipe</p>
-            <div className="space-y-0.5">
-              {rootNode && renderNodeTree(rootNode, 0, bookChildren.length === 0 && itemChildren.length === 0, '', itemChildren)}
-            </div>
+            {/* Render a tree per root node (multi-item support) */}
+            {rootNodes.map((rn, ri) => {
+              const itemCh = getRootItemChildren(rn);
+              const bookCh = getRootBookChildren(rn);
+              return (
+                <div key={rn.id} className={ri > 0 ? 'mt-8 pt-6 border-t border-white/5' : ''}>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mb-3">
+                    {rootNodes.length > 1 ? `${rn.display_name} Recipe` : 'Main Recipe'}
+                  </p>
+                  <div className="space-y-0.5">
+                    {renderNodeTree(rn, 0, bookCh.length === 0 && itemCh.length === 0, '', itemCh)}
+                  </div>
 
-            {/* Book section */}
-            {bookChildren.length > 0 && (
-              <>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mt-8 mb-3">Enchanted Book components</p>
-                <div className="space-y-0.5">
-                  {bookChildren.map((bookNode, i) => (
-                    <div key={bookNode.id}>
-                      {renderNodeTree(bookNode, 0, i === bookChildren.length - 1)}
-                    </div>
-                  ))}
+                  {/* Book section for this root */}
+                  {bookCh.length > 0 && (
+                    <>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mt-6 mb-3">Enchanted Book components</p>
+                      <div className="space-y-0.5">
+                        {bookCh.map((bookNode, i) => (
+                          <div key={bookNode.id}>
+                            {renderNodeTree(bookNode, 0, i === bookCh.length - 1)}
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
-              </>
-            )}
+              );
+            })}
           </div>
 
-          {/* Enchantment Book Guide */}
-          {rootNode && Array.isArray(rootNode.enchantments) && rootNode.enchantments.length > 0 && (
+          {/* Enchantment Book Guide (all enchanted roots) */}
+          {enchantedRoots.length > 0 && (
             <div className="glass-strong rounded-2xl border border-white/5 p-6">
               <div className="flex items-center gap-2 mb-6">
                 <BookOpen className="w-5 h-5 text-amber-400" />
@@ -427,12 +435,12 @@ const ProjectDetail = () => {
               </div>
 
               <div className="grid gap-4">
-                {getBookRequirements(rootNode.enchantments).map((req) => {
+                {enchantedRoots.flatMap(eRoot => getBookRequirements(eRoot.enchantments || []).map(req => ({ ...req, _rootId: eRoot.id }))).map((req) => {
                   const isExpanded = expandedBook === req.enchantmentName;
                   const strategy = getBestStrategy(req.enchantmentName, req.targetLevel);
 
                   return (
-                    <div key={req.enchantmentName} className="glass rounded-xl border border-white/5 overflow-hidden">
+                    <div key={`${(req as any)._rootId}-${req.enchantmentName}`} className="glass rounded-xl border border-white/5 overflow-hidden">
                       <button
                         onClick={() => setExpandedBook(isExpanded ? null : req.enchantmentName)}
                         className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors text-left"

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { soundManager } from '@/lib/sound';
 import { useNavigate } from 'react-router-dom';
-import { fetchProjects, type Project } from '@/lib/api';
+import { fetchProjects, deleteProject, updateProjectStatus, type Project } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Plus, LogOut, Loader2, Pickaxe } from 'lucide-react';
 import ProjectCard from '@/components/ProjectCard';
@@ -44,6 +44,26 @@ const Dashboard = () => {
   const handleNewProject = () => {
     soundManager.playSound('button');
     navigate('/new-project');
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteProject(id);
+      soundManager.playSound('button');
+      setProjects(prev => prev.filter(p => p.id !== id));
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const handleToggleDone = async (id: string, done: boolean) => {
+    try {
+      await updateProjectStatus(id, done ? 'completed' : 'active');
+      soundManager.playSound('button');
+      setProjects(prev => prev.map(p => p.id === id ? { ...p, status: done ? 'completed' : 'active' } : p));
+    } catch (err) {
+      setError((err as Error).message);
+    }
   };
 
   const initials = (user.full_name || user.email || 'U')
@@ -143,7 +163,13 @@ const Dashboard = () => {
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {projects.map(p => (
-              <ProjectCard key={p.id} project={p} onClick={() => { soundManager.playSound('button'); navigate(`/project/${p.id}`); }} />
+              <ProjectCard
+                key={p.id}
+                project={p}
+                onClick={() => { soundManager.playSound('button'); navigate(`/project/${p.id}`); }}
+                onDelete={handleDelete}
+                onToggleDone={handleToggleDone}
+              />
             ))}
           </div>
         )}

@@ -1,10 +1,14 @@
 import { type Project } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
-import { ChevronRight, CheckCircle, Clock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ChevronRight, CheckCircle, Clock, Trash2, CircleCheck, Undo2, Loader2 } from 'lucide-react';
+import { useState } from 'react';
 
 interface Props {
   project: Project;
   onClick: () => void;
+  onDelete?: (id: string) => Promise<void>;
+  onToggleDone?: (id: string, done: boolean) => Promise<void>;
 }
 
 const statusConfig = {
@@ -25,9 +29,33 @@ const statusConfig = {
   },
 };
 
-const ProjectCard = ({ project, onClick }: Props) => {
+const ProjectCard = ({ project, onClick, onDelete, onToggleDone }: Props) => {
   const status = statusConfig[project.status as keyof typeof statusConfig] ?? statusConfig.active;
   const StatusIcon = status.icon;
+  const isDone = project.status === 'completed';
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      setTimeout(() => setConfirmDelete(false), 3000);
+      return;
+    }
+    if (!onDelete) return;
+    setBusy(true);
+    await onDelete(project.id);
+    setBusy(false);
+  };
+
+  const handleToggleDone = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!onToggleDone) return;
+    setBusy(true);
+    await onToggleDone(project.id, !isDone);
+    setBusy(false);
+  };
 
   return (
     <div
@@ -56,13 +84,53 @@ const ProjectCard = ({ project, onClick }: Props) => {
         </p>
       )}
 
-      {/* Footer */}
-      <div className="flex items-center justify-between">
+      {/* Target item */}
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-base">🎯</span>
+        <span className="text-sm text-muted-foreground font-medium capitalize">
+          {project.root_item_name?.replace(/_/g, ' ') || 'Unknown item'}
+        </span>
+      </div>
+
+      {/* Action buttons */}
+      <div className="flex items-center justify-between pt-3 border-t border-white/5">
         <div className="flex items-center gap-2">
-          <span className="text-base">🎯</span>
-          <span className="text-sm text-muted-foreground font-medium capitalize">
-            {project.root_item_name?.replace(/_/g, ' ') || 'Unknown item'}
-          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleToggleDone}
+            disabled={busy}
+            className={`h-8 px-3 rounded-xl text-xs gap-1.5 ${
+              isDone
+                ? 'text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10'
+                : 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10'
+            }`}
+          >
+            {busy ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : isDone ? (
+              <><Undo2 className="w-3.5 h-3.5" /> Reopen</>
+            ) : (
+              <><CircleCheck className="w-3.5 h-3.5" /> Done</>
+            )}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleDelete}
+            disabled={busy}
+            className={`h-8 px-3 rounded-xl text-xs gap-1.5 ${
+              confirmDelete
+                ? 'text-red-400 bg-red-500/10 hover:bg-red-500/20'
+                : 'text-muted-foreground hover:text-red-400 hover:bg-red-500/10'
+            }`}
+          >
+            {busy ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <><Trash2 className="w-3.5 h-3.5" /> {confirmDelete ? 'Confirm?' : 'Delete'}</>
+            )}
+          </Button>
         </div>
         <div className="flex items-center gap-2">
           {project.role && (

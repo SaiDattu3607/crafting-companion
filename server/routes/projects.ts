@@ -47,31 +47,52 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 // ── POST /api/projects ─────────────────────────────────────────
-// Create a new project and parse the recipe tree
+// Create a new project and parse the recipe tree(s)
+// Supports single item (rootItemName) or multiple items (items array)
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { name, description, rootItemName, quantity = 1, enchantments = null } = req.body;
+    const { name, description, rootItemName, quantity = 1, enchantments = null, items } = req.body;
 
-    if (!name || !rootItemName) {
-      res.status(400).json({ error: 'name and rootItemName are required' });
+    // Build the list of target items
+    type TargetItem = { itemName: string; quantity: number; enchantments: { name: string; level: number }[] | null };
+    let targets: TargetItem[] = [];
+
+    if (Array.isArray(items) && items.length > 0) {
+      targets = items.map((it: any) => ({
+        itemName: it.itemName,
+        quantity: it.quantity || 1,
+        enchantments: it.enchantments || null,
+      }));
+    } else if (rootItemName) {
+      targets = [{ itemName: rootItemName, quantity, enchantments }];
+    }
+
+    if (!name || targets.length === 0) {
+      res.status(400).json({ error: 'name and at least one target item are required' });
       return;
     }
 
-    // Validate the item exists
-    const item = lookupItem(rootItemName);
-    if (!item) {
-      res.status(400).json({ error: `Unknown Minecraft item: "${rootItemName}"` });
-      return;
+    // Validate all items exist
+    for (const t of targets) {
+      const item = lookupItem(t.itemName);
+      if (!item) {
+        res.status(400).json({ error: `Unknown Minecraft item: "${t.itemName}"` });
+        return;
+      }
     }
 
-    // Create the project
+    const primaryItem = lookupItem(targets[0].itemName)!;
+
+    // Create the project (root_item_name = first item for display)
     const sb = supabaseForUser(req.accessToken!);
     const { data: project, error: projError } = await sb
       .from('projects')
       .insert({
         name,
-        description: description || `Crafting project for ${item.displayName}`,
-        root_item_name: rootItemName,
+        description: description || (targets.length === 1
+          ? `Crafting project for ${primaryItem.displayName}`
+          : `Crafting project for ${targets.length} items`),
+        root_item_name: targets[0].itemName,
         owner_id: req.userId!,
       })
       .select()
@@ -82,12 +103,17 @@ router.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    // Parse the recipe tree and populate crafting_nodes
-    const parseResult = await parseRecipeTree(project.id, rootItemName, quantity, sb, enchantments);
+    // Parse recipe trees for all target items
+    const trees = [];
+    for (const t of targets) {
+      const parseResult = await parseRecipeTree(project.id, t.itemName, t.quantity, sb, t.enchantments);
+      trees.push(parseResult);
+    }
 
     res.status(201).json({
       project,
-      tree: parseResult,
+      tree: trees[0],
+      trees,
     });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
@@ -154,6 +180,36 @@ router.delete('/:projectId', async (req: Request, res: Response) => {
     const { error } = await sb
       .from('projects')
       .delete()
+      .eq('id', projectId)
+      .eq('owner_id', req.userId!);
+
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// ── PATCH /api/projects/:projectId/status ──────────────────────
+// Update project status (owner only)
+router.patch('/:projectId/status', async (req: Request, res: Response) => {
+  try {
+    const { projectId } = req.params;
+    const { status } = req.body;
+
+    if (!status || !['active', 'completed', 'archived'].includes(status)) {
+      res.status(400).json({ error: 'status must be active, completed, or archived' });
+      return;
+    }
+
+    const sb = supabaseForUser(req.accessToken!);
+    const { error } = await sb
+      .from('projects')
+      .update({ status, updated_at: new Date().toISOString() })
       .eq('id', projectId)
       .eq('owner_id', req.userId!);
 

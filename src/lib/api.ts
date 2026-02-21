@@ -151,6 +151,33 @@ export async function createProject(
   });
 }
 
+/** Create a project with multiple target items */
+export interface TargetItem {
+  itemName: string;
+  displayName: string;
+  quantity: number;
+  enchantments: { name: string; level: number }[] | null;
+}
+
+export async function createMultiItemProject(
+  name: string,
+  items: TargetItem[],
+  description?: string,
+): Promise<{ project: Project; trees: ParseResult[] }> {
+  return apiFetch('/projects', {
+    method: 'POST',
+    body: JSON.stringify({
+      name,
+      description,
+      items: items.map(i => ({
+        itemName: i.itemName,
+        quantity: i.quantity,
+        enchantments: i.enchantments,
+      })),
+    }),
+  });
+}
+
 /** Get project details with full crafting tree */
 export async function fetchProject(projectId: string): Promise<{
   project: Project;
@@ -163,6 +190,14 @@ export async function fetchProject(projectId: string): Promise<{
 /** Delete a project */
 export async function deleteProject(projectId: string): Promise<void> {
   await apiFetch(`/projects/${projectId}`, { method: 'DELETE' });
+}
+
+/** Mark project as completed or reactivate */
+export async function updateProjectStatus(projectId: string, status: 'active' | 'completed' | 'archived'): Promise<void> {
+  await apiFetch(`/projects/${projectId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
 }
 
 /** Contribute items to a node (with guard) */
