@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { soundManager } from '@/lib/sound';
 import {
   fetchProject, contributeToNode, addProjectMember,
   fetchContributions, fetchBottleneck, fetchProgress,
@@ -116,15 +117,11 @@ const ProjectDetail = () => {
     setContributing(nodeId);
     try {
       const result = await contributeToNode(id!, nodeId, 1, action);
-<<<<<<< HEAD
-      if (!result.success) setError(result.error || 'Contribution failed');
-=======
       if (!result.success) {
         setError(result.error || 'Contribution failed');
       } else {
         soundManager.playSound(action === 'crafted' ? 'craft' : 'collect');
       }
->>>>>>> ba21255c2c8569e985ddf295ca732f654d9d2c1d
       await loadProject();
     } catch (err) {
       setError((err as Error).message);
@@ -168,6 +165,16 @@ const ProjectDetail = () => {
   const handleCancelEditEnchantments = () => {
     setEditingEnchantments(null);
     setEditEnchantmentLevels([]);
+  };
+
+  const handleGoHome = () => {
+    soundManager.playSound('button');
+    navigate('/dashboard');
+  };
+
+  const handleRefresh = () => {
+    soundManager.playSound('button');
+    loadProject();
   };
 
   const rootNodes = nodes.filter(n => n.parent_id === null);

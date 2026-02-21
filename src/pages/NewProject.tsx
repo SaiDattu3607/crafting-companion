@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { soundManager } from '@/lib/sound';
 import { createProject, searchMinecraftItems, lookupMinecraftItem, type MinecraftItem } from '@/lib/api';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -53,11 +54,8 @@ const NewProject = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !selectedItem) return;
-<<<<<<< HEAD
-=======
 
     soundManager.playSound('button');
->>>>>>> ba21255c2c8569e985ddf295ca732f654d9d2c1d
     setCreating(true);
     setError('');
     try {
@@ -135,11 +133,7 @@ const NewProject = () => {
                     <span className="text-xs badge-pending px-2 py-0.5 rounded-full">Resource</span>
                   )}
                 </div>
-<<<<<<< HEAD
-                <Button type="button" variant="ghost" size="sm" onClick={() => { setSelectedItem(null); setItemSearch(''); }}
-=======
                 <Button type="button" variant="ghost" size="sm" onClick={() => { soundManager.playSound('button'); setSelectedItem(null); setItemSearch(''); }}
->>>>>>> ba21255c2c8569e985ddf295ca732f654d9d2c1d
                   className="rounded-xl text-muted-foreground hover:text-foreground">
                   <X className="w-4 h-4" />
                 </Button>
@@ -163,10 +157,7 @@ const NewProject = () => {
                         type="button"
                         className="w-full text-left px-4 py-3 hover:bg-primary/10 transition-colors flex items-center justify-between group border-b border-white/5 last:border-0"
                         onClick={async () => {
-<<<<<<< HEAD
-=======
                           soundManager.playSound('button');
->>>>>>> ba21255c2c8569e985ddf295ca732f654d9d2c1d
                           try {
                             const full = await lookupMinecraftItem(item.name);
                             setSelectedItem(full || item);

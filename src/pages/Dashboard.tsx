@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { soundManager } from '@/lib/sound';
 import { useNavigate } from 'react-router-dom';
 import { fetchProjects, type Project } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -40,14 +41,11 @@ const Dashboard = () => {
     navigate('/');
   };
 
-<<<<<<< HEAD
-=======
   const handleNewProject = () => {
     soundManager.playSound('button');
     navigate('/new-project');
   };
 
->>>>>>> ba21255c2c8569e985ddf295ca732f654d9d2c1d
   const initials = (user.full_name || user.email || 'U')
     .split(' ')
     .map((w: string) => w[0])
