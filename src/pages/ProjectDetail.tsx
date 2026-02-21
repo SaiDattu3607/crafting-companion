@@ -10,7 +10,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, AlertTriangle, CheckCircle, Clock, Ban, UserPlus, RefreshCw, Loader2 } from 'lucide-react';
+import {
+  ArrowLeft, AlertTriangle, CheckCircle, Clock, Ban,
+  UserPlus, RefreshCw, Loader2, Layers, Activity,
+} from 'lucide-react';
 
 const ProjectDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -23,7 +26,6 @@ const ProjectDetail = () => {
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [bottlenecks, setBottlenecks] = useState<BottleneckItem[]>([]);
   const [progress, setProgress] = useState<ProjectProgress | null>(null);
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [collabEmail, setCollabEmail] = useState('');
@@ -41,15 +43,10 @@ const ProjectDetail = () => {
         fetchProgress(id).catch(() => null),
       ]);
 
-      // Parse enchantments if they come as JSON strings from Supabase
       const parsedNodes = projectData.nodes.map((node: any) => {
         if (node.enchantments && typeof node.enchantments === 'string') {
-          try {
-            node.enchantments = JSON.parse(node.enchantments);
-          } catch (e) {
-            console.warn('Failed to parse enchantments for node:', node.id, e);
-            node.enchantments = null;
-          }
+          try { node.enchantments = JSON.parse(node.enchantments); }
+          catch { node.enchantments = null; }
         }
         return node;
       });
@@ -68,15 +65,13 @@ const ProjectDetail = () => {
     }
   }, [id]);
 
-  useEffect(() => {
-    loadProject();
-  }, [loadProject]);
+  useEffect(() => { loadProject(); }, [loadProject]);
 
   if (!user) { navigate('/auth'); return null; }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen mesh-bg flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
@@ -84,25 +79,22 @@ const ProjectDetail = () => {
 
   if (!project) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-xl text-muted-foreground mb-4">{error || 'Project not found'}</p>
-          <Button variant="outline" onClick={() => navigate('/dashboard')}>Go Home</Button>
+      <div className="min-h-screen mesh-bg flex items-center justify-center text-center">
+        <div>
+          <p className="text-muted-foreground text-xl mb-4">{error || 'Project not found'}</p>
+          <Button variant="outline" onClick={() => navigate('/dashboard')} className="rounded-xl">Go Home</Button>
         </div>
       </div>
     );
   }
 
   const progressPct = progress?.progress_pct || 0;
-  const topBottleneck = bottlenecks.length > 0 ? bottlenecks[0] : null;
+  const topBottleneck = bottlenecks[0] ?? null;
 
-  // Determine if a node can be contributed to
   const canContribute = (node: CraftingNode): boolean => {
     if (node.collected_qty >= node.required_qty) return false;
-    if (node.is_resource) return true; // Resources can always be collected
-    // Non-resources: check if all children are complete
-    const children = nodes.filter(n => n.parent_id === node.id);
-    return children.every(c => c.collected_qty >= c.required_qty);
+    if (node.is_resource) return true;
+    return nodes.filter(n => n.parent_id === node.id).every(c => c.collected_qty >= c.required_qty);
   };
 
   const getNodeStatus = (node: CraftingNode): 'complete' | 'ready' | 'blocked' => {
@@ -115,10 +107,7 @@ const ProjectDetail = () => {
     setContributing(nodeId);
     try {
       const result = await contributeToNode(id!, nodeId, 1, action);
-      if (!result.success) {
-        setError(result.error || 'Contribution failed');
-      }
-      // Reload project to get updated state
+      if (!result.success) setError(result.error || 'Contribution failed');
       await loadProject();
     } catch (err) {
       setError((err as Error).message);
@@ -139,21 +128,6 @@ const ProjectDetail = () => {
     }
   };
 
-  const statusIcon = (node: CraftingNode) => {
-    const status = getNodeStatus(node);
-    if (status === 'complete') return <CheckCircle className="w-5 h-5 text-craft-complete" />;
-    if (status === 'blocked') return <Ban className="w-5 h-5 text-craft-blocked" />;
-    return <Clock className="w-5 h-5 text-craft-pending" />;
-  };
-
-  const statusBg = (node: CraftingNode) => {
-    const status = getNodeStatus(node);
-    if (status === 'complete') return 'border-l-4 border-l-craft-complete bg-craft-complete/5';
-    if (status === 'blocked') return 'border-l-4 border-l-craft-blocked bg-craft-blocked/5';
-    return 'border-l-4 border-l-craft-pending bg-craft-pending/5';
-  };
-
-  // Build tree structure from flat nodes
   const rootNodes = nodes.filter(n => n.parent_id === null);
   const rootNode = rootNodes[0] ?? null;
   const getChildren = (parentId: string) => nodes.filter(n => n.parent_id === parentId);
@@ -162,93 +136,85 @@ const ProjectDetail = () => {
   const bookChildren = rootChildren.filter(c => c.item_name === 'enchanted_book');
   const hasEnchantment = (rootNode?.enchantments?.length ?? 0) > 0;
 
+  const NodeStatusIcon = ({ node }: { node: CraftingNode }) => {
+    const s = getNodeStatus(node);
+    if (s === 'complete') return <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />;
+    if (s === 'blocked') return <Ban className="w-4 h-4 text-red-400    flex-shrink-0" />;
+    return <Clock className="w-4 h-4 text-yellow-400 flex-shrink-0" />;
+  };
+
+  const nodeClass = (node: CraftingNode) => {
+    const s = getNodeStatus(node);
+    if (s === 'complete') return 'node-complete';
+    if (s === 'blocked') return 'node-blocked';
+    return 'node-pending';
+  };
+
   const renderNodeTree = (
     node: CraftingNode,
     depth: number = 0,
     isLast: boolean = true,
     prefix: string = '',
     childrenOverride?: CraftingNode[] | null
-  ) => {
+  ): React.ReactNode => {
     const children = childrenOverride !== undefined && childrenOverride !== null
-      ? childrenOverride
-      : getChildren(node.id);
+      ? childrenOverride : getChildren(node.id);
     const isComplete = node.collected_qty >= node.required_qty;
     const isContributing = contributing === node.id;
-    const hasChildren = children.length > 0;
-
-    // Build the branch prefix for nested items
     const connector = depth === 0 ? '' : isLast ? '└── ' : '├── ';
     const childPrefix = depth === 0 ? '' : prefix + (isLast ? '    ' : '│   ');
 
     return (
       <div key={node.id}>
-        <div className="flex items-center">
-          {/* Tree branch characters */}
+        <div className="flex items-center gap-1">
           {depth > 0 && (
-            <span className="text-muted-foreground font-mono text-sm whitespace-pre select-none flex-shrink-0">
+            <span className="text-muted-foreground/40 font-mono text-xs whitespace-pre select-none flex-shrink-0">
               {prefix}{connector}
             </span>
           )}
-          {/* Node card */}
-          <div className={`flex-1 flex items-center justify-between p-2.5 rounded mb-0.5 ${statusBg(node)}`}>
-            <div className="flex items-center gap-2">
-              {statusIcon(node)}
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className={`font-bold ${depth === 0 ? 'text-lg' : 'text-base'}`}>
-                  {depth === 0 && node.enchantments && node.enchantments.length > 0
-                    ? `${node.display_name} (${node.enchantments.map((e) => `${e.name.replace(/_/g, ' ')} ${e.level}`).join(', ')})`
+          <div className={`flex-1 flex items-center justify-between px-3 py-2 rounded-xl mb-0.5 ${nodeClass(node)}`}>
+            <div className="flex items-center gap-2 min-w-0">
+              <NodeStatusIcon node={node} />
+              <div className="flex items-center gap-2 flex-wrap min-w-0">
+                <span className={`font-semibold truncate ${depth === 0 ? 'text-base' : 'text-sm'}`}>
+                  {depth === 0 && node.enchantments?.length
+                    ? `${node.display_name} (${node.enchantments.map(e => `${e.name.replace(/_/g, ' ')} ${e.level}`).join(', ')})`
                     : node.display_name}
                 </span>
-                <span className="text-muted-foreground text-sm">
+                <span className="text-muted-foreground text-xs">
                   {node.collected_qty}/{node.required_qty}
                 </span>
-                {node.enchantments && node.enchantments.length > 0 && depth !== 0 && (
-                  <div className="flex gap-2">
-                    {node.enchantments.map((en, i) => (
-                      <span key={`${en.name}-${i}`} className="text-xs bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded">
-                        {en.name.replace(/_/g, ' ')} {en.level}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                {node.enchantments?.length > 0 && depth !== 0 && node.enchantments.map((en, i) => (
+                  <span key={`${en.name}-${i}`} className="text-xs bg-purple-500/15 text-purple-400 border border-purple-500/20 px-1.5 py-0.5 rounded-full">
+                    {en.name.replace(/_/g, ' ')} {en.level}
+                  </span>
+                ))}
                 {node.is_resource && (
-                  <span className="text-xs bg-yellow-500/20 text-yellow-600 px-1.5 py-0.5 rounded">resource</span>
+                  <span className="text-xs badge-pending px-1.5 py-0.5 rounded-full">resource</span>
                 )}
-                {!node.is_resource && hasChildren && (
-                  <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">
-                    {node.depth === 0 ? 'final goal' : 'craftable'}
+                {!node.is_resource && getChildren(node.id).length > 0 && (
+                  <span className="text-xs bg-blue-500/15 text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded-full">
+                    {node.depth === 0 ? 'goal' : 'craftable'}
                   </span>
                 )}
               </div>
             </div>
-            {!isComplete && (
-              <div className="flex gap-1 flex-shrink-0 ml-2">
-                {node.is_resource ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={!canContribute(node) || isContributing}
-                    onClick={() => handleContribute(node.id, 'collected')}
-                    className="text-xs h-7 px-2"
-                  >
-                    {isContributing ? <Loader2 className="w-3 h-3 animate-spin" /> : '📦 Collect'}
-                  </Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={!canContribute(node) || isContributing}
-                    onClick={() => handleContribute(node.id, 'crafted')}
-                    className="text-xs h-7 px-2"
-                  >
-                    {isContributing ? <Loader2 className="w-3 h-3 animate-spin" /> : '⚒ Craft'}
-                  </Button>
-                )}
-              </div>
-            )}
-            {isComplete && (
-              <span className="text-xs text-craft-complete uppercase flex-shrink-0 ml-2">✓ Done</span>
-            )}
+            <div className="flex-shrink-0 ml-2 flex items-center gap-1">
+              {isComplete ? (
+                <span className="text-xs text-emerald-400 font-semibold">✓ Done</span>
+              ) : (
+                <Button
+                  size="sm" variant="outline"
+                  disabled={!canContribute(node) || !!isContributing}
+                  onClick={() => handleContribute(node.id, node.is_resource ? 'collected' : 'crafted')}
+                  className="h-7 px-2.5 text-xs rounded-lg border-white/10 hover:border-primary/40 hover:text-primary"
+                >
+                  {isContributing
+                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                    : node.is_resource ? '📦 Collect' : '⚒ Craft'}
+                </Button>
+              )}
+            </div>
           </div>
         </div>
         {children.map((c, i) => renderNodeTree(c, depth + 1, i === children.length - 1, childPrefix))}
@@ -257,70 +223,71 @@ const ProjectDetail = () => {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen mesh-bg text-foreground">
+
       {/* Header */}
-      <header className="pixel-border border-x-0 border-t-0 bg-card p-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')}>
-            <ArrowLeft className="w-4 h-4" />
+      <header className="sticky top-0 z-40 glass-strong border-b border-white/5">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')} className="rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/5">
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-primary/15 border border-primary/25 flex items-center justify-center text-xs">⛏</div>
+              <h1 className="font-black text-base gradient-text-green">CraftChain</h1>
+            </div>
+            <span className="text-muted-foreground text-sm hidden sm:block">/ {project.name}</span>
+          </div>
+          <Button variant="ghost" size="sm" onClick={loadProject} className="text-muted-foreground hover:text-foreground rounded-xl gap-1.5">
+            <RefreshCw className="w-4 h-4" /> <span className="hidden sm:inline text-sm">Refresh</span>
           </Button>
-          <h1 className="text-sm text-primary">{project.name}</h1>
         </div>
-        <Button variant="ghost" size="sm" onClick={loadProject} className="text-muted-foreground">
-          <RefreshCw className="w-4 h-4 mr-1" /> Refresh
-        </Button>
       </header>
 
-      {/* Bottleneck Alert */}
+      {/* Bottleneck banner */}
       {topBottleneck && (
-        <div className="mx-6 mt-4 p-4 pixel-border bg-craft-blocked/10 border-craft-blocked flex items-center gap-3">
-          <AlertTriangle className="w-5 h-5 text-craft-blocked" />
-          <span className="text-lg">
-            <strong className="text-craft-blocked">{topBottleneck.display_name}</strong> is blocking {topBottleneck.blocked_ancestors} item{topBottleneck.blocked_ancestors > 1 ? 's' : ''} — needs {topBottleneck.remaining_qty} more
+        <div className="mx-6 mt-4 flex items-center gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/20">
+          <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0" />
+          <span className="text-sm">
+            <strong className="text-red-400">{topBottleneck.display_name}</strong>
+            {' '}is blocking {topBottleneck.blocked_ancestors} item{topBottleneck.blocked_ancestors > 1 ? 's' : ''} — needs {topBottleneck.remaining_qty} more
           </span>
         </div>
       )}
 
       {error && (
-        <div className="mx-6 mt-4 p-4 pixel-border bg-destructive/10 text-destructive">
-          {error}
-          <Button variant="ghost" size="sm" className="ml-2" onClick={() => setError('')}>✕</Button>
+        <div className="mx-6 mt-4 flex items-center justify-between p-4 rounded-xl bg-destructive/10 border border-destructive/20">
+          <span className="text-destructive text-sm">{error}</span>
+          <Button variant="ghost" size="sm" onClick={() => setError('')} className="rounded-lg text-destructive hover:bg-destructive/10">✕</Button>
         </div>
       )}
 
-      <main className="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Crafting Tree */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="pixel-border bg-card p-4">
-            {/* Main heading: Item + Enchantment (e.g. "Stone Sword (Sharpness I)") */}
-            <h2 className="text-lg font-bold text-primary mb-1">
-              {rootNode && hasEnchantment && rootNode.enchantments?.length
-                ? `${rootNode.display_name} (${rootNode.enchantments.map((e) => `${e.name.replace(/_/g, ' ')} ${e.level}`).join(', ')})`
-                : rootNode?.display_name ?? 'Crafting Tree'}
-            </h2>
-            <p className="text-xs font-pixel text-muted-foreground mb-4">
-              Crafting Tree ({nodes.length} nodes)
-            </p>
+      <main className="max-w-7xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-            {/* Subheading: Item — goal + recipe ingredients */}
-            <h3 className="text-sm font-pixel text-muted-foreground uppercase tracking-wider mb-2 mt-4">
-              Item
-            </h3>
-            <div className="space-y-1">
-              {rootNode && (
-                <>
-                  {renderNodeTree(rootNode, 0, bookChildren.length === 0 && itemChildren.length === 0, '', itemChildren)}
-                </>
-              )}
+        {/* ── Left: Crafting Tree ───────────────────────────── */}
+        <div className="lg:col-span-2 space-y-5">
+          <div className="glass-strong rounded-2xl border border-white/5 p-6">
+            <div className="flex items-center gap-2 mb-1">
+              <Layers className="w-4 h-4 text-primary" />
+              <h2 className="font-bold text-lg text-foreground">
+                {rootNode && hasEnchantment && rootNode.enchantments?.length
+                  ? `${rootNode.display_name} (${rootNode.enchantments.map(e => `${e.name.replace(/_/g, ' ')} ${e.level}`).join(', ')})`
+                  : rootNode?.display_name ?? 'Crafting Tree'}
+              </h2>
+            </div>
+            <p className="text-xs text-muted-foreground mb-5">{nodes.length} nodes in recipe tree</p>
+
+            {/* Item section */}
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-2">Item</p>
+            <div className="space-y-0.5">
+              {rootNode && renderNodeTree(rootNode, 0, bookChildren.length === 0 && itemChildren.length === 0, '', itemChildren)}
             </div>
 
-            {/* Subheading: Book — Enchanted Book requirement(s) */}
+            {/* Book section */}
             {bookChildren.length > 0 && (
               <>
-                <h3 className="text-sm font-pixel text-muted-foreground uppercase tracking-wider mb-2 mt-4">
-                  Book
-                </h3>
-                <div className="space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mt-5 mb-2">Book</p>
+                <div className="space-y-0.5">
                   {bookChildren.map((bookNode, i) => (
                     <div key={bookNode.id}>
                       {renderNodeTree(bookNode, 0, i === bookChildren.length - 1)}
@@ -331,27 +298,35 @@ const ProjectDetail = () => {
             )}
           </div>
 
-          {/* Add Collaborator */}
-          <div className="pixel-border bg-card p-4">
-            <h2 className="text-xs font-pixel text-muted-foreground mb-3">Collaboration</h2>
+          {/* Collaborators */}
+          <div className="glass-strong rounded-2xl border border-white/5 p-6">
+            <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
+              <UserPlus className="w-4 h-4" /> Collaboration
+            </h2>
             <div className="flex gap-2">
               <Input
                 value={collabEmail}
                 onChange={e => setCollabEmail(e.target.value)}
-                placeholder="Enter email to invite..."
-                className="bg-secondary border-border text-lg"
+                placeholder="Enter email to invite…"
+                className="bg-secondary/60 border-white/8 rounded-xl h-10 focus:border-primary/50"
               />
-              <Button onClick={handleAddCollaborator} variant="outline" className="text-lg">
-                <UserPlus className="w-4 h-4 mr-1" /> Invite
+              <Button onClick={handleAddCollaborator} variant="outline"
+                className="rounded-xl border-white/10 hover:border-primary/40 hover:text-primary gap-1.5 px-4">
+                <UserPlus className="w-4 h-4" /> Invite
               </Button>
             </div>
             {collabError && <p className="text-destructive text-sm mt-2">{collabError}</p>}
             {members.length > 0 && (
-              <div className="mt-3 space-y-1">
+              <div className="mt-4 space-y-2">
                 {members.map(m => (
-                  <div key={m.user_id} className="text-sm text-muted-foreground flex items-center gap-2">
-                    <span className="text-foreground">{(m.profiles as any)?.full_name || (m.profiles as any)?.email}</span>
-                    <span className="text-xs bg-secondary px-1.5 py-0.5 rounded">{m.role}</span>
+                  <div key={m.user_id} className="flex items-center gap-3">
+                    <div className="w-7 h-7 rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center text-xs text-primary font-bold">
+                      {((m.profiles as any)?.full_name || (m.profiles as any)?.email || 'U')[0].toUpperCase()}
+                    </div>
+                    <span className="text-sm text-foreground font-medium">
+                      {(m.profiles as any)?.full_name || (m.profiles as any)?.email}
+                    </span>
+                    <span className="text-xs text-muted-foreground bg-secondary/60 px-2 py-0.5 rounded-lg capitalize">{m.role}</span>
                   </div>
                 ))}
               </div>
@@ -360,18 +335,18 @@ const ProjectDetail = () => {
 
           {/* Bottleneck Details */}
           {bottlenecks.length > 0 && (
-            <div className="pixel-border bg-card p-4">
-              <h2 className="text-xs font-pixel text-muted-foreground mb-3">🔍 Bottleneck Resources</h2>
-              <div className="space-y-2">
+            <div className="glass-strong rounded-2xl border border-white/5 p-6">
+              <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-yellow-400" /> Bottleneck Resources
+              </h2>
+              <div className="space-y-3">
                 {bottlenecks.slice(0, 5).map(b => (
-                  <div key={b.node_id} className="flex items-center justify-between p-2 bg-secondary rounded">
+                  <div key={b.node_id} className="flex items-center justify-between p-3 rounded-xl bg-red-500/5 border border-red-500/10">
                     <div>
-                      <span className="text-lg font-bold">{b.display_name}</span>
-                      <span className="text-muted-foreground text-sm ml-2">
-                        {b.collected_qty}/{b.required_qty} ({b.remaining_qty} needed)
-                      </span>
+                      <span className="font-semibold text-sm">{b.display_name}</span>
+                      <span className="text-muted-foreground text-xs ml-2">{b.collected_qty}/{b.required_qty} ({b.remaining_qty} needed)</span>
                     </div>
-                    <span className="text-sm text-craft-blocked">
+                    <span className="text-xs text-red-400 font-medium">
                       Blocking {b.blocked_ancestors} item{b.blocked_ancestors > 1 ? 's' : ''}
                     </span>
                   </div>
@@ -381,42 +356,73 @@ const ProjectDetail = () => {
           )}
         </div>
 
-        {/* Right: Progress + Activity */}
-        <div className="space-y-4">
+        {/* ── Right: Progress + Activity ────────────────────── */}
+        <div className="space-y-5">
+
           {/* Progress */}
-          <div className="pixel-border bg-card p-4">
-            <h2 className="text-xs font-pixel text-muted-foreground mb-3">Progress</h2>
-            <div className="text-center mb-3">
-              <span className="text-2xl font-pixel text-primary">{progressPct}%</span>
+          <div className="glass-strong rounded-2xl border border-white/5 p-6">
+            <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-widest mb-5">Progress</h2>
+
+            {/* Circular progress ring */}
+            <div className="flex justify-center mb-5">
+              <div className="relative w-28 h-28">
+                <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="40" fill="none" stroke="hsl(222 35% 12%)" strokeWidth="10" />
+                  <circle
+                    cx="50" cy="50" r="40" fill="none"
+                    stroke="hsl(152 80% 48%)" strokeWidth="10"
+                    strokeLinecap="round"
+                    strokeDasharray={`${progressPct * 2.513} 251.3`}
+                    className="transition-all duration-700"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-2xl font-black gradient-text-green">{progressPct}%</span>
+                  <span className="text-xs text-muted-foreground">complete</span>
+                </div>
+              </div>
             </div>
-            <Progress value={progressPct} className="h-4 bg-secondary [&>div]:bg-primary" />
+
+            <Progress value={progressPct} className="h-2 bg-secondary [&>div]:bg-primary rounded-full mb-3" />
             {progress && (
-              <div className="flex justify-between mt-3 text-sm text-muted-foreground">
-                <span>🟢 {progress.completed_nodes} done</span>
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-emerald-400" /> {progress.completed_nodes} done</span>
                 <span>📦 {progress.completed_resources}/{progress.total_resources} resources</span>
               </div>
             )}
           </div>
 
           {/* Activity Feed */}
-          <div className="pixel-border bg-card p-4">
-            <h2 className="text-xs font-pixel text-muted-foreground mb-3">Activity Feed</h2>
+          <div className="glass-strong rounded-2xl border border-white/5 p-6">
+            <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-primary" /> Activity Feed
+            </h2>
             {contributions.length === 0 ? (
-              <p className="text-muted-foreground text-lg text-center py-4">No activity yet</p>
+              <div className="text-center py-8">
+                <p className="text-muted-foreground text-sm">No activity yet</p>
+                <p className="text-xs text-muted-foreground mt-1">Start collecting or crafting!</p>
+              </div>
             ) : (
-              <div className="space-y-2 max-h-96 overflow-y-auto">
+              <div className="space-y-3 max-h-80 overflow-y-auto">
                 {contributions.map(c => (
-                  <div key={c.id} className="p-2 bg-secondary rounded text-sm">
-                    <span className="text-foreground font-bold">
-                      {(c.profiles as any)?.full_name || (c.profiles as any)?.email}
-                    </span>
-                    <span className="text-muted-foreground"> {c.action} </span>
-                    <span className="text-accent">
-                      {(c.crafting_nodes as any)?.display_name || 'item'}
-                    </span>
-                    <span className="text-muted-foreground"> ×{c.quantity}</span>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {new Date(c.created_at).toLocaleString()}
+                  <div key={c.id} className="flex gap-3">
+                    <div className="w-7 h-7 rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center text-xs text-primary font-bold flex-shrink-0 mt-0.5">
+                      {((c.profiles as any)?.full_name || (c.profiles as any)?.email || 'U')[0].toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm">
+                        <span className="font-semibold text-foreground">
+                          {(c.profiles as any)?.full_name || (c.profiles as any)?.email}
+                        </span>
+                        <span className="text-muted-foreground"> {c.action} </span>
+                        <span className="text-primary font-medium">
+                          {(c.crafting_nodes as any)?.display_name || 'item'}
+                        </span>
+                        <span className="text-muted-foreground"> ×{c.quantity}</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {new Date(c.created_at).toLocaleString()}
+                      </p>
                     </div>
                   </div>
                 ))}
