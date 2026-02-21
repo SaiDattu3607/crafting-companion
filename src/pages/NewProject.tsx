@@ -53,6 +53,11 @@ const NewProject = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !selectedItem) return;
+<<<<<<< HEAD
+=======
+
+    soundManager.playSound('button');
+>>>>>>> ba21255c2c8569e985ddf295ca732f654d9d2c1d
     setCreating(true);
     setError('');
     try {
@@ -70,7 +75,7 @@ const NewProject = () => {
       {/* Header */}
       <header className="sticky top-0 z-40 glass-strong border-b border-white/5">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')} className="rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/5">
+          <Button variant="ghost" size="sm" onClick={() => { soundManager.playSound('button'); navigate('/dashboard'); }} className="rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/5">
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div className="flex items-center gap-2">
@@ -130,7 +135,11 @@ const NewProject = () => {
                     <span className="text-xs badge-pending px-2 py-0.5 rounded-full">Resource</span>
                   )}
                 </div>
+<<<<<<< HEAD
                 <Button type="button" variant="ghost" size="sm" onClick={() => { setSelectedItem(null); setItemSearch(''); }}
+=======
+                <Button type="button" variant="ghost" size="sm" onClick={() => { soundManager.playSound('button'); setSelectedItem(null); setItemSearch(''); }}
+>>>>>>> ba21255c2c8569e985ddf295ca732f654d9d2c1d
                   className="rounded-xl text-muted-foreground hover:text-foreground">
                   <X className="w-4 h-4" />
                 </Button>
@@ -154,6 +163,10 @@ const NewProject = () => {
                         type="button"
                         className="w-full text-left px-4 py-3 hover:bg-primary/10 transition-colors flex items-center justify-between group border-b border-white/5 last:border-0"
                         onClick={async () => {
+<<<<<<< HEAD
+=======
+                          soundManager.playSound('button');
+>>>>>>> ba21255c2c8569e985ddf295ca732f654d9d2c1d
                           try {
                             const full = await lookupMinecraftItem(item.name);
                             setSelectedItem(full || item);

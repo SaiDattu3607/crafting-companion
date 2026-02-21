@@ -116,7 +116,15 @@ const ProjectDetail = () => {
     setContributing(nodeId);
     try {
       const result = await contributeToNode(id!, nodeId, 1, action);
+<<<<<<< HEAD
       if (!result.success) setError(result.error || 'Contribution failed');
+=======
+      if (!result.success) {
+        setError(result.error || 'Contribution failed');
+      } else {
+        soundManager.playSound(action === 'crafted' ? 'craft' : 'collect');
+      }
+>>>>>>> ba21255c2c8569e985ddf295ca732f654d9d2c1d
       await loadProject();
     } catch (err) {
       setError((err as Error).message);
@@ -305,7 +313,7 @@ const ProjectDetail = () => {
       <header className="sticky top-0 z-40 glass-strong border-b border-white/5">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')} className="rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/5">
+            <Button variant="ghost" size="sm" onClick={handleGoHome} className="rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/5">
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <div className="flex items-center gap-2">
@@ -314,7 +322,7 @@ const ProjectDetail = () => {
             </div>
             <span className="text-muted-foreground text-sm hidden sm:block">/ {project.name}</span>
           </div>
-          <Button variant="ghost" size="sm" onClick={loadProject} className="text-muted-foreground hover:text-foreground rounded-xl gap-1.5">
+          <Button variant="ghost" size="sm" onClick={handleRefresh} className="text-muted-foreground hover:text-foreground rounded-xl gap-1.5">
             <RefreshCw className="w-4 h-4" /> <span className="hidden sm:inline text-sm">Refresh</span>
           </Button>
         </div>

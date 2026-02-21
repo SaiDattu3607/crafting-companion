@@ -22,7 +22,7 @@ class SoundManager {
     // Background music (placeholder - user should replace with actual file)
     this.backgroundMusic = new Audio('/sounds/background.mp3');
     this.backgroundMusic.loop = true;
-    this.backgroundMusic.volume = 0.3;
+    this.backgroundMusic.volume = 0.9;
 
     // Generate procedural sounds
     this.sounds.craft = () => this.playTone(800, 0.2, 'sawtooth');
