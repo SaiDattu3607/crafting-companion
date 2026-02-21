@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   fetchProject, contributeToNode, addProjectMember,
   fetchContributions, fetchBottleneck, fetchProgress,
+  updateNodeEnchantments,
   type Project, type CraftingNode, type Contribution,
   type BottleneckItem, type ProjectProgress, type ProjectMember,
 } from '@/lib/api';
@@ -11,7 +12,12 @@ import { soundManager } from '@/lib/sound';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, AlertTriangle, CheckCircle, Clock, Ban, UserPlus, RefreshCw, Loader2 } from 'lucide-react';
+import {
+  ArrowLeft, AlertTriangle, CheckCircle, Clock, Ban,
+  UserPlus, RefreshCw, Loader2, Layers, Activity,
+  Sparkles, Pencil, Check, X, BookOpen, ChevronDown, ChevronUp
+} from 'lucide-react';
+import { getBookRequirements, toRoman, getBestStrategy } from '@/lib/enchantmentBooks';
 
 const ProjectDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -24,12 +30,17 @@ const ProjectDetail = () => {
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [bottlenecks, setBottlenecks] = useState<BottleneckItem[]>([]);
   const [progress, setProgress] = useState<ProjectProgress | null>(null);
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [collabEmail, setCollabEmail] = useState('');
   const [collabError, setCollabError] = useState('');
   const [contributing, setContributing] = useState<string | null>(null);
+
+  // Enchantment editing state
+  const [editingEnchantments, setEditingEnchantments] = useState<string | null>(null);
+  const [editEnchantmentLevels, setEditEnchantmentLevels] = useState<{ name: string; level: number }[]>([]);
+  const [savingEnchantments, setSavingEnchantments] = useState(false);
+  const [expandedBook, setExpandedBook] = useState<string | null>(null);
 
   const loadProject = useCallback(async () => {
     if (!id) return;
@@ -42,8 +53,16 @@ const ProjectDetail = () => {
         fetchProgress(id).catch(() => null),
       ]);
 
+      const parsedNodes = projectData.nodes.map((node: any) => {
+        if (node.enchantments && typeof node.enchantments === 'string') {
+          try { node.enchantments = JSON.parse(node.enchantments); }
+          catch { node.enchantments = null; }
+        }
+        return node;
+      });
+
       setProject(projectData.project);
-      setNodes(projectData.nodes);
+      setNodes(parsedNodes);
       setMembers(projectData.members);
       setContributions(contribs);
       setBottlenecks(bottleneckData);
@@ -57,15 +76,13 @@ const ProjectDetail = () => {
     }
   }, [id]);
 
-  useEffect(() => {
-    loadProject();
-  }, [loadProject]);
+  useEffect(() => { loadProject(); }, [loadProject]);
 
   if (!user) { navigate('/auth'); return null; }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen mesh-bg flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
@@ -73,25 +90,22 @@ const ProjectDetail = () => {
 
   if (!project) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-xl text-muted-foreground mb-4">{error || 'Project not found'}</p>
-          <Button variant="outline" onClick={() => navigate('/')}>Go Home</Button>
+      <div className="min-h-screen mesh-bg flex items-center justify-center text-center">
+        <div>
+          <p className="text-muted-foreground text-xl mb-4">{error || 'Project not found'}</p>
+          <Button variant="outline" onClick={() => navigate('/dashboard')} className="rounded-xl">Go Home</Button>
         </div>
       </div>
     );
   }
 
   const progressPct = progress?.progress_pct || 0;
-  const topBottleneck = bottlenecks.length > 0 ? bottlenecks[0] : null;
+  const topBottleneck = bottlenecks[0] ?? null;
 
-  // Determine if a node can be contributed to
   const canContribute = (node: CraftingNode): boolean => {
     if (node.collected_qty >= node.required_qty) return false;
-    if (node.is_resource) return true; // Resources can always be collected
-    // Non-resources: check if all children are complete
-    const children = nodes.filter(n => n.parent_id === node.id);
-    return children.every(c => c.collected_qty >= c.required_qty);
+    if (node.is_resource) return true;
+    return nodes.filter(n => n.parent_id === node.id).every(c => c.collected_qty >= c.required_qty);
   };
 
   const getNodeStatus = (node: CraftingNode): 'complete' | 'ready' | 'blocked' => {
@@ -104,6 +118,7 @@ const ProjectDetail = () => {
     setContributing(nodeId);
     try {
       const result = await contributeToNode(id!, nodeId, 1, action);
+<<<<<<< HEAD
       if (!result.success) {
         setError(result.error || 'Contribution failed');
       } else {
@@ -111,6 +126,9 @@ const ProjectDetail = () => {
         soundManager.playSound(action === 'crafted' ? 'craft' : 'collect');
       }
       // Reload project to get updated state
+=======
+      if (!result.success) setError(result.error || 'Contribution failed');
+>>>>>>> 4e77ce56015b279a2db7bef5705c277d7dd2bec5
       await loadProject();
     } catch (err) {
       setError((err as Error).message);
@@ -142,101 +160,160 @@ const ProjectDetail = () => {
     }
   };
 
-  const statusIcon = (node: CraftingNode) => {
-    const status = getNodeStatus(node);
-    if (status === 'complete') return <CheckCircle className="w-5 h-5 text-craft-complete" />;
-    if (status === 'blocked') return <Ban className="w-5 h-5 text-craft-blocked" />;
-    return <Clock className="w-5 h-5 text-craft-pending" />;
+  const handleStartEditEnchantments = (node: CraftingNode) => {
+    setEditingEnchantments(node.id);
+    setEditEnchantmentLevels(
+      (node.enchantments || []).map(e => ({ name: e.name, level: e.level }))
+    );
   };
 
-  const statusBg = (node: CraftingNode) => {
-    const status = getNodeStatus(node);
-    if (status === 'complete') return 'border-l-4 border-l-craft-complete bg-craft-complete/5';
-    if (status === 'blocked') return 'border-l-4 border-l-craft-blocked bg-craft-blocked/5';
-    return 'border-l-4 border-l-craft-pending bg-craft-pending/5';
+  const handleSaveEnchantments = async (nodeId: string) => {
+    setSavingEnchantments(true);
+    try {
+      await updateNodeEnchantments(id!, nodeId, editEnchantmentLevels);
+      setEditingEnchantments(null);
+      await loadProject();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSavingEnchantments(false);
+    }
   };
 
-  // Build tree structure from flat nodes
+  const handleCancelEditEnchantments = () => {
+    setEditingEnchantments(null);
+    setEditEnchantmentLevels([]);
+  };
+
   const rootNodes = nodes.filter(n => n.parent_id === null);
+  const rootNode = rootNodes[0] ?? null;
   const getChildren = (parentId: string) => nodes.filter(n => n.parent_id === parentId);
+  const rootChildren = rootNode ? getChildren(rootNode.id) : [];
+  const itemChildren = rootChildren.filter(c => c.item_name !== 'enchanted_book');
+  const bookChildren = rootChildren.filter(c => c.item_name === 'enchanted_book');
+  const hasEnchantment = (rootNode?.enchantments?.length ?? 0) > 0;
 
-  const renderNodeTree = (node: CraftingNode, depth: number = 0, isLast: boolean = true, prefix: string = '') => {
-    const children = getChildren(node.id);
+  const NodeStatusIcon = ({ node }: { node: CraftingNode }) => {
+    const s = getNodeStatus(node);
+    if (s === 'complete') return <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />;
+    if (s === 'blocked') return <Ban className="w-4 h-4 text-red-400    flex-shrink-0" />;
+    return <Clock className="w-4 h-4 text-yellow-400 flex-shrink-0" />;
+  };
+
+  const nodeClass = (node: CraftingNode) => {
+    const s = getNodeStatus(node);
+    if (s === 'complete') return 'node-complete';
+    if (s === 'blocked') return 'node-blocked';
+    return 'node-pending';
+  };
+
+  const renderNodeTree = (
+    node: CraftingNode,
+    depth: number = 0,
+    isLast: boolean = true,
+    prefix: string = '',
+    childrenOverride?: CraftingNode[] | null
+  ): React.ReactNode => {
+    const children = childrenOverride !== undefined && childrenOverride !== null
+      ? childrenOverride : getChildren(node.id);
     const isComplete = node.collected_qty >= node.required_qty;
     const isContributing = contributing === node.id;
-    const hasChildren = children.length > 0;
-
-    // Build the branch prefix for nested items
     const connector = depth === 0 ? '' : isLast ? '└── ' : '├── ';
     const childPrefix = depth === 0 ? '' : prefix + (isLast ? '    ' : '│   ');
 
     return (
       <div key={node.id}>
-        <div className="flex items-center">
-          {/* Tree branch characters */}
+        <div className="flex items-center gap-1">
           {depth > 0 && (
-            <span className="text-muted-foreground font-mono text-sm whitespace-pre select-none flex-shrink-0">
+            <span className="text-muted-foreground/40 font-mono text-xs whitespace-pre select-none flex-shrink-0">
               {prefix}{connector}
             </span>
           )}
-          {/* Node card */}
-          <div className={`flex-1 flex items-center justify-between p-2.5 rounded mb-0.5 ${statusBg(node)}`}>
-            <div className="flex items-center gap-2">
-              {statusIcon(node)}
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className={`font-bold ${depth === 0 ? 'text-lg' : 'text-base'}`}>
-                  {node.display_name}
+          <div className={`flex-1 flex items-center justify-between px-3 py-2 rounded-xl mb-0.5 ${nodeClass(node)}`}>
+            <div className="flex items-center gap-2 min-w-0">
+              <NodeStatusIcon node={node} />
+              <div className="flex items-center gap-2 flex-wrap min-w-0">
+                <span className={`font-semibold truncate ${depth === 0 ? 'text-base' : 'text-sm'}`}>
+                  {depth === 0 && node.enchantments?.length
+                    ? `${node.display_name} (${node.enchantments.map(e => `${e.name.replace(/_/g, ' ')} ${e.level}`).join(', ')})`
+                    : node.display_name}
                 </span>
-                <span className="text-muted-foreground text-sm">
+                <span className="text-muted-foreground text-xs">
                   {node.collected_qty}/{node.required_qty}
                 </span>
-                {node.enchantments && node.enchantments.length > 0 && (
-                  <div className="flex gap-2">
-                    {node.enchantments.map((en, i) => (
-                      <span key={`${en.name}-${i}`} className="text-xs bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded">
-                        {en.name} {en.level}
+
+                {/* Enchantment Display/Edit in Tree */}
+                {Array.isArray(node.enchantments) && node.enchantments.length > 0 && editingEnchantments !== node.id && (
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className="w-3 h-3 text-purple-400" />
+                    {node.enchantments.map((en: any, i: number) => (
+                      <span key={`${en.name}-${i}`} className="text-[10px] bg-purple-500/15 text-purple-400 border border-purple-500/20 px-1.5 py-0.5 rounded-full font-medium">
+                        {en.name.replace(/_/g, ' ')} {en.level}
                       </span>
                     ))}
+                    <button
+                      onClick={() => handleStartEditEnchantments(node)}
+                      className="text-purple-400/60 hover:text-purple-400 transition-colors ml-1"
+                      title="Update levels"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </button>
                   </div>
                 )}
-                {node.is_resource && (
-                  <span className="text-xs bg-yellow-500/20 text-yellow-600 px-1.5 py-0.5 rounded">resource</span>
+
+                {/* Inline Editing */}
+                {editingEnchantments === node.id && (
+                  <div className="flex items-center gap-1.5 bg-purple-500/10 px-2 py-1 rounded-lg border border-purple-500/20">
+                    {editEnchantmentLevels.map((en, i) => (
+                      <span key={`${en.name}-${i}`} className="inline-flex items-center gap-1 text-[10px] text-purple-300 font-medium">
+                        {en.name.replace(/_/g, ' ')}
+                        <input
+                          type="number" min={1} max={10}
+                          value={en.level}
+                          onChange={(e) => {
+                            const newLevels = [...editEnchantmentLevels];
+                            newLevels[i] = { ...newLevels[i], level: Math.max(1, Math.min(10, Number(e.target.value))) };
+                            setEditEnchantmentLevels(newLevels);
+                          }}
+                          className="w-7 h-4 text-center bg-purple-500/20 border border-purple-400/30 rounded text-purple-200"
+                        />
+                      </span>
+                    ))}
+                    <button onClick={() => handleSaveEnchantments(node.id)} disabled={savingEnchantments} className="text-emerald-400 hover:text-emerald-300">
+                      {savingEnchantments ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                    </button>
+                    <button onClick={handleCancelEditEnchantments} className="text-red-400 hover:text-red-300">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
                 )}
-                {!node.is_resource && hasChildren && (
-                  <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">
-                    {node.depth === 0 ? 'final goal' : 'craftable'}
+
+                {node.is_resource && (
+                  <span className="text-xs badge-pending px-1.5 py-0.5 rounded-full">resource</span>
+                )}
+                {!node.is_resource && getChildren(node.id).length > 0 && (
+                  <span className="text-xs bg-blue-500/15 text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded-full">
+                    {node.depth === 0 ? 'goal' : 'craftable'}
                   </span>
                 )}
               </div>
             </div>
-            {!isComplete && (
-              <div className="flex gap-1 flex-shrink-0 ml-2">
-                {node.is_resource ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={!canContribute(node) || isContributing}
-                    onClick={() => handleContribute(node.id, 'collected')}
-                    className="text-xs h-7 px-2"
-                  >
-                    {isContributing ? <Loader2 className="w-3 h-3 animate-spin" /> : '📦 Collect'}
-                  </Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={!canContribute(node) || isContributing}
-                    onClick={() => handleContribute(node.id, 'crafted')}
-                    className="text-xs h-7 px-2"
-                  >
-                    {isContributing ? <Loader2 className="w-3 h-3 animate-spin" /> : '⚒ Craft'}
-                  </Button>
-                )}
-              </div>
-            )}
-            {isComplete && (
-              <span className="text-xs text-craft-complete uppercase flex-shrink-0 ml-2">✓ Done</span>
-            )}
+            <div className="flex-shrink-0 ml-2 flex items-center gap-1">
+              {isComplete ? (
+                <span className="text-xs text-emerald-400 font-semibold">✓ Done</span>
+              ) : (
+                <Button
+                  size="sm" variant="outline"
+                  disabled={!canContribute(node) || !!isContributing}
+                  onClick={() => handleContribute(node.id, node.is_resource ? 'collected' : 'crafted')}
+                  className="h-7 px-2.5 text-xs rounded-lg border-white/10 hover:border-primary/40 hover:text-primary"
+                >
+                  {isContributing
+                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                    : node.is_resource ? '📦 Collect' : '⚒ Craft'}
+                </Button>
+              )}
+            </div>
           </div>
         </div>
         {children.map((c, i) => renderNodeTree(c, depth + 1, i === children.length - 1, childPrefix))}
@@ -245,135 +322,318 @@ const ProjectDetail = () => {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen mesh-bg text-foreground">
+
       {/* Header */}
+<<<<<<< HEAD
       <header className="pixel-border border-x-0 border-t-0 bg-card p-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" onClick={handleGoHome}>
             <ArrowLeft className="w-4 h-4" />
+=======
+      <header className="sticky top-0 z-40 glass-strong border-b border-white/5">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')} className="rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/5">
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-primary/15 border border-primary/25 flex items-center justify-center text-xs">⛏</div>
+              <h1 className="font-black text-base gradient-text-green">CraftChain</h1>
+            </div>
+            <span className="text-muted-foreground text-sm hidden sm:block">/ {project.name}</span>
+          </div>
+          <Button variant="ghost" size="sm" onClick={loadProject} className="text-muted-foreground hover:text-foreground rounded-xl gap-1.5">
+            <RefreshCw className="w-4 h-4" /> <span className="hidden sm:inline text-sm">Refresh</span>
+>>>>>>> 4e77ce56015b279a2db7bef5705c277d7dd2bec5
           </Button>
-          <h1 className="text-sm text-primary">{project.name}</h1>
         </div>
+<<<<<<< HEAD
         <Button variant="ghost" size="sm" onClick={handleRefresh} className="text-muted-foreground">
           <RefreshCw className="w-4 h-4 mr-1" /> Refresh
         </Button>
+=======
+>>>>>>> 4e77ce56015b279a2db7bef5705c277d7dd2bec5
       </header>
 
-      {/* Bottleneck Alert */}
+      {/* Bottleneck banner */}
       {topBottleneck && (
-        <div className="mx-6 mt-4 p-4 pixel-border bg-craft-blocked/10 border-craft-blocked flex items-center gap-3">
-          <AlertTriangle className="w-5 h-5 text-craft-blocked" />
-          <span className="text-lg">
-            <strong className="text-craft-blocked">{topBottleneck.display_name}</strong> is blocking {topBottleneck.blocked_ancestors} item{topBottleneck.blocked_ancestors > 1 ? 's' : ''} — needs {topBottleneck.remaining_qty} more
+        <div className="mx-6 mt-4 flex items-center gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/20">
+          <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0" />
+          <span className="text-sm">
+            <strong className="text-red-400">{topBottleneck.display_name}</strong>
+            {' '}is blocking {topBottleneck.blocked_ancestors} item{topBottleneck.blocked_ancestors > 1 ? 's' : ''} — needs {topBottleneck.remaining_qty} more
           </span>
         </div>
       )}
 
-      {error && (
-        <div className="mx-6 mt-4 p-4 pixel-border bg-destructive/10 text-destructive">
-          {error}
-          <Button variant="ghost" size="sm" className="ml-2" onClick={() => setError('')}>✕</Button>
+      {/* Enchantment Summary Panel */}
+      {rootNode && Array.isArray(rootNode.enchantments) && rootNode.enchantments.length > 0 && (
+        <div className="mx-6 mt-4 p-5 glass-strong border border-purple-500/20 rounded-2xl">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20">
+              <Sparkles className="w-5 h-5 text-purple-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-foreground">✨ Master Enchantment Plan</h2>
+              <p className="text-xs text-muted-foreground">Requirements for your {rootNode.display_name}</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            {rootNode.enchantments.map((en: any, i: number) => (
+              <div key={i} className="bg-purple-500/5 border border-purple-500/10 px-4 py-3 rounded-xl flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-300 font-mono text-sm">
+                  {toRoman(en.level)}
+                </div>
+                <span className="text-sm font-semibold text-purple-200">{en.name.replace(/_/g, ' ')}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
-      <main className="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Crafting Tree */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="pixel-border bg-card p-4">
-            <h2 className="text-xs font-pixel text-muted-foreground mb-4">
-              Crafting Tree ({nodes.length} nodes)
-            </h2>
-            <div className="space-y-1">
-              {rootNodes.map(r => renderNodeTree(r))}
+      {error && (
+        <div className="mx-6 mt-4 flex items-center justify-between p-4 rounded-xl bg-destructive/10 border border-destructive/20">
+          <span className="text-destructive text-sm">{error}</span>
+          <Button variant="ghost" size="sm" onClick={() => setError('')} className="rounded-lg text-destructive hover:bg-destructive/10">✕</Button>
+        </div>
+      )}
+
+      <main className="max-w-7xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        {/* ── Left: Crafting Tree ───────────────────────────── */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="glass-strong rounded-2xl border border-white/5 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <Layers className="w-4 h-4 text-primary" />
+                <h2 className="font-bold text-lg text-foreground">Crafting Dependencies</h2>
+              </div>
+              <span className="text-xs text-muted-foreground bg-white/5 px-3 py-1 rounded-full">{nodes.length} nodes total</span>
             </div>
+
+            {/* Item section */}
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mb-3">Main Recipe</p>
+            <div className="space-y-0.5">
+              {rootNode && renderNodeTree(rootNode, 0, bookChildren.length === 0 && itemChildren.length === 0, '', itemChildren)}
+            </div>
+
+            {/* Book section */}
+            {bookChildren.length > 0 && (
+              <>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mt-8 mb-3">Enchanted Book components</p>
+                <div className="space-y-0.5">
+                  {bookChildren.map((bookNode, i) => (
+                    <div key={bookNode.id}>
+                      {renderNodeTree(bookNode, 0, i === bookChildren.length - 1)}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
-          {/* Add Collaborator */}
-          <div className="pixel-border bg-card p-4">
-            <h2 className="text-xs font-pixel text-muted-foreground mb-3">Collaboration</h2>
+          {/* Enchantment Book Guide */}
+          {rootNode && Array.isArray(rootNode.enchantments) && rootNode.enchantments.length > 0 && (
+            <div className="glass-strong rounded-2xl border border-white/5 p-6">
+              <div className="flex items-center gap-2 mb-6">
+                <BookOpen className="w-5 h-5 text-amber-400" />
+                <h2 className="font-bold text-lg text-foreground">Enchanted Book Guide</h2>
+              </div>
+
+              <div className="grid gap-4">
+                {getBookRequirements(rootNode.enchantments).map((req) => {
+                  const isExpanded = expandedBook === req.enchantmentName;
+                  const strategy = getBestStrategy(req.enchantmentName, req.targetLevel);
+
+                  return (
+                    <div key={req.enchantmentName} className="glass rounded-xl border border-white/5 overflow-hidden">
+                      <button
+                        onClick={() => setExpandedBook(isExpanded ? null : req.enchantmentName)}
+                        className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors text-left"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-xl">📕</div>
+                          <div>
+                            <p className="font-bold text-foreground">{req.displayName} {toRoman(req.targetLevel)}</p>
+                            <p className="text-xs text-muted-foreground">{req.booksNeeded} level-1 books needed</p>
+                          </div>
+                        </div>
+                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </button>
+
+                      {isExpanded && (
+                        <div className="px-5 pb-5 pt-1 space-y-5 border-t border-white/5 mt-1">
+                          <div className="p-3 rounded-xl bg-amber-400/5 border border-amber-400/20 flex gap-3">
+                            <Sparkles className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                            <p className="text-sm text-amber-200/80 leading-relaxed font-medium">{strategy}</p>
+                          </div>
+
+                          {req.anvilSteps.length > 0 && (
+                            <div>
+                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3">Anvil Combining Progress</p>
+                              <div className="space-y-2">
+                                {req.anvilSteps.map(step => (
+                                  <div key={step.step} className="flex items-center gap-3 text-sm px-3 py-2 rounded-lg bg-white/5">
+                                    <span className="text-muted-foreground font-mono text-xs">#{step.step}</span>
+                                    <span className="flex-1 font-medium">{step.count}× [{toRoman(step.inputLevel)} + {toRoman(step.inputLevel)}]</span>
+                                    <ArrowLeft className="w-3 h-3 text-muted-foreground rotate-180" />
+                                    <span className="text-purple-400 font-bold">{step.count}× {toRoman(step.outputLevel)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3">Where to hunt</p>
+                            <div className="grid sm:grid-cols-2 gap-2">
+                              {req.sources.map((src, i) => (
+                                <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-secondary/40 border border-white/5">
+                                  <span className="text-lg">{src.icon}</span>
+                                  <div>
+                                    <p className="text-xs font-bold text-foreground">{src.method}</p>
+                                    <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{src.description}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Collaboration */}
+          <div className="glass-strong rounded-2xl border border-white/5 p-6">
+            <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
+              <UserPlus className="w-4 h-4" /> Collaboration
+            </h2>
             <div className="flex gap-2">
               <Input
                 value={collabEmail}
                 onChange={e => setCollabEmail(e.target.value)}
-                placeholder="Enter email to invite..."
-                className="bg-secondary border-border text-lg"
+                placeholder="Enter email to invite…"
+                className="bg-secondary/60 border-white/8 rounded-xl h-10 focus:border-primary/50"
               />
-              <Button onClick={handleAddCollaborator} variant="outline" className="text-lg">
-                <UserPlus className="w-4 h-4 mr-1" /> Invite
+              <Button onClick={handleAddCollaborator} variant="outline"
+                className="rounded-xl border-white/10 hover:border-primary/40 hover:text-primary gap-1.5 px-4 h-10">
+                <UserPlus className="w-4 h-4" /> Invite
               </Button>
             </div>
             {collabError && <p className="text-destructive text-sm mt-2">{collabError}</p>}
             {members.length > 0 && (
-              <div className="mt-3 space-y-1">
+              <div className="mt-6 flex flex-wrap gap-2">
                 {members.map(m => (
-                  <div key={m.user_id} className="text-sm text-muted-foreground flex items-center gap-2">
-                    <span className="text-foreground">{(m.profiles as any)?.full_name || (m.profiles as any)?.email}</span>
-                    <span className="text-xs bg-secondary px-1.5 py-0.5 rounded">{m.role}</span>
+                  <div key={m.user_id} className="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full">
+                    <div className="w-5 h-5 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-[10px] text-primary font-bold">
+                      {((m.profiles as any)?.full_name || (m.profiles as any)?.email || 'U')[0].toUpperCase()}
+                    </div>
+                    <span className="text-xs text-foreground font-medium">
+                      {(m.profiles as any)?.full_name || (m.profiles as any)?.email}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground capitalize">{m.role}</span>
                   </div>
                 ))}
               </div>
             )}
           </div>
+        </div>
 
-          {/* Bottleneck Details */}
+        {/* ── Right: Progress + Activity ────────────────────── */}
+        <div className="space-y-6">
+
+          {/* Progress Card */}
+          <div className="glass-strong rounded-2xl border border-white/5 p-6">
+            <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-widest mb-6">Progress</h2>
+
+            <div className="flex justify-center mb-6">
+              <div className="relative w-32 h-32">
+                <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(222 35% 12%)" strokeWidth="8" />
+                  <circle
+                    cx="50" cy="50" r="42" fill="none"
+                    stroke="hsl(152 80% 48%)" strokeWidth="8"
+                    strokeLinecap="round"
+                    strokeDasharray={`${progressPct * 2.639} 263.9`}
+                    className="transition-all duration-1000 ease-out"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-3xl font-black gradient-text-green">{progressPct}%</span>
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">Done</span>
+                </div>
+              </div>
+            </div>
+
+            <Progress value={progressPct} className="h-1.5 bg-secondary [&>div]:bg-primary rounded-full mb-4" />
+
+            <div className="space-y-3">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-muted-foreground flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> Tasks Complete</span>
+                <span className="font-bold">{progress?.completed_nodes} / {nodes.length}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-muted-foreground flex items-center gap-2"><Layers className="w-3.5 h-3.5 text-blue-400" /> Resources Gathers</span>
+                <span className="font-bold">{progress?.completed_resources} / {progress?.total_resources}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottleneck List */}
           {bottlenecks.length > 0 && (
-            <div className="pixel-border bg-card p-4">
-              <h2 className="text-xs font-pixel text-muted-foreground mb-3">🔍 Bottleneck Resources</h2>
-              <div className="space-y-2">
-                {bottlenecks.slice(0, 5).map(b => (
-                  <div key={b.node_id} className="flex items-center justify-between p-2 bg-secondary rounded">
-                    <div>
-                      <span className="text-lg font-bold">{b.display_name}</span>
-                      <span className="text-muted-foreground text-sm ml-2">
-                        {b.collected_qty}/{b.required_qty} ({b.remaining_qty} needed)
-                      </span>
+            <div className="glass-strong rounded-2xl border border-white/5 p-6">
+              <h2 className="font-semibold text-[10px] text-muted-foreground uppercase tracking-[0.2em] mb-4">Critical Blockers</h2>
+              <div className="space-y-3">
+                {bottlenecks.slice(0, 3).map(b => (
+                  <div key={b.node_id} className="p-3 rounded-xl bg-red-500/5 border border-red-500/10">
+                    <div className="flex justify-between mb-1">
+                      <span className="text-xs font-bold text-red-200">{b.display_name}</span>
+                      <span className="text-[10px] font-mono text-red-400">-{b.remaining_qty} units</span>
                     </div>
-                    <span className="text-sm text-craft-blocked">
-                      Blocking {b.blocked_ancestors} item{b.blocked_ancestors > 1 ? 's' : ''}
-                    </span>
+                    <div className="w-full bg-red-500/10 h-1 rounded-full overflow-hidden">
+                      <div className="bg-red-500 h-full" style={{ width: `${(b.collected_qty / b.required_qty) * 100}%` }} />
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
           )}
-        </div>
-
-        {/* Right: Progress + Activity */}
-        <div className="space-y-4">
-          {/* Progress */}
-          <div className="pixel-border bg-card p-4">
-            <h2 className="text-xs font-pixel text-muted-foreground mb-3">Progress</h2>
-            <div className="text-center mb-3">
-              <span className="text-2xl font-pixel text-primary">{progressPct}%</span>
-            </div>
-            <Progress value={progressPct} className="h-4 bg-secondary [&>div]:bg-primary" />
-            {progress && (
-              <div className="flex justify-between mt-3 text-sm text-muted-foreground">
-                <span>🟢 {progress.completed_nodes} done</span>
-                <span>📦 {progress.completed_resources}/{progress.total_resources} resources</span>
-              </div>
-            )}
-          </div>
 
           {/* Activity Feed */}
-          <div className="pixel-border bg-card p-4">
-            <h2 className="text-xs font-pixel text-muted-foreground mb-3">Activity Feed</h2>
+          <div className="glass-strong rounded-2xl border border-white/5 p-6">
+            <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-widest mb-6 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-primary" /> Active Feed
+            </h2>
             {contributions.length === 0 ? (
-              <p className="text-muted-foreground text-lg text-center py-4">No activity yet</p>
+              <div className="text-center py-10 opacity-40">
+                <p className="text-sm">No recent signals</p>
+              </div>
             ) : (
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {contributions.map(c => (
-                  <div key={c.id} className="p-2 bg-secondary rounded text-sm">
-                    <span className="text-foreground font-bold">
-                      {(c.profiles as any)?.full_name || (c.profiles as any)?.email}
-                    </span>
-                    <span className="text-muted-foreground"> {c.action} </span>
-                    <span className="text-accent">
-                      {(c.crafting_nodes as any)?.display_name || 'item'}
-                    </span>
-                    <span className="text-muted-foreground"> ×{c.quantity}</span>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {new Date(c.created_at).toLocaleString()}
+              <div className="space-y-6 relative before:absolute before:left-[13px] before:top-2 before:bottom-2 before:w-px before:bg-white/5">
+                {contributions.slice(0, 10).map(c => (
+                  <div key={c.id} className="flex gap-4 relative">
+                    <div className="w-7 h-7 rounded-full bg-secondary border border-white/10 flex items-center justify-center text-[10px] font-black text-primary z-10">
+                      {((c.profiles as any)?.full_name || (c.profiles as any)?.email || 'U')[0].toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs leading-normal">
+                        <span className="font-bold text-foreground">
+                          {(c.profiles as any)?.full_name || (c.profiles as any)?.email}
+                        </span>
+                        <span className="text-muted-foreground"> {c.action} </span>
+                        <span className="text-primary font-bold">
+                          {(c.crafting_nodes as any)?.display_name || 'item'}
+                        </span>
+                        <span className="text-muted-foreground"> ×{c.quantity}</span>
+                      </p>
+                      <p className="text-[10px] text-muted-foreground/50 mt-1 uppercase tracking-tighter">
+                        {new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
                     </div>
                   </div>
                 ))}

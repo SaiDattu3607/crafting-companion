@@ -282,6 +282,43 @@ export async function parseRecipeTree(
   // Build the tree in memory
   buildTree(rootItem.id, null, totalQuantity, 0);
 
+  // For each enchantable tool/armor in the tree, add an Enchanted Book requirement (matching chosen enchantment)
+  if (enchantments && enchantments.length > 0) {
+    const enchantLabel = enchantments
+      .map((e) => `${e.name.replace(/_/g, ' ')} ${e.level}`)
+      .join(', ');
+    const bookAdds: { parentIndex: number; requiredQty: number }[] = [];
+    for (let i = 0; i < allNodes.length; i++) {
+      const node = allNodes[i];
+      if (!enchantmentAppliesToItem(node.item_name, enchantments)) continue;
+      bookAdds.push({ parentIndex: i, requiredQty: node.required_qty });
+    }
+    let totalBookQty = 0;
+    for (const { parentIndex, requiredQty } of bookAdds) {
+      const parentNode = allNodes[parentIndex];
+      const bookNode: CraftingNode = {
+        project_id: projectId,
+        parent_id: null,
+        item_name: 'enchanted_book',
+        display_name: `Enchanted Book (${enchantLabel})`,
+        required_qty: requiredQty,
+        collected_qty: 0,
+        is_resource: true,
+        depth: parentNode.depth + 1,
+        status: 'pending',
+      };
+      (bookNode as any)._parentIndex = parentIndex;
+      allNodes.push(bookNode);
+      totalBookQty += requiredQty;
+    }
+    if (totalBookQty > 0) {
+      resourceTotals.set('enchanted_book', {
+        displayName: `Enchanted Book (${enchantLabel})`,
+        qty: totalBookQty,
+      });
+    }
+  }
+
   if (allNodes.length === 0) {
     throw new Error(`Could not parse recipe tree for "${rootItemName}"`);
   }
@@ -489,4 +526,18 @@ function getEnchantmentsForCategory(category: string): { name: string; level?: n
   }
 
   return found;
+}
+
+/** True if the item is an enchantable tool/armor and the chosen enchantment applies to it */
+function enchantmentAppliesToItem(
+  itemName: string,
+  enchantments: { name: string; level: number }[] | null
+): boolean {
+  if (!enchantments || enchantments.length === 0) return false;
+  if (itemName === 'enchanted_book') return false;
+  const category = determineItemCategory(itemName);
+  if (category === 'generic') return false;
+  const possible = getEnchantmentsForCategory(category);
+  const possibleNames = new Set(possible.map((p) => p.name));
+  return enchantments.some((e) => possibleNames.has(e.name));
 }
