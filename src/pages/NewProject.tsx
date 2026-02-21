@@ -55,9 +55,12 @@ const NewProject = () => {
     e.preventDefault();
     if (!name.trim() || !selectedItem) return;
 
+<<<<<<< HEAD
+=======
+    soundManager.playSound('button');
+>>>>>>> 1aa224ae2bb03f9b6a9f54cc44589e999d964403
     setCreating(true);
     setError('');
-    soundManager.playSound('button');
     try {
       const result = await createProject(name, selectedItem.name, description, quantity, enchantments.length > 0 ? enchantments : null);
       navigate(`/project/${result.project.id}`);

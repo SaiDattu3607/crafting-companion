@@ -42,6 +42,14 @@ const Dashboard = () => {
     navigate('/');
   };
 
+<<<<<<< HEAD
+=======
+  const handleNewProject = () => {
+    soundManager.playSound('button');
+    navigate('/new-project');
+  };
+
+>>>>>>> 1aa224ae2bb03f9b6a9f54cc44589e999d964403
   const initials = (user.full_name || user.email || 'U')
     .split(' ')
     .map((w: string) => w[0])
@@ -97,8 +105,13 @@ const Dashboard = () => {
             </p>
           </div>
           <Button
+<<<<<<< HEAD
             onClick={() => { soundManager.playSound('button'); navigate('/new-project'); }}
             className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl gap-2 px-5"
+=======
+            onClick={handleNewProject}
+            className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl gap-2"
+>>>>>>> 1aa224ae2bb03f9b6a9f54cc44589e999d964403
           >
             <Plus className="w-4 h-4" />
             New Project
@@ -129,7 +142,11 @@ const Dashboard = () => {
               Create your first crafting project to start tracking recipes and progress.
             </p>
             <Button
+<<<<<<< HEAD
               onClick={() => { soundManager.playSound('button'); navigate('/new-project'); }}
+=======
+              onClick={handleNewProject}
+>>>>>>> 1aa224ae2bb03f9b6a9f54cc44589e999d964403
               className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl gap-2"
             >
               <Plus className="w-4 h-4" />
