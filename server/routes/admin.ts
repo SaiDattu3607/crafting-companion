@@ -14,8 +14,10 @@ router.post('/run-enchantments-migration', async (req: Request, res: Response) =
             return;
         }
 
-        const sql = `ALTER TABLE crafting_nodes
-      ADD COLUMN IF NOT EXISTS enchantments JSONB DEFAULT NULL;`;
+        const sql = `
+          ALTER TABLE crafting_nodes ADD COLUMN IF NOT EXISTS enchantments JSONB DEFAULT NULL;
+          ALTER TABLE profiles ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ DEFAULT NOW();
+        `;
 
         // Try to execute via the exec_sql RPC (may not exist)
         try {

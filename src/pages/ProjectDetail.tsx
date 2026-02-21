@@ -117,27 +117,11 @@ const ProjectDetail = () => {
     setContributing(nodeId);
     try {
       const result = await contributeToNode(id!, nodeId, 1, action);
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-      if (!result.success) setError(result.error || 'Contribution failed');
-=======
->>>>>>> d8a183a6c9241ff83e2a9d8542fc353a485dbc01
->>>>>>> f3740b6d1b476ba64aca0c6a48871c0e671277b8
       if (!result.success) {
         setError(result.error || 'Contribution failed');
       } else {
         soundManager.playSound(action === 'crafted' ? 'craft' : 'collect');
       }
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
->>>>>>> ba21255c2c8569e985ddf295ca732f654d9d2c1d
->>>>>>> d8a183a6c9241ff83e2a9d8542fc353a485dbc01
->>>>>>> f3740b6d1b476ba64aca0c6a48871c0e671277b8
       await loadProject();
     } catch (err) {
       setError((err as Error).message);
@@ -152,6 +136,7 @@ const ProjectDetail = () => {
     try {
       await addProjectMember(id!, collabEmail.trim());
       setCollabEmail('');
+      soundManager.playSound('button');
       await loadProject();
     } catch (err) {
       setCollabError((err as Error).message);
@@ -529,17 +514,33 @@ const ProjectDetail = () => {
             {collabError && <p className="text-destructive text-sm mt-2">{collabError}</p>}
             {members.length > 0 && (
               <div className="mt-6 flex flex-wrap gap-2">
-                {members.map(m => (
-                  <div key={m.user_id} className="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full">
-                    <div className="w-5 h-5 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-[10px] text-primary font-bold">
-                      {((m.profiles as any)?.full_name || (m.profiles as any)?.email || 'U')[0].toUpperCase()}
+                {members.map(m => {
+                  const lastActive = (m.profiles as any)?.last_active_at;
+                  const isCurrentUser = m.user_id === user.id;
+                  // Active if updated in last 5 mins OR if it's the current user (they are viewing it now!)
+                  const isActive = isCurrentUser || (lastActive && (new Date().getTime() - new Date(lastActive).getTime()) < 5 * 60 * 1000);
+
+                  return (
+                    <div key={m.user_id} className="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full relative group transition-all hover:bg-white/10">
+                      <div className="relative">
+                        <div className="w-5 h-5 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-[10px] text-primary font-bold">
+                          {((m.profiles as any)?.full_name || (m.profiles as any)?.email || 'U')[0].toUpperCase()}
+                        </div>
+                        {/* Status Dot */}
+                        <div className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#0a0a0b] ${isActive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-zinc-500'}`} />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs text-foreground font-medium">
+                          {(m.profiles as any)?.full_name || (m.profiles as any)?.email}
+                          {isCurrentUser && <span className="text-[10px] text-primary/60 ml-1.5 font-normal">(You)</span>}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground/60 capitalize leading-tight">
+                          {m.role} {isActive ? '• Active now' : lastActive ? `• Active ${new Date(lastActive).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
+                        </span>
+                      </div>
                     </div>
-                    <span className="text-xs text-foreground font-medium">
-                      {(m.profiles as any)?.full_name || (m.profiles as any)?.email}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground capitalize">{m.role}</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -643,7 +644,7 @@ const ProjectDetail = () => {
           </div>
         </div>
       </main>
-    </div >
+    </div>
   );
 };
 

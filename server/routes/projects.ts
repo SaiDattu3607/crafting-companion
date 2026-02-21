@@ -130,7 +130,7 @@ router.get('/:projectId', projectMemberGuard, async (req: Request, res: Response
       .from('project_members')
       .select(`
         user_id, role, joined_at,
-        profiles!inner (full_name, email, avatar_url)
+        profiles!inner (full_name, email, avatar_url, last_active_at)
       `)
       .eq('project_id', projectId);
 

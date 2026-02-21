@@ -75,6 +75,7 @@ export interface ProjectMember {
     full_name: string;
     email: string;
     avatar_url: string | null;
+    last_active_at?: string | null;
   };
 }
 
