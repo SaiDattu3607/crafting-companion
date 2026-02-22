@@ -1,115 +1,114 @@
-# ⛏ CraftChain: Minecraft Crafting Coordination Platform
+# ⛏ CraftChain: The Ultimate Minecraft Production Platform
 
-CraftChain is a specialized project management and collaboration platform designed for Minecraft players to coordinate complex crafting goals, track resource gathering, and optimize their production chains.
+[![Deployment](https://img.shields.io/badge/Live%20Demo-Render-43c22d?style=for-the-badge&logo=render)](https://crafting-companion-1.onrender.com/)
+[![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Supabase](https://img.shields.io/badge/Supabase-181818?style=for-the-badge&logo=supabase&logoColor=3ECF8E)](https://supabase.io/)
 
----
-
-## 📋 The Problem Statement
-Minecraft crafting looks simple at first: grab some wood, make a table, build a pickaxe. But the deeper you go, the more it becomes a chain reaction of dependencies. One final goal often needs multiple intermediate items, raw resources, and teamwork to finish on time. In multiplayer worlds, the real challenge isn’t crafting—it’s **coordination**.
-
-Most teams solve this by spamming messages like “who has iron?” or “did someone craft the blaze rods yet?”. It’s chaotic, unorganized, and often leads to wasted resources and time.
-
-## 🎯 The Objective
-**CraftChain** fixes the chaos by providing a Minecraft-themed dashboard where users can:
-- **Plan** complex crafting projects (e.g., Beacons, Netherite Gear).
-- **Visualize** full dependency trees for any item.
-- **Collaborate** in real-time with teammates.
-- **Identify Bottlenecks** that are holding up the project.
+**CraftChain** is a deep-tier project management and coordination suite for Minecraft players. It specializes in transforming complex crafting goals into actionable, real-time production schedules for servers and teams.
 
 ---
 
-## 🚀 Key Features
+## 📺 Live Demo
+**Website URL**: [https://crafting-companion-1.onrender.com/](https://crafting-companion-1.onrender.com/)
 
-### 1. Crafting Project System
-- **Dynamic Goal Setting**: Create projects for any Minecraft item. The system automatically fetches and builds the entire recipe tree.
-- **Multi-Target Support**: (Advanced) Add multiple final goals to a single project to manage a complex build site.
-- **Detailed Metadata**: Track specific quantities, blocks, and items.
+---
 
-### 2. Dependency & Progress View
-- **Interactive Tree Hierarchy**: View recipes in a structured tree format that updates as you go.
-- **Status Indicators**: Instantly see what's **Gathered**, **Craftable**, or **Blocked** (unmet dependencies).
-- **Smart Logic**: Prevents marking items as "Crafted" if you haven't gathered the required components yet.
+## � Complete Feature Catalog
 
-### 3. Contribution & Collaboration
-- **Real-time Tracking**: Mark resources as collected or items as crafted.
-- **Member Roles**: Assign specific roles like **Miner**, **Builder**, **Planner**, or **Member** to organize the workforce.
-- **Task Suggestions**: AI-driven task suggestions based on a user's role and current project needs.
-- **Invite System**: Send secure invites to teammates via email to join specific projects.
+### 📦 1. Crafting & Goal Management
+*   **Multi-Item Goal Projects**: Create projects with dozens of final targets (e.g., "Full Netherite Kit", "Beacon Setup") in one dashboard.
+*   **Recursive Dependency Engine**: Input any goal item, and the system automatically generates a multi-level tree of every raw resource and intermediate step required.
+*   **Smart Quantity Tracking**: Real-time calculation of "Needed" vs "Gathered" as you update the plan.
+*   **Target Variants**: Full support for item variants like Potions (Splash, Lingering) and tiered durations.
+*   **Dynamic Metadata**: Fetches official Minecraft stats (stack sizes, block types) for every node.
 
-### 4. Advanced Enchantment Management (Brownie Points+)
-- **Enchantment Planning**: Add enchantments like *Sharpness V*, *Efficiency IV*, or *Mending* to your target items.
-- **XP Level Requirements**: The system calculates the required XP levels based on Minecraft's table logic.
-- **Anvil Combining Guide**: Generates a step-by-step anvil combining strategy (e.g., how many Level I books you need to reach Level V).
-- **Member Capability**: Highlights which member has enough XP levels to perform specific enchantments.
+### ✨ 2. The Master Enchantment Suite
+*   **Master Enchantment Plan**: A central command center for all enchantments required across the entire project.
+*   **Interactive Matrix UI**: A high-fidelity grid showing:
+    *   **Applied**: Enchantments currently on your item.
+    *   **Table Ability**: Which levels can be obtained via a standard level-30 Enchanting Table.
+    *   **Trade/Loot Only**: Highlights "Treasure" enchantments like Mending or Swift Sneak.
+*   **Anvil Math Engine**: Deep logic that calculates the precise path of combining books:
+    *   Automatically determines how many Level I books are needed for a Level V output.
+    *   Generates step-by-step combining guides (e.g., *Combine 2x [III+III] to get 1x [IV]*).
+*   **Strategy Advisor**: Dynamic tooltips suggesting the best way to get specific enchantments (Villager Trading, Fishing, etc.).
+*   **XP Level Requirements**: Real-time calculation of the minimum XP levels needed to perform specific crafts.
 
-### 5. Plan Versioning & Snapshots
-- **Snapshot System**: Save versions of your plan before making major changes.
-- **Rollback**: Restore previous snapshots if a crafting strategy goes wrong.
+### 👥 3. Teamwork & Collaboration
+*   **Team Role System**: Assign members to specialized roles:
+    *   ⛏️ **Miner**: Prioritizes raw material gathering.
+    *   🔨 **Builder**: Focuses on final item assembly.
+    *   📜 **Planner**: Manages goals and snapshots.
+    *   🧪 **Alchemist**: Specializes in brewing and potion chains.
+*   **Real-Time Sync**: Powered by Supabase, every update is instantly visible to all teammates without refreshing.
+*   **Interactive Leaderboard**: Competitive tracking of total units contributed per member (Gold/Silver/Bronze tiers).
+*   **Project Invite System**: Send secure unique invites via email to onboard new teammates.
+*   **Active Feed**: A live "Activity Log" showing every resource gathered, milestone reached, or snapshot created.
 
-### 6. Immersive Minecraft UI
-- **Pixel-Perfect Icons**: Uses official Minecraft assets for all items.
-- **Sound System**: Integrated Minecraft sound effects for UI actions (crafting, button clicks, level-ups).
-- **Theme**: A lush, dark-mode Minecraft aesthetic with custom animations.
+### � 4. Advanced Analytics & Tools
+*   **Bottleneck Detection**: An algorithm that identifies the "Top Bottleneck"—the specific resource holding up the largest number of parent items.
+*   **Progress Visualization**: Visual progress bars and percentage tracking for individual items and the overall project.
+*   **Detailed Item Modals**: 
+    *   **Crafting Matrix**: 3x3 grid visualization of recipes.
+    *   **Smithing Table UI**: Visual layouts for armor trimming and netherite upgrades.
+    *   **Brewing Stand UI**: Clear paths for potion brewing.
+*   **Project Snapshots**: Version control for your plans. Save a "Snapshot" of the project state and restore it instantly if needed.
+
+### 🎨 5. Immersive UI & Experience
+*   **Minecraft Aesthetics**: High-quality dark-mode design with glassmorphism and custom pixel-themed icons.
+*   **Official Assets**: Uses the [PrismarineJS](https://github.com/PrismarineJS) Minecraft-Assets for thousands of pixel-perfect item and block icons.
+*   **Dynamic Sound Suite**: 
+    *   Anvil clinks on enchantments.
+    *   Level-up sounds on milestones.
+    *   Crafting sounds when marking items as complete.
+*   **High Performance Search**: Debounced, high-speed fuzzy search for 1,000+ Minecraft items.
+*   **Glassmorphism Effects**: Modern polished look with vibrant purple and emerald emphasis.
 
 ---
 
 ## 🛠 Tech Stack
-- **Frontend**: React, TypeScript, Vite
-- **Styling**: Tailwind CSS, shadcn/ui
-- **Backend**: Node.js, Express.js (TypeScript)
-- **Database/Auth**: Supabase (PostgreSQL with RLS)
-- **Data Source**: [minecraft-data](https://www.npmjs.com/package/minecraft-data)
-- **Assets**: [node-minecraft-assets](https://github.com/PrismarineJS/node-minecraft-assets)
+
+*   **Frontend**: React 18, Vite, TypeScript, Lucide Icons
+*   **Styling**: Tailwind CSS + Shadcn/UI (Radix Primitives)
+*   **Backend**: Node.js, Express 5 (Modern wildcard routing)
+*   **Infrastructure**: Supabase (PostgreSQL + RLS + Realtime)
+*   **Data APIs**: [minecraft-data](https://www.npmjs.com/package/minecraft-data)
+*   **Hosting**: Railway (Auto-scaling & CD)
 
 ---
 
-## 🛠️ Getting Started
+## 🏃 Installation & Setup
 
-### Prerequisites
-- Node.js (v18+)
-- Supabase Account (for API & Database)
+```bash
+# Clone
+git clone https://github.com/SaiDattu3607/crafting-companion.git
+cd crafting-companion
 
-### Installation
+# Install
+npm install
 
-1. **Clone the repo**
-   ```bash
-   git clone https://github.com/SaiDattu3607/crafting-companion.git
-   cd crafting-companion
-   ```
+# Run (Backend)
+npm run server:dev
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+# Run (Frontend - Separate Terminal)
+npm run dev
+```
 
-3. **Configure Environment Variables**
-   Create a `.env` file in the root:
-   ```env
-   VITE_SUPABASE_URL=your_supabase_url
-   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-   PORT=3001
-   ```
-
-4. **Run the Backend**
-   ```bash
-   npm run server:dev
-   ```
-
-5. **Run the Frontend**
-   ```bash
-   npm run dev
-   ```
-
-The app will be available at `http://localhost:8080` (Frontend) and `http://localhost:3001` (Backend).
+### Environment Variables (.env)
+```env
+VITE_SUPABASE_URL=...
+VITE_SUPABASE_ANON_KEY=...
+PORT=3001
+```
 
 ---
 
-## 🌟 Extra Features Added (Beyond Requirements)
-- **Interactive Enchantment Matrix**: A bespoke UI grid showing all possible enchantments for any item, their tier requirements, and current application status.
-- **Visual Crafting Matrix**: High-fidelity 3x3 crafting grid visualizations for every item, including specialized layouts for Smithing and Potion Brewing.
-- **Anvil Math Engine**: Deep logic that calculates the precise path of anvil combinations needed to reach high-tier enchantments (e.g. Sharpness V) from base books.
-- **Sound Manager**: Customized sound profile for crafting, enchanting, and navigating.
-- **Potion Variance**: Full support for Potion types (Splash, Lingering) and variants (Duration, Level II).
-- **Leaderboards**: Track who is contributing the most to the project.
-- **Bottleneck Analysis**: Special algorithm to detect which item is blocking the most "parent" nodes.
-- **Dynamic Search**: High-performance debounced search for thousands of Minecraft items.
+## 🌟 The "Extra Mile" (Technical Achievements)
+1.  **Recursive Flattener**: A custom algorithm that flattens deeply nested recipe JSONs into a flat dependencies table with correct quantity multipliers.
+2.  **Anvil Strategy Generator**: A recursive combinatorics logic that determines the most efficient way to merge books based on level requirements.
+3.  **Realtime Presence**: Leveraging Supabase realtime to show active contributions on the project dashboard without delay.
+
+---
+
+### Created by [Sai Dattu](https://github.com/SaiDattu3607)
