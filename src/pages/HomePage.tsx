@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Sparkles, Zap, Users, Search, TreePine, Shield, ChevronRight } from 'lucide-react';
+import { soundManager } from '@/lib/sound';
 
 const features = [
   { icon: Zap, color: 'text-yellow-400', bg: 'bg-yellow-400/10 border-yellow-400/20', title: 'Smart Recipe Parser', desc: 'Automatically extracts full crafting trees from any Minecraft item in seconds.' },
@@ -77,15 +78,28 @@ const HomePage = () => {
           {/* CTA */}
           <div className="flex items-center gap-3">
             {user ? (
-              <Button asChild className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl px-5">
+              <Button
+                asChild
+                className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl px-5"
+                onClick={() => soundManager.playSound('craft')}
+              >
                 <Link to="/dashboard">Dashboard <ChevronRight className="w-4 h-4 ml-1" /></Link>
               </Button>
             ) : (
               <>
-                <Button asChild variant="ghost" className="text-muted-foreground hover:text-foreground hover:bg-white/5 rounded-xl">
+                <Button
+                  asChild
+                  variant="ghost"
+                  className="text-muted-foreground hover:text-foreground hover:bg-white/5 rounded-xl"
+                  onClick={() => soundManager.playSound('button')}
+                >
                   <Link to="/auth">Sign In</Link>
                 </Button>
-                <Button asChild className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl px-5 gap-2">
+                <Button
+                  asChild
+                  className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl px-5 gap-2"
+                  onClick={() => soundManager.playSound('craft')}
+                >
                   <Link to="/auth">Get Started <ArrowRight className="w-4 h-4" /></Link>
                 </Button>
               </>
@@ -130,15 +144,31 @@ const HomePage = () => {
           {loading ? (
             <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
           ) : user ? (
-            <Button asChild size="lg" className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl text-base px-10 py-6 gap-2">
+            <Button
+              asChild
+              size="lg"
+              className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl text-base px-10 py-6 gap-2"
+              onClick={() => soundManager.playSound('craft')}
+            >
               <Link to="/dashboard">Go to Dashboard <ArrowRight className="w-5 h-5" /></Link>
             </Button>
           ) : (
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button asChild size="lg" className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl text-base px-10 py-6 gap-2">
+              <Button
+                asChild
+                size="lg"
+                className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl text-base px-10 py-6 gap-2"
+                onClick={() => soundManager.playSound('craft')}
+              >
                 <Link to="/auth">Start for Free <ArrowRight className="w-5 h-5" /></Link>
               </Button>
-              <Button asChild size="lg" variant="outline" className="rounded-xl text-base px-10 py-6 border-white/10 hover:bg-white/5 text-foreground">
+              <Button
+                asChild
+                size="lg"
+                variant="outline"
+                className="rounded-xl text-base px-10 py-6 border-white/10 hover:bg-white/5 text-foreground"
+                onClick={() => soundManager.playSound('button')}
+              >
                 <Link to="/auth">Sign In</Link>
               </Button>
             </div>
@@ -208,7 +238,12 @@ const HomePage = () => {
                 <p className="text-muted-foreground text-lg mb-8 max-w-xl mx-auto">
                   Join thousands of Minecraft players who plan and track their builds with CraftChain. Free forever.
                 </p>
-                <Button asChild size="lg" className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl text-base px-12 py-6 gap-2">
+                <Button
+                  asChild
+                  size="lg"
+                  className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl text-base px-12 py-6 gap-2"
+                  onClick={() => soundManager.playSound('craft')}
+                >
                   <Link to="/auth">Create Free Account <ArrowRight className="w-5 h-5" /></Link>
                 </Button>
               </div>

@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2, Eye, EyeOff } from 'lucide-react';
+import { soundManager } from '@/lib/sound';
 
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -47,7 +48,11 @@ const AuthPage = () => {
         style={{ background: 'radial-gradient(circle, hsl(45 95% 58% / 0.10) 0%, transparent 70%)' }} />
 
       {/* Back link */}
-      <Link to="/" className="absolute top-6 left-6 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group">
+      <Link
+        to="/"
+        className="absolute top-6 left-6 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group"
+        onClick={() => soundManager.playSound('back')}
+      >
         <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
         Back
       </Link>
@@ -72,10 +77,10 @@ const AuthPage = () => {
               <button
                 key={label}
                 type="button"
-                onClick={() => { setIsLogin(i === 0); setError(''); }}
+                onClick={() => { setIsLogin(i === 0); setError(''); soundManager.playSound('back'); }}
                 className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${(isLogin ? i === 0 : i === 1)
-                    ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
-                    : 'text-muted-foreground hover:text-foreground'
+                  ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+                  : 'text-muted-foreground hover:text-foreground'
                   }`}
               >
                 {label}
@@ -141,6 +146,7 @@ const AuthPage = () => {
             <Button
               type="submit"
               disabled={loading}
+              onClick={() => soundManager.playSound('craft')}
               className="w-full btn-glow bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl h-11 font-semibold text-sm mt-2"
             >
               {loading

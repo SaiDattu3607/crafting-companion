@@ -120,7 +120,7 @@ const ProjectDetail = () => {
       if (!result.success) {
         setError(result.error || 'Contribution failed');
       } else {
-        soundManager.playSound(action === 'crafted' ? 'craft' : 'collect');
+        soundManager.playFileSound(action === 'crafted' ? 'craft' : 'collect');
       }
       await loadProject();
     } catch (err) {
@@ -169,7 +169,7 @@ const ProjectDetail = () => {
   };
 
   const handleGoHome = () => {
-    soundManager.playSound('button');
+    soundManager.playSound('back');
     navigate('/dashboard');
   };
 

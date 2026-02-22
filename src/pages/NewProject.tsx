@@ -55,10 +55,8 @@ const NewProject = () => {
     e.preventDefault();
     if (!name.trim() || !selectedItem) return;
 
-<<<<<<< HEAD
-=======
-    soundManager.playSound('button');
->>>>>>> 1aa224ae2bb03f9b6a9f54cc44589e999d964403
+
+    soundManager.playSound('craft');
     setCreating(true);
     setError('');
     try {
@@ -76,7 +74,7 @@ const NewProject = () => {
       {/* Header */}
       <header className="sticky top-0 z-40 glass-strong border-b border-white/5">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => { soundManager.playSound('button'); navigate('/dashboard'); }} className="rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/5">
+          <Button variant="ghost" size="sm" onClick={() => { soundManager.playSound('back'); navigate('/dashboard'); }} className="rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/5">
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div className="flex items-center gap-2">
@@ -136,7 +134,7 @@ const NewProject = () => {
                     <span className="text-xs badge-pending px-2 py-0.5 rounded-full">Resource</span>
                   )}
                 </div>
-                <Button type="button" variant="ghost" size="sm" onClick={() => { soundManager.playSound('button'); setSelectedItem(null); setItemSearch(''); }}
+                <Button type="button" variant="ghost" size="sm" onClick={() => { soundManager.playSound('back'); setSelectedItem(null); setItemSearch(''); }}
                   className="rounded-xl text-muted-foreground hover:text-foreground">
                   <X className="w-4 h-4" />
                 </Button>
@@ -236,7 +234,7 @@ const NewProject = () => {
                   {enchantments.map(e => (
                     <span key={e.name} className="inline-flex items-center gap-2 bg-purple-500/15 border border-purple-500/25 text-purple-300 px-3 py-1 rounded-full text-xs font-medium">
                       {e.name.replace(/_/g, ' ')} {e.level}
-                      <button type="button" onClick={() => { soundManager.playSound('button'); setEnchantments(es => es.filter(x => x.name !== e.name)); }}
+                      <button type="button" onClick={() => { soundManager.playSound('back'); setEnchantments(es => es.filter(x => x.name !== e.name)); }}
                         className="hover:text-white transition-colors">✕</button>
                     </span>
                   ))}
