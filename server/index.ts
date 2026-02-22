@@ -17,6 +17,21 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
 dotenv.config({ path: path.resolve(__dirname, '.env') });
 
+console.log('--- SERVER STARTING ---');
+console.log('Node Version:', process.version);
+console.log('CWD:', process.cwd());
+console.log('PORT:', process.env.PORT);
+console.log('VERCEL:', process.env.VERCEL);
+
+process.on('uncaughtException', (err) => {
+  console.error('CRITICAL: Uncaught Exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('CRITICAL: Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
 import projectRoutes from './routes/projects.js';
 import contributionRoutes from './routes/contributions.js';
 import itemRoutes from './routes/items.js';
@@ -68,6 +83,18 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/projects', contributionRoutes);
 app.use('/api/items', itemRoutes);
 app.use('/api/admin', adminRoutes);
+
+// ── Static Files (Frontend) ───────────────────────────────────
+const distPath = path.resolve(__dirname, '../dist');
+app.use(express.static(distPath));
+
+// Fallback to index.html for SPA routing
+// Note: Express 5 requires named parameters for wildcards
+app.get('/:splat*', (req, res, next) => {
+  if (req.path.startsWith('/api')) return next();
+  console.log(`SPA Fallback: Serving index.html for ${req.path}`);
+  res.sendFile(path.join(distPath, 'index.html'));
+});
 
 // ── Error Handler ──────────────────────────────────────────────
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
