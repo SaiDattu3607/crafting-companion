@@ -8,6 +8,7 @@ export interface User {
   username?: string;
   full_name?: string;
   avatar_url?: string;
+  minecraft_level?: number;
 }
 
 interface AuthContextType {
@@ -15,7 +16,7 @@ interface AuthContextType {
   supabaseUser: SupabaseUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<string | true>;
-  signup: (email: string, password: string, fullName: string) => Promise<string | true>;
+  signup: (email: string, password: string, fullName: string, minecraftLevel?: number) => Promise<string | true>;
   logout: () => Promise<void>;
 }
 
@@ -71,6 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: data.email || '',
         full_name: data.full_name || undefined,
         avatar_url: data.avatar_url || undefined,
+        minecraft_level: data.minecraft_level ?? 0,
       });
     }
   };
@@ -98,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signup = async (email: string, password: string, fullName: string): Promise<string | true> => {
+  const signup = async (email: string, password: string, fullName: string, minecraftLevel?: number): Promise<string | true> => {
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -116,6 +118,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (data.user) {
         setSupabaseUser(data.user);
+        // Save minecraft_level to profile if provided
+        if (typeof minecraftLevel === 'number' && minecraftLevel > 0) {
+          await supabase
+            .from('profiles')
+            .update({ minecraft_level: minecraftLevel })
+            .eq('id', data.user.id);
+        }
         await fetchUserProfile(data.user.id);
         return true;
       }

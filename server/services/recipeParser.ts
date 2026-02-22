@@ -629,6 +629,85 @@ export function getEnchantmentMaxLevel(enchantmentName: string): number | null {
 }
 
 /**
+ * Minimum XP levels required to obtain enchantments at each tier via enchanting table.
+ * Based on Minecraft Java Edition enchanting table mechanics (15 bookshelves).
+ * Key = enchantment name, Value = array where index is enchantment level (1-indexed).
+ * e.g. ENCHANTMENT_MIN_LEVELS['sharpness'] = [0, 1, 12, 23, 34, 45]
+ * Index 0 unused; index 1 = level I requirement, etc.
+ *
+ * For enchantments obtainable only via anvil/trading/loot (e.g. mending), set higher values.
+ */
+const ENCHANTMENT_MIN_LEVELS: Record<string, number[]> = {
+  // ── Melee ──
+  sharpness:           [0, 1, 12, 23, 34, 45],
+  smite:               [0, 5, 13, 21, 29, 37],
+  bane_of_arthropods:  [0, 5, 13, 21, 29, 37],
+  knockback:           [0, 5, 25],
+  fire_aspect:         [0, 10, 30],
+  looting:             [0, 15, 24, 33],
+  sweeping_edge:       [0, 5, 14, 23],
+
+  // ── Tools ──
+  efficiency:          [0, 1, 11, 21, 31, 41],
+  silk_touch:          [0, 15],
+  fortune:             [0, 15, 24, 33],
+  unbreaking:          [0, 5, 13, 21],
+
+  // ── Bow ──
+  power:               [0, 1, 11, 21, 31, 41],
+  punch:               [0, 12, 32],
+  flame:               [0, 20],
+  infinity:            [0, 20],
+
+  // ── Armor ──
+  protection:          [0, 1, 12, 23, 34],
+  fire_protection:     [0, 10, 18, 26, 34],
+  blast_protection:    [0, 5, 13, 21, 29],
+  projectile_protection: [0, 3, 11, 19, 27],
+  feather_falling:     [0, 5, 11, 17, 23],
+  respiration:         [0, 10, 20, 30],
+  aqua_affinity:       [0, 1],
+  thorns:              [0, 10, 30, 50],
+  depth_strider:       [0, 10, 20, 30],
+  frost_walker:        [0, 10, 20],
+  soul_speed:          [0, 10, 20, 30],
+  swift_sneak:         [0, 15, 24, 33],
+
+  // ── Trident ──
+  loyalty:             [0, 12, 19, 26],
+  impaling:            [0, 1, 9, 17, 25, 33],
+  riptide:             [0, 17, 24, 31],
+  channeling:          [0, 25],
+
+  // ── Crossbow ──
+  multishot:           [0, 20],
+  quick_charge:        [0, 12, 32, 52],
+  piercing:            [0, 1, 11, 21, 31],
+
+  // ── Fishing ──
+  luck_of_the_sea:     [0, 15, 24, 33],
+  lure:                [0, 15, 24, 33],
+
+  // ── Treasure (anvil/trading/loot only) ──
+  mending:             [0, 30],
+  binding_curse:       [0, 25],
+  vanishing_curse:     [0, 25],
+};
+
+/**
+ * Get the minimum XP level required for a given enchantment at a given level.
+ * Returns the min level, or a fallback estimate if not in the lookup.
+ */
+export function getEnchantmentMinLevel(enchantmentName: string, enchantmentLevel: number): number {
+  const levels = ENCHANTMENT_MIN_LEVELS[enchantmentName];
+  if (levels && enchantmentLevel < levels.length) {
+    return levels[enchantmentLevel];
+  }
+  // Fallback formula: roughly 8 * level
+  return Math.min(enchantmentLevel * 8, 30);
+}
+
+/**
  * Look up a Minecraft item by name and return its info.
  */
 export function lookupItem(itemName: string) {
@@ -1428,22 +1507,30 @@ function determineItemCategory(itemName: string): string {
 }
 
 // Map categories to common enchantments
-function getEnchantmentsForCategory(category: string): { name: string; level: number }[] {
+function getEnchantmentsForCategory(category: string): { name: string; level: number; levelRequirements: number[] }[] {
   // Preferred approach: use minecraft-data's enchantment list when available
   const enchantmentsArray: any[] = (mcData as any).enchantmentsArray || [];
 
   // Helper to check presence in mcData and map to a simple object
   const enchMap = new Map(enchantmentsArray.map((e: any) => [e.name, e.maxLevel || 1]));
   const pick = (names: string[]) => {
-    const out: { name: string; level: number }[] = [];
+    const out: { name: string; level: number; levelRequirements: number[] }[] = [];
     for (const n of names) {
-      if (enchMap.has(n)) out.push({ name: n, level: enchMap.get(n)! });
+      if (enchMap.has(n)) {
+        const maxLvl = enchMap.get(n)!;
+        // Build levelRequirements array: [minXP for level 1, minXP for level 2, ...]
+        const reqs: number[] = [];
+        for (let i = 1; i <= maxLvl; i++) {
+          reqs.push(getEnchantmentMinLevel(n, i));
+        }
+        out.push({ name: n, level: maxLvl, levelRequirements: reqs });
+      }
     }
     return out;
   };
 
   // Common enchantments useful for many tools
-  const common: { name: string; level: number }[] = pick(['unbreaking', 'mending']);
+  const common = pick(['unbreaking', 'mending']);
 
   // Category → candidate enchantment names (fall back to heuristics)
   const candidates: Record<string, string[]> = {
@@ -1470,7 +1557,14 @@ function getEnchantmentsForCategory(category: string): { name: string; level: nu
   if (found.length === 0) {
     // fallback hard-coded (ensures UI still has options)
     return (
-      candidates[category] ? candidates[category].map(n => ({ name: n, level: enchMap.get(n) || 5 })) : []
+      candidates[category]
+        ? candidates[category].map(n => {
+            const maxLvl = enchMap.get(n) || 5;
+            const reqs: number[] = [];
+            for (let i = 1; i <= maxLvl; i++) reqs.push(getEnchantmentMinLevel(n, i));
+            return { name: n, level: maxLvl, levelRequirements: reqs };
+          })
+        : []
     ).concat(common.length ? common : []);
   }
 

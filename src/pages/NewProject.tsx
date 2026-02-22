@@ -6,7 +6,7 @@ import { createMultiItemProject, searchMinecraftItems, lookupMinecraftItem, type
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Search, Loader2, Sparkles, X, Plus, Package } from 'lucide-react';
+import { ArrowLeft, Search, Loader2, Sparkles, X, Plus, Package, AlertTriangle } from 'lucide-react';
 
 /* ── Single target-item form (reusable per item slot) ─────────── */
 interface ItemFormProps {
@@ -18,6 +18,7 @@ interface ItemFormProps {
 }
 
 const ItemForm = ({ index, item, onAdd, onRemove, isOnly }: ItemFormProps) => {
+  const { user } = useAuth();
   const [itemSearch, setItemSearch] = useState('');
   const [selectedItem, setSelectedItem] = useState<MinecraftItem | null>(null);
   const [searchResults, setSearchResults] = useState<MinecraftItem[]>([]);
@@ -207,7 +208,11 @@ const ItemForm = ({ index, item, onAdd, onRemove, isOnly }: ItemFormProps) => {
               onChange={e => setEnchantLevel(parseInt(e.target.value) || 1)}
               className="bg-secondary/60 border border-white/8 rounded-xl px-2.5 py-1.5 text-xs text-foreground w-14"
             >
-              {Array.from({ length: selectedItem.possibleEnchantments.find(e => e.name === enchantName)?.level || 5 }, (_, i) => i + 1).map(l => <option key={l} value={l}>{l}</option>)}
+              {Array.from({ length: selectedItem.possibleEnchantments.find(e => e.name === enchantName)?.level || 5 }, (_, i) => i + 1).map(l => {
+                const pe = selectedItem.possibleEnchantments?.find(e => e.name === enchantName);
+                const minXp = pe?.levelRequirements?.[l - 1];
+                return <option key={l} value={l}>{l}{minXp ? ` (Lv ${minXp})` : ''}</option>;
+              })}
             </select>
             <Button
               type="button" size="sm"
@@ -225,15 +230,44 @@ const ItemForm = ({ index, item, onAdd, onRemove, isOnly }: ItemFormProps) => {
               Add
             </Button>
           </div>
+          {/* Level requirement warning */}
+          {enchantName && (() => {
+            const pe = selectedItem.possibleEnchantments?.find(e => e.name === enchantName);
+            const minXp = pe?.levelRequirements?.[enchantLevel - 1];
+            const myLevel = user?.minecraft_level ?? 0;
+            if (minXp && myLevel < minXp) {
+              return (
+                <div className="flex items-start gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300/80">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <p>
+                    <strong>{enchantName.replace(/_/g, ' ')} {enchantLevel}</strong> requires XP Level {minXp}.
+                    Your current level is {myLevel}. You can still add it — a collaborator with a higher level can apply it.
+                  </p>
+                </div>
+              );
+            }
+            return null;
+          })()}
           {enchantments.length > 0 && (
             <div className="flex gap-1.5 flex-wrap">
-              {enchantments.map(e => (
-                <span key={e.name} className="inline-flex items-center gap-1.5 bg-purple-500/15 border border-purple-500/25 text-purple-300 px-2.5 py-0.5 rounded-full text-[10px] font-medium">
-                  {e.name.replace(/_/g, ' ')} {e.level}
-                  <button type="button" onClick={() => { soundManager.playSound('button'); setEnchantments(es => es.filter(x => x.name !== e.name)); }}
-                    className="hover:text-white transition-colors">✕</button>
-                </span>
-              ))}
+              {enchantments.map(e => {
+                const pe = selectedItem.possibleEnchantments?.find(p => p.name === e.name);
+                const minXp = pe?.levelRequirements?.[e.level - 1];
+                const myLevel = user?.minecraft_level ?? 0;
+                const canDo = !minXp || myLevel >= minXp;
+                return (
+                  <span key={e.name} className={`inline-flex items-center gap-1.5 border px-2.5 py-0.5 rounded-full text-[10px] font-medium ${
+                    canDo
+                      ? 'bg-purple-500/15 border-purple-500/25 text-purple-300'
+                      : 'bg-amber-500/15 border-amber-500/25 text-amber-300'
+                  }`}>
+                    {e.name.replace(/_/g, ' ')} {e.level}
+                    {minXp && <span className="text-[9px] opacity-60">Lv{minXp}</span>}
+                    <button type="button" onClick={() => { soundManager.playSound('button'); setEnchantments(es => es.filter(x => x.name !== e.name)); }}
+                      className="hover:text-white transition-colors">✕</button>
+                  </span>
+                );
+              })}
             </div>
           )}
         </div>

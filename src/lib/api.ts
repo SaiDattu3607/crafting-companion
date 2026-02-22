@@ -79,6 +79,7 @@ export interface ProjectMember {
     email: string;
     avatar_url: string | null;
     last_active_at?: string | null;
+    minecraft_level?: number;
   };
 }
 
@@ -123,7 +124,7 @@ export interface MinecraftItem {
   isResource: boolean;
   hasRecipe?: boolean;
   category?: string;
-  possibleEnchantments?: { name: string; level?: number }[] | null;
+  possibleEnchantments?: { name: string; level?: number; levelRequirements?: number[] }[] | null;
   possibleVariants?: { name: string; displayName: string; effects?: string; duration?: string }[] | null;
 }
 
@@ -185,7 +186,7 @@ export interface ItemDetail {
   isResource: boolean;
   hasRecipe: boolean;
   category: string;
-  possibleEnchantments: { name: string; level?: number }[];
+  possibleEnchantments: { name: string; level?: number; levelRequirements?: number[] }[];
   possibleVariants?: { name: string; displayName: string; effects?: string; duration?: string }[] | null;
   imageUrl: string;
   recipe: Recipe | null;
@@ -502,4 +503,19 @@ export async function acceptInvite(inviteId: string): Promise<{ success: boolean
 /** Decline an invite */
 export async function declineInvite(inviteId: string): Promise<{ success: boolean }> {
   return apiFetch(`/projects/invites/${inviteId}/decline`, { method: 'POST' });
+}
+
+// ── Profile ────────────────────────────────────────────────────
+
+/** Get the current user's profile */
+export async function fetchProfile(): Promise<{ id: string; full_name: string; email: string; minecraft_level: number }> {
+  return apiFetch('/projects/profile');
+}
+
+/** Update the current user's profile (e.g. minecraft_level) */
+export async function updateProfile(updates: { minecraft_level?: number }): Promise<{ id: string; minecraft_level: number }> {
+  return apiFetch('/projects/profile', {
+    method: 'PATCH',
+    body: JSON.stringify(updates),
+  });
 }

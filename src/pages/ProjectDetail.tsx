@@ -8,6 +8,7 @@ import {
   updateNodeEnchantments, updateMemberRole,
   fetchTaskSuggestions, savePlanSnapshot, fetchPlanSnapshots, restorePlanSnapshot,
   addTargetItem, searchMinecraftItems, lookupMinecraftItem,
+  updateProfile,
   type Project, type CraftingNode, type Contribution,
   type BottleneckItem, type ProjectProgress, type ProjectMember,
   type MemberRole, type SuggestedTask, type PlanSnapshot,
@@ -21,7 +22,7 @@ import {
   UserPlus, RefreshCw, Loader2, Layers, Activity,
   Sparkles, Pencil, Check, X, BookOpen, ChevronDown, ChevronUp, Trophy,
   ClipboardList, Save, History, HardHat, Hammer, BrainCircuit, Users,
-  Plus, Search, Package
+  Plus, Search, Package, Shield
 } from 'lucide-react';
 import { getBookRequirements, toRoman, getBestStrategy } from '@/lib/enchantmentBooks';
 import ItemDetailModal from '@/components/ItemDetailModal';
@@ -79,9 +80,34 @@ const ProjectDetail = () => {
   const [savingEnchantments, setSavingEnchantments] = useState(false);
   const [expandedBook, setExpandedBook] = useState<string | null>(null);
 
+  // Enchantment level requirement cache: enchantment_name -> level[] (index 0 = level 1 req)
+  const [enchLevelReqs, setEnchLevelReqs] = useState<Record<string, number[]>>({});
+
   // Item detail modal
   const [detailItemName, setDetailItemName] = useState<string | null>(null);
   const [showItemDetail, setShowItemDetail] = useState(false);
+
+  /** Get the minimum XP level required for an enchantment at a given tier */
+  const getMinXpLevel = (enchName: string, enchLevel: number): number | null => {
+    const reqs = enchLevelReqs[enchName];
+    if (reqs && enchLevel >= 1 && enchLevel <= reqs.length) {
+      return reqs[enchLevel - 1]; // 0-indexed: index 0 = level 1 requirement
+    }
+    return null;
+  };
+
+  /** Get the member with the highest minecraft_level who can do a given enchantment */
+  const getBestMemberForEnchantment = (enchName: string, enchLevel: number) => {
+    const minLevel = getMinXpLevel(enchName, enchLevel);
+    if (minLevel === null) return null;
+    const capable = members.filter(m => {
+      const mLevel = (m.profiles as any)?.minecraft_level ?? 0;
+      return mLevel >= minLevel;
+    });
+    if (capable.length === 0) return null;
+    // Return the member with the highest level
+    return capable.sort((a, b) => ((b.profiles as any)?.minecraft_level ?? 0) - ((a.profiles as any)?.minecraft_level ?? 0))[0];
+  };
 
   const loadProject = useCallback(async () => {
     if (!id) return;
@@ -126,6 +152,38 @@ const ProjectDetail = () => {
   }, [id]);
 
   useEffect(() => { loadProject(); }, [loadProject]);
+
+  // ── Fetch enchantment level requirements for items in the project ──
+  useEffect(() => {
+    if (nodes.length === 0) return;
+    // Find unique item names that have enchantments
+    const enchantedItems = new Set<string>();
+    for (const node of nodes) {
+      if (Array.isArray(node.enchantments) && node.enchantments.length > 0 && node.item_name !== 'enchanted_book') {
+        enchantedItems.add(node.item_name);
+      }
+    }
+    if (enchantedItems.size === 0) return;
+
+    // Fetch item details to get levelRequirements
+    const fetchReqs = async () => {
+      const reqs: Record<string, number[]> = { ...enchLevelReqs };
+      for (const itemName of enchantedItems) {
+        try {
+          const detail = await lookupMinecraftItem(itemName);
+          if (detail?.possibleEnchantments) {
+            for (const pe of detail.possibleEnchantments) {
+              if (pe.levelRequirements && !reqs[pe.name]) {
+                reqs[pe.name] = pe.levelRequirements;
+              }
+            }
+          }
+        } catch { /* ignore */ }
+      }
+      setEnchLevelReqs(reqs);
+    };
+    fetchReqs();
+  }, [nodes.length]); // Only re-run when node count changes
 
   // ── Add Item search debounce (must be before early returns – Rules of Hooks) ──
   useEffect(() => {
@@ -415,13 +473,44 @@ const ProjectDetail = () => {
 
                 {/* Enchantment Display/Edit in Tree */}
                 {Array.isArray(node.enchantments) && node.enchantments.length > 0 && editingEnchantments !== node.id && (
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <Sparkles className="w-3 h-3 text-purple-400" />
-                    {node.enchantments.map((en: any, i: number) => (
-                      <span key={`${en.name}-${i}`} className="text-[10px] bg-purple-500/15 text-purple-400 border border-purple-500/20 px-1.5 py-0.5 rounded-full font-medium">
-                        {en.name.replace(/_/g, ' ')} {en.level}
-                      </span>
-                    ))}
+                    {node.enchantments.map((en: any, i: number) => {
+                      const minXp = getMinXpLevel(en.name, en.level);
+                      const myLevel = user?.minecraft_level ?? 0;
+                      const canDo = minXp !== null ? myLevel >= minXp : true;
+                      const bestMember = !canDo ? getBestMemberForEnchantment(en.name, en.level) : null;
+                      const bestName = bestMember ? ((bestMember.profiles as any)?.full_name || (bestMember.profiles as any)?.email || 'User') : null;
+
+                      return (
+                        <span
+                          key={`${en.name}-${i}`}
+                          className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium inline-flex items-center gap-1 ${
+                            canDo
+                              ? 'bg-purple-500/15 text-purple-400 border border-purple-500/20'
+                              : 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
+                          }`}
+                          title={minXp !== null
+                            ? canDo
+                              ? `${en.name.replace(/_/g, ' ')} ${en.level} — Requires Lv ${minXp} (you: Lv ${myLevel}) ✓`
+                              : `${en.name.replace(/_/g, ' ')} ${en.level} — Requires Lv ${minXp} (you: Lv ${myLevel}) ✗${bestName ? ` — ${bestName} can do it` : ''}`
+                            : undefined
+                          }
+                        >
+                          {en.name.replace(/_/g, ' ')} {en.level}
+                          {minXp !== null && (
+                            <span className={`text-[9px] opacity-70 ${canDo ? '' : 'font-bold'}`}>
+                              Lv{minXp}
+                            </span>
+                          )}
+                          {!canDo && bestName && (
+                            <span className="text-[9px] text-emerald-400/80">
+                              → {bestName.split(' ')[0]}
+                            </span>
+                          )}
+                        </span>
+                      );
+                    })}
                     <button
                       onClick={() => handleStartEditEnchantments(node)}
                       className="text-purple-400/60 hover:text-purple-400 transition-colors ml-1"
@@ -1015,6 +1104,7 @@ const ProjectDetail = () => {
                   const isProjectOwner = project.owner_id === user?.id;
                   const memberName = (m.profiles as any)?.full_name || (m.profiles as any)?.email || 'User';
                   const lastActive = (m.profiles as any)?.last_active_at;
+                  const memberLevel = (m.profiles as any)?.minecraft_level ?? 0;
                   const isCurrentUser = m.user_id === user?.id;
                   const isActive = isCurrentUser || (lastActive && (new Date().getTime() - new Date(lastActive).getTime()) < 5 * 60 * 1000);
                   const roleIcon = m.role === 'miner' ? <HardHat className="w-3 h-3" /> :
@@ -1036,10 +1126,20 @@ const ProjectDetail = () => {
                           <div className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#0a0a0b] ${isActive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-zinc-500'}`} />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-foreground leading-tight">
-                            {memberName}
-                            {isCurrentUser && <span className="text-[10px] text-primary/60 ml-1.5 font-normal">(You)</span>}
-                          </p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm font-medium text-foreground leading-tight">
+                              {memberName}
+                              {isCurrentUser && <span className="text-[10px] text-primary/60 ml-1.5 font-normal">(You)</span>}
+                            </p>
+                            {/* XP Level badge */}
+                            <span
+                              className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/15"
+                              title={`Minecraft XP Level: ${memberLevel}`}
+                            >
+                              <Shield className="w-2.5 h-2.5" />
+                              Lv {memberLevel}
+                            </span>
+                          </div>
                           <div className={`flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider ${roleColor}`}>
                             {roleIcon}
                             <span>{m.role}</span>
@@ -1049,19 +1149,46 @@ const ProjectDetail = () => {
                           </div>
                         </div>
                       </div>
-                      {/* Role dropdown: project owner can change anyone's role including their own */}
-                      {(isProjectOwner || isCurrentUser) && (
-                        <select
-                          value={m.role}
-                          onChange={e => handleChangeRole(m.user_id, e.target.value as MemberRole)}
-                          className="bg-secondary/60 border border-white/8 rounded-lg px-2 py-1 text-[11px] text-foreground cursor-pointer"
-                        >
-                          <option value="miner">⛏ Miner</option>
-                          <option value="builder">🔨 Builder</option>
-                          <option value="planner">🧠 Planner</option>
-                          <option value="member">General</option>
-                        </select>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {/* Inline level editor for current user */}
+                        {isCurrentUser && (
+                          <div className="flex items-center gap-1">
+                            <label className="text-[9px] text-muted-foreground/50">Lv</label>
+                            <input
+                              type="number"
+                              min={0}
+                              max={32767}
+                              defaultValue={memberLevel}
+                              onBlur={async (e) => {
+                                const newLevel = Math.max(0, parseInt(e.target.value) || 0);
+                                if (newLevel !== memberLevel) {
+                                  try {
+                                    await updateProfile({ minecraft_level: newLevel });
+                                    await loadProject();
+                                    toast({ title: 'Level Updated', description: `Your level is now ${newLevel}` });
+                                  } catch (err) {
+                                    toast({ title: 'Error', description: (err as Error).message, variant: 'destructive' });
+                                  }
+                                }
+                              }}
+                              className="w-12 h-6 text-center text-[11px] bg-secondary/60 border border-white/8 rounded-lg text-foreground"
+                            />
+                          </div>
+                        )}
+                        {/* Role dropdown: project owner can change anyone's role including their own */}
+                        {(isProjectOwner || isCurrentUser) && (
+                          <select
+                            value={m.role}
+                            onChange={e => handleChangeRole(m.user_id, e.target.value as MemberRole)}
+                            className="bg-secondary/60 border border-white/8 rounded-lg px-2 py-1 text-[11px] text-foreground cursor-pointer"
+                          >
+                            <option value="miner">⛏ Miner</option>
+                            <option value="builder">🔨 Builder</option>
+                            <option value="planner">🧠 Planner</option>
+                            <option value="member">General</option>
+                          </select>
+                        )}
+                      </div>
                     </div>
                   );
                 })}

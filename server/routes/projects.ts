@@ -7,7 +7,7 @@
 import { Router, Request, Response } from 'express';
 import { supabaseForUser } from '../config/supabase.js';
 import { authMiddleware, projectMemberGuard } from '../middleware/auth.js';
-import { parseRecipeTree, searchItems, lookupItem, getEnchantmentMaxLevel } from '../services/recipeParser.js';
+import { parseRecipeTree, searchItems, lookupItem, getEnchantmentMaxLevel, getEnchantmentMinLevel } from '../services/recipeParser.js';
 
 const router = Router();
 
@@ -294,7 +294,7 @@ router.get('/:projectId', projectMemberGuard, async (req: Request, res: Response
       .from('project_members')
       .select(`
         user_id, role, joined_at,
-        profiles!inner (full_name, email, avatar_url, last_active_at)
+        profiles!inner (full_name, email, avatar_url, last_active_at, minecraft_level)
       `)
       .eq('project_id', projectId);
 
@@ -1201,6 +1201,71 @@ router.post('/:projectId/invite', async (req: Request, res: Response) => {
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
+});
+
+// ── PATCH /api/profile ─────────────────────────────────────────
+// Update the authenticated user's profile (e.g. minecraft_level)
+router.patch('/profile', async (req: Request, res: Response) => {
+  try {
+    const { minecraft_level } = req.body;
+    const updates: Record<string, any> = {};
+    if (typeof minecraft_level === 'number' && minecraft_level >= 0) {
+      updates.minecraft_level = Math.floor(minecraft_level);
+    }
+    if (Object.keys(updates).length === 0) {
+      res.status(400).json({ error: 'No valid fields to update' });
+      return;
+    }
+    const sb = supabaseForUser(req.accessToken!);
+    const { data, error } = await sb
+      .from('profiles')
+      .update(updates)
+      .eq('id', req.userId!)
+      .select('id, minecraft_level')
+      .single();
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// ── GET /api/profile ───────────────────────────────────────────
+// Get the authenticated user's profile
+router.get('/profile', async (req: Request, res: Response) => {
+  try {
+    const sb = supabaseForUser(req.accessToken!);
+    const { data, error } = await sb
+      .from('profiles')
+      .select('id, full_name, email, avatar_url, minecraft_level')
+      .eq('id', req.userId!)
+      .single();
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// ── GET /api/enchantment-levels ────────────────────────────────
+// Get XP level requirements for all enchantments
+router.get('/enchantment-levels', async (_req: Request, res: Response) => {
+  const enchantmentsArray: any[] = (require('minecraft-data') as any)('1.20').enchantmentsArray || [];
+  const result: Record<string, { maxLevel: number; levelRequirements: number[] }> = {};
+  for (const e of enchantmentsArray) {
+    const reqs: number[] = [];
+    for (let i = 1; i <= (e.maxLevel || 1); i++) {
+      reqs.push(getEnchantmentMinLevel(e.name, i));
+    }
+    result[e.name] = { maxLevel: e.maxLevel || 1, levelRequirements: reqs };
+  }
+  res.json(result);
 });
 
 // ── GET /api/items/search?q=... ────────────────────────────────
