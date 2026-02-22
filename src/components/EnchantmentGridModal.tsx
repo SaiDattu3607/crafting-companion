@@ -18,6 +18,7 @@ import {
 } from '@/lib/enchantmentBooks';
 import { fetchItemDetail, lookupMinecraftItem, type MinecraftItem, type ItemDetail } from '@/lib/api';
 import { getMinecraftAssetUrl } from '@/lib/minecraftAssets';
+import EnchantmentMatrix from './EnchantmentMatrix';
 
 function itemImageUrl(name: string) {
   return getMinecraftAssetUrl(name);
@@ -143,128 +144,15 @@ export default function EnchantmentGridModal({
 
         {/* ── Enchantment Matrix ────────────────────────────── */}
         {!loading && hasEnchantments && (
-          <div className="px-6 pb-2">
-            {/* Legend */}
-            <div className="flex items-center gap-4 mb-3 text-[10px] text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <span className="w-5 h-3 rounded bg-purple-500/40 border border-purple-500/50" /> Applied
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-5 h-3 rounded bg-emerald-500/25 border border-emerald-500/30" /> Table
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-5 h-3 rounded bg-amber-500/20 border border-amber-500/30" /> Trade / Loot
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-5 h-3 rounded bg-white/5 border border-white/8" /> N/A
-              </span>
-            </div>
-
-            {/* Matrix table */}
-            <div className="rounded-xl border border-white/8 overflow-hidden">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-white/[0.03]">
-                    <th className="text-left text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-3 py-2.5 border-b border-white/8 w-[40%]">
-                      Enchantment
-                    </th>
-                    {Array.from({ length: maxCol }, (_, i) => (
-                      <th key={i} className="text-center text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-1 py-2.5 border-b border-white/8 border-l border-white/5">
-                        {toRoman(i + 1)}
-                      </th>
-                    ))}
-                    <th className="text-center text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-2 py-2.5 border-b border-white/8 border-l border-white/5 w-[60px]">
-                      Books
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {enchantments.map((ench, ri) => {
-                    const books = ench.isActive ? booksNeededForLevel(ench.activeLevel!) : null;
-                    const isSelected = selectedEnchant === ench.name;
-
-                    return (
-                      <tr
-                        key={ench.name}
-                        onClick={() => setSelectedEnchant(isSelected ? null : ench.name)}
-                        className={`cursor-pointer transition-colors ${isSelected
-                            ? 'bg-white/[0.06]'
-                            : ri % 2 === 0
-                              ? 'bg-transparent hover:bg-white/[0.03]'
-                              : 'bg-white/[0.015] hover:bg-white/[0.04]'
-                          }`}
-                      >
-                        {/* Enchantment name */}
-                        <td className="px-3 py-2 border-b border-white/5">
-                          <div className="flex items-center gap-2">
-                            <span className={`text-xs font-semibold ${ench.isActive ? 'text-purple-300' : 'text-foreground'}`}>
-                              {ench.displayName}
-                            </span>
-                            {ench.isActive && (
-                              <Sparkles className="w-3 h-3 text-purple-400" />
-                            )}
-                          </div>
-                        </td>
-
-                        {/* Level cells */}
-                        {Array.from({ length: maxCol }, (_, i) => {
-                          const lvl = i + 1;
-                          const exists = lvl <= ench.maxLevel;
-                          const isTable = lvl <= ench.maxTableLevel;
-                          const isApplied = ench.isActive && ench.activeLevel! >= lvl;
-                          const xpReq = ench.levelRequirements[i];
-
-                          let cellClass = 'bg-white/[0.02]'; // N/A
-                          if (!exists) {
-                            cellClass = 'bg-transparent';
-                          } else if (isApplied) {
-                            cellClass = 'bg-purple-500/30 border-purple-500/40';
-                          } else if (isTable) {
-                            cellClass = 'bg-emerald-500/15 border-emerald-500/20';
-                          } else {
-                            cellClass = 'bg-amber-500/12 border-amber-500/20';
-                          }
-
-                          return (
-                            <td
-                              key={lvl}
-                              className="px-1 py-2 border-b border-white/5 border-l border-white/5 text-center"
-                            >
-                              {exists ? (
-                                <div
-                                  className={`mx-auto w-8 h-7 rounded-md border flex items-center justify-center text-[10px] font-mono font-bold transition-all ${cellClass} ${isApplied ? 'text-purple-200 shadow-sm shadow-purple-500/20' : isTable ? 'text-emerald-400/70' : 'text-amber-400/60'
-                                    }`}
-                                  title={`${ench.displayName} ${toRoman(lvl)}${xpReq ? ` — Lv ${xpReq} at table` : ''}${isApplied ? ' ✓ applied' : ''}`}
-                                >
-                                  {xpReq ? xpReq : isApplied ? '✓' : '·'}
-                                </div>
-                              ) : (
-                                <div className="mx-auto w-8 h-7" />
-                              )}
-                            </td>
-                          );
-                        })}
-
-                        {/* Book count */}
-                        <td className="px-2 py-2 border-b border-white/5 border-l border-white/5 text-center">
-                          {books !== null ? (
-                            <span className="text-[10px] font-mono text-purple-300 font-bold">
-                              📕 {books}
-                            </span>
-                          ) : (
-                            <span className="text-[10px] text-muted-foreground/40">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
+          <div className="px-6 pb-6 pt-2">
+            <EnchantmentMatrix
+              itemName={itemName}
+              activeEnchantments={activeEnchantments}
+              possibleEnchantments={item?.possibleEnchantments || detail?.possibleEnchantments || []}
+            />
             {/* Tip under table */}
-            <p className="text-[10px] text-muted-foreground/60 mt-2 text-center">
-              Numbers show the XP level required at the enchanting table · Click a row for details
+            <p className="text-[10px] text-muted-foreground/60 mt-4 text-center">
+              Numbers show the XP level required at the enchanting table
             </p>
           </div>
         )}

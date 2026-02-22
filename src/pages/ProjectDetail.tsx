@@ -29,6 +29,7 @@ import { getMinecraftAssetUrl } from '@/lib/minecraftAssets';
 import ItemDetailModal from '@/components/ItemDetailModal';
 import { ItemIconWithFallback } from '@/components/ItemIconWithFallback';
 import EnchantmentGridModal from '@/components/EnchantmentGridModal';
+import EnchantmentMatrix from '@/components/EnchantmentMatrix';
 import { toast } from '@/hooks/use-toast';
 
 const ProjectDetail = () => {
@@ -86,6 +87,8 @@ const ProjectDetail = () => {
 
   // Enchantment level requirement cache: enchantment_name -> level[] (index 0 = level 1 req)
   const [enchLevelReqs, setEnchLevelReqs] = useState<Record<string, number[]>>({});
+  // Item metadata cache: item_name -> MinecraftItem (with possibleEnchantments)
+  const [enchMetadata, setEnchMetadata] = useState<Record<string, MinecraftItem>>({});
 
   // Item detail modal
   const [detailItemName, setDetailItemName] = useState<string | null>(null);
@@ -176,25 +179,36 @@ const ProjectDetail = () => {
     }
     if (enchantedItems.size === 0) return;
 
-    // Fetch item details to get levelRequirements
+    // Fetch item details to get levelRequirements and full metadata
     const fetchReqs = async () => {
       const reqs: Record<string, number[]> = { ...enchLevelReqs };
+      const metadata: Record<string, MinecraftItem> = { ...enchMetadata };
+      let changed = false;
+
       for (const itemName of enchantedItems) {
+        if (metadata[itemName]) continue;
         try {
           const detail = await lookupMinecraftItem(itemName);
-          if (detail?.possibleEnchantments) {
-            for (const pe of detail.possibleEnchantments) {
-              if (pe.levelRequirements && !reqs[pe.name]) {
-                reqs[pe.name] = pe.levelRequirements;
+          if (detail) {
+            metadata[itemName] = detail;
+            changed = true;
+            if (detail.possibleEnchantments) {
+              for (const pe of detail.possibleEnchantments) {
+                if (pe.levelRequirements && !reqs[pe.name]) {
+                  reqs[pe.name] = pe.levelRequirements;
+                }
               }
             }
           }
         } catch { /* ignore */ }
       }
-      setEnchLevelReqs(reqs);
+      if (changed) {
+        setEnchLevelReqs(reqs);
+        setEnchMetadata(metadata);
+      }
     };
     fetchReqs();
-  }, [nodes.length]); // Only re-run when node count changes
+  }, [nodes.length, enchMetadata]); // Re-run when nodes change or metadata grows
 
   // ── Add Item search debounce (must be before early returns – Rules of Hooks) ──
   useEffect(() => {
@@ -724,7 +738,7 @@ const ProjectDetail = () => {
               </Button>
             </div>
           </div>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-3 mb-6">
             {(node.enchantments || []).map((en: any, i: number) => (
               <button
                 key={i}
@@ -738,10 +752,19 @@ const ProjectDetail = () => {
               >
                 <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-300 font-mono text-sm">
                   {toRoman(en.level)}
-                  +                </div>
+                </div>
                 <span className="text-sm font-semibold text-purple-200">{en.name.replace(/_/g, ' ')}</span>
               </button>
             ))}
+          </div>
+
+          {/* New Embedded Matrix */}
+          <div className="bg-white/5 rounded-xl p-4 border border-white/5">
+            <EnchantmentMatrix
+              itemName={node.item_name}
+              activeEnchantments={node.enchantments || []}
+              possibleEnchantments={enchMetadata[node.item_name]?.possibleEnchantments || []}
+            />
           </div>
         </div>
       ))}
