@@ -170,14 +170,16 @@ const ProjectDetail = () => {
   // ── Fetch enchantment level requirements for items in the project ──
   useEffect(() => {
     if (nodes.length === 0) return;
-    // Find unique item names that have enchantments
-    const enchantedItems = new Set<string>();
+    // Find unique item names that have enchantments OR are root targets (likely enchantable)
+    const itemsToFetch = new Set<string>();
     for (const node of nodes) {
-      if (Array.isArray(node.enchantments) && node.enchantments.length > 0 && node.item_name !== 'enchanted_book') {
-        enchantedItems.add(node.item_name);
+      const isEnchanted = Array.isArray(node.enchantments) && node.enchantments.length > 0;
+      const isTarget = node.parent_id === null;
+      if ((isEnchanted || isTarget) && node.item_name !== 'enchanted_book') {
+        itemsToFetch.add(node.item_name);
       }
     }
-    if (enchantedItems.size === 0) return;
+    if (itemsToFetch.size === 0) return;
 
     // Fetch item details to get levelRequirements and full metadata
     const fetchReqs = async () => {
@@ -185,7 +187,7 @@ const ProjectDetail = () => {
       const metadata: Record<string, MinecraftItem> = { ...enchMetadata };
       let changed = false;
 
-      for (const itemName of enchantedItems) {
+      for (const itemName of itemsToFetch) {
         if (metadata[itemName]) continue;
         try {
           const detail = await lookupMinecraftItem(itemName);
@@ -441,7 +443,20 @@ const ProjectDetail = () => {
   // Per-root helpers (for multi-item projects)
   const getRootItemChildren = (root: CraftingNode) => getChildren(root.id).filter(c => c.item_name !== 'enchanted_book');
   const getRootBookChildren = (root: CraftingNode) => getChildren(root.id).filter(c => c.item_name === 'enchanted_book');
-  const allEnchantedNodes = nodes.filter(n => Array.isArray(n.enchantments) && n.enchantments.length > 0);
+
+  // Decide which nodes should show an Enchantment Summary panel
+  const displayEnchantmentNodes = nodes.filter(node => {
+    // 1. Show if it actually has enchantments
+    if (Array.isArray(node.enchantments) && node.enchantments.length > 0) return true;
+
+    // 2. Show for root nodes if they are enchantable (determined by metadata)
+    if (node.parent_id === null) {
+      const meta = enchMetadata[node.item_name];
+      if (meta && Array.isArray(meta.possibleEnchantments) && meta.possibleEnchantments.length > 0) return true;
+    }
+
+    return false;
+  });
 
   const ItemIcon = ({ node }: { node: CraftingNode }) => {
     const status = getNodeStatus(node);
@@ -509,60 +524,78 @@ const ProjectDetail = () => {
                 </span>
 
                 {/* Enchantment Display/Edit in Tree */}
-                {Array.isArray(node.enchantments) && node.enchantments.length > 0 && editingEnchantments !== node.id && (
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <Sparkles className="w-3 h-3 text-purple-400" />
-                    {node.enchantments.map((en: any, i: number) => {
-                      const minXp = getMinXpLevel(en.name, en.level);
-                      const myLevel = user?.minecraft_level ?? 0;
-                      const canDo = minXp !== null ? myLevel >= minXp : true;
-                      const bestMember = !canDo ? getBestMemberForEnchantment(en.name, en.level) : null;
-                      const bestName = bestMember ? ((bestMember.profiles as any)?.full_name || (bestMember.profiles as any)?.email || 'User') : null;
+                {/* Enchantment Display/Edit in Tree */}
+                {editingEnchantments !== node.id && (() => {
+                  const hasEnchants = Array.isArray(node.enchantments) && node.enchantments.length > 0;
+                  const meta = enchMetadata[node.item_name];
+                  const isEnchantable = (meta && Array.isArray(meta.possibleEnchantments) && meta.possibleEnchantments.length > 0) || (node.parent_id === null && !node.is_resource) || hasEnchants;
 
-                      return (
+                  if (!isEnchantable) return null;
+
+                  return (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {hasEnchants && (
+                        <>
+                          <Sparkles className="w-3 h-3 text-purple-400" />
+                          {node.enchantments!.map((en: any, i: number) => {
+                            const minXp = getMinXpLevel(en.name, en.level);
+                            const myLevel = user?.minecraft_level ?? 0;
+                            const canDo = minXp !== null ? myLevel >= minXp : true;
+                            const bestMember = !canDo ? getBestMemberForEnchantment(en.name, en.level) : null;
+                            const bestName = bestMember ? ((bestMember.profiles as any)?.full_name || (bestMember.profiles as any)?.email || 'User') : null;
+
+                            return (
+                              <button
+                                key={`${en.name}-${i}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEnchantGridItem(node.item_name);
+                                  setEnchantGridEnchants((node.enchantments || []).map((e: any) => ({ name: e.name, level: e.level })));
+                                  setShowEnchantGrid(true);
+                                  soundManager.playSound('button');
+                                }}
+                                className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium inline-flex items-center gap-1 cursor-pointer transition-all hover:scale-105 ${canDo
+                                  ? 'bg-purple-500/15 text-purple-400 border border-purple-500/20 hover:bg-purple-500/25'
+                                  : 'bg-amber-500/15 text-amber-400 border border-amber-500/20 hover:bg-amber-500/25'
+                                  }`}
+                                title={minXp !== null
+                                  ? canDo
+                                    ? `${en.name.replace(/_/g, ' ')} ${en.level} — Requires Lv ${minXp} (you: Lv ${myLevel}) ✓ · Click for details`
+                                    : `${en.name.replace(/_/g, ' ')} ${en.level} — Requires Lv ${minXp} (you: Lv ${myLevel}) ✗${bestName ? ` — ${bestName} can do it` : ''} · Click for details`
+                                  : `${en.name.replace(/_/g, ' ')} ${en.level} · Click for details`
+                                }
+                              >
+                                {en.name.replace(/_/g, ' ')} {en.level}
+                                {minXp !== null && (
+                                  <span className={`text-[9px] opacity-70 ${canDo ? '' : 'font-bold'}`}>
+                                    Lv{minXp}
+                                  </span>
+                                )}
+                                {!canDo && bestName && (
+                                  <span className="text-[9px] text-emerald-400/80">
+                                    → {bestName.split(' ')[0]}
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </>
+                      )}
+                      {(hasEnchants || node.parent_id === null) && (
                         <button
-                          key={`${en.name}-${i}`}
                           onClick={(e) => {
                             e.stopPropagation();
-                            setEnchantGridItem(node.item_name);
-                            setEnchantGridEnchants((node.enchantments || []).map((e: any) => ({ name: e.name, level: e.level })));
-                            setShowEnchantGrid(true);
-                            soundManager.playSound('button');
+                            handleStartEditEnchantments(node);
                           }}
-                          className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium inline-flex items-center gap-1 cursor-pointer transition-all hover:scale-105 ${canDo
-                            ? 'bg-purple-500/15 text-purple-400 border border-purple-500/20 hover:bg-purple-500/25'
-                            : 'bg-amber-500/15 text-amber-400 border border-amber-500/20 hover:bg-amber-500/25'
-                            }`}
-                          title={minXp !== null
-                            ? canDo
-                              ? `${en.name.replace(/_/g, ' ')} ${en.level} — Requires Lv ${minXp} (you: Lv ${myLevel}) ✓ · Click for details`
-                              : `${en.name.replace(/_/g, ' ')} ${en.level} — Requires Lv ${minXp} (you: Lv ${myLevel}) ✗${bestName ? ` — ${bestName} can do it` : ''} · Click for details`
-                            : `${en.name.replace(/_/g, ' ')} ${en.level} · Click for details`
-                          }
+                          className="text-purple-400/60 hover:text-purple-400 transition-colors ml-1 p-0.5 hover:bg-white/5 rounded"
+                          title={hasEnchants ? "Edit levels" : "Add enchantments"}
                         >
-                          {en.name.replace(/_/g, ' ')} {en.level}
-                          {minXp !== null && (
-                            <span className={`text-[9px] opacity-70 ${canDo ? '' : 'font-bold'}`}>
-                              Lv{minXp}
-                            </span>
-                          )}
-                          {!canDo && bestName && (
-                            <span className="text-[9px] text-emerald-400/80">
-                              → {bestName.split(' ')[0]}
-                            </span>
-                          )}
+                          <Pencil className="w-3 h-3" />
                         </button>
-                      );
-                    })}
-                    <button
-                      onClick={() => handleStartEditEnchantments(node)}
-                      className="text-purple-400/60 hover:text-purple-400 transition-colors ml-1"
-                      title="Update levels"
-                    >
-                      <Pencil className="w-3 h-3" />
-                    </button>
-                  </div>
-                )}
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Variant badge (potion type) */}
                 {node.variant && (
@@ -706,8 +739,8 @@ const ProjectDetail = () => {
         )
       }
 
-      {/* Enchantment Summary Panel (all enchanted items) */}
-      {allEnchantedNodes.map(node => (
+      {/* Enchantment Summary Panel (targets & enchanted items) */}
+      {displayEnchantmentNodes.map(node => (
         <div key={node.id} className="mx-6 mt-4 p-5 glass-strong border border-purple-500/20 rounded-2xl">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
@@ -1024,8 +1057,8 @@ const ProjectDetail = () => {
             })}
           </div>
 
-          {/* Enchantment Book Guide (all enchanted items) */}
-          {allEnchantedNodes.length > 0 && (
+          {/* Enchantment Book Guide (targets & enchanted items) */}
+          {displayEnchantmentNodes.length > 0 && (
             <div className="glass-strong rounded-2xl border border-white/5 p-6">
               <div className="flex items-center gap-2 mb-6">
                 <BookOpen className="w-5 h-5 text-amber-400" />
@@ -1033,7 +1066,7 @@ const ProjectDetail = () => {
               </div>
 
               <div className="grid gap-4">
-                {allEnchantedNodes.flatMap(node => getBookRequirements(node.enchantments || []).map(req => ({ ...req, _nodeId: node.id, _nodeName: node.display_name }))).map((req) => {
+                {displayEnchantmentNodes.flatMap(node => getBookRequirements(node.enchantments || []).map(req => ({ ...req, _nodeId: node.id, _nodeName: node.display_name }))).map((req) => {
                   const isExpanded = expandedBook === `${(req as any)._nodeId}-${req.enchantmentName}`;
                   const strategy = getBestStrategy(req.enchantmentName, req.targetLevel);
 
