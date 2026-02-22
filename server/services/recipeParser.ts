@@ -10,7 +10,7 @@ import mcDataLoader from 'minecraft-data';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 const MC_VERSION = process.env.MC_VERSION || '1.20';
-const mcData = mcDataLoader(MC_VERSION);
+export const mcData = mcDataLoader(MC_VERSION);
 
 // Items that should always be treated as raw resources even if they
 // technically have a recipe (e.g., diamond from diamond_block is a
@@ -152,31 +152,31 @@ function isRawResource(itemName: string, itemId: number): boolean {
 
 const POTION_VARIANTS: { name: string; displayName: string; ingredient: string; level?: number; effects: string; duration?: string; canAmplify?: boolean }[] = [
   // ── Base potions (level 1) ───────────────────────────────
-  { name: 'healing',         displayName: 'Potion of Healing',              ingredient: 'glistering_melon_slice', effects: 'Restores 4 hearts (8 HP) instantly', canAmplify: true },
-  { name: 'strength',        displayName: 'Potion of Strength',             ingredient: 'blaze_powder',           effects: '+3 melee attack damage (+1.5 hearts)', duration: '3:00', canAmplify: true },
-  { name: 'regeneration',    displayName: 'Potion of Regeneration',         ingredient: 'ghast_tear',             effects: 'Restores 1 heart every 2.5 seconds', duration: '0:45', canAmplify: true },
-  { name: 'swiftness',       displayName: 'Potion of Swiftness',            ingredient: 'sugar',                  effects: '+20% movement speed', duration: '3:00', canAmplify: true },
-  { name: 'night_vision',    displayName: 'Potion of Night Vision',         ingredient: 'golden_carrot',          effects: 'See in the dark as if everything is max brightness', duration: '3:00' },
-  { name: 'fire_resistance', displayName: 'Potion of Fire Resistance',      ingredient: 'magma_cream',            effects: 'Immune to fire, lava, magma blocks, and blaze fireballs', duration: '3:00' },
-  { name: 'water_breathing', displayName: 'Potion of Water Breathing',      ingredient: 'pufferfish',             effects: 'Breathe underwater — oxygen bar does not deplete', duration: '3:00' },
-  { name: 'leaping',         displayName: 'Potion of Leaping',              ingredient: 'rabbit_foot',            effects: '+50% jump height (1.5 blocks)', duration: '3:00', canAmplify: true },
-  { name: 'slow_falling',    displayName: 'Potion of Slow Falling',         ingredient: 'phantom_membrane',       effects: 'Fall slowly (no fall damage), can drift farther', duration: '1:30' },
-  { name: 'poison',          displayName: 'Potion of Poison',               ingredient: 'spider_eye',             effects: 'Lose 1 heart every 1.25 seconds (cannot kill)', duration: '0:45', canAmplify: true },
-  { name: 'weakness',        displayName: 'Potion of Weakness',             ingredient: 'fermented_spider_eye',   effects: '-4 melee attack damage (-2 hearts)', duration: '1:30' },
-  { name: 'harming',         displayName: 'Potion of Harming',              ingredient: 'fermented_spider_eye',   effects: 'Deals 6 HP (3 hearts) instant damage', canAmplify: true },
-  { name: 'invisibility',    displayName: 'Potion of Invisibility',         ingredient: 'fermented_spider_eye',   effects: 'Invisible to mobs/players — armor still visible', duration: '3:00' },
-  { name: 'slowness',        displayName: 'Potion of Slowness',             ingredient: 'fermented_spider_eye',   effects: '-15% movement speed', duration: '1:30' },
-  { name: 'turtle_master',   displayName: 'Potion of the Turtle Master',    ingredient: 'turtle_helmet',          effects: 'Slowness IV (-60% speed) + Resistance III (60% damage reduction)', duration: '0:20', canAmplify: true },
+  { name: 'healing', displayName: 'Potion of Healing', ingredient: 'glistering_melon_slice', effects: 'Restores 4 hearts (8 HP) instantly', canAmplify: true },
+  { name: 'strength', displayName: 'Potion of Strength', ingredient: 'blaze_powder', effects: '+3 melee attack damage (+1.5 hearts)', duration: '3:00', canAmplify: true },
+  { name: 'regeneration', displayName: 'Potion of Regeneration', ingredient: 'ghast_tear', effects: 'Restores 1 heart every 2.5 seconds', duration: '0:45', canAmplify: true },
+  { name: 'swiftness', displayName: 'Potion of Swiftness', ingredient: 'sugar', effects: '+20% movement speed', duration: '3:00', canAmplify: true },
+  { name: 'night_vision', displayName: 'Potion of Night Vision', ingredient: 'golden_carrot', effects: 'See in the dark as if everything is max brightness', duration: '3:00' },
+  { name: 'fire_resistance', displayName: 'Potion of Fire Resistance', ingredient: 'magma_cream', effects: 'Immune to fire, lava, magma blocks, and blaze fireballs', duration: '3:00' },
+  { name: 'water_breathing', displayName: 'Potion of Water Breathing', ingredient: 'pufferfish', effects: 'Breathe underwater — oxygen bar does not deplete', duration: '3:00' },
+  { name: 'leaping', displayName: 'Potion of Leaping', ingredient: 'rabbit_foot', effects: '+50% jump height (1.5 blocks)', duration: '3:00', canAmplify: true },
+  { name: 'slow_falling', displayName: 'Potion of Slow Falling', ingredient: 'phantom_membrane', effects: 'Fall slowly (no fall damage), can drift farther', duration: '1:30' },
+  { name: 'poison', displayName: 'Potion of Poison', ingredient: 'spider_eye', effects: 'Lose 1 heart every 1.25 seconds (cannot kill)', duration: '0:45', canAmplify: true },
+  { name: 'weakness', displayName: 'Potion of Weakness', ingredient: 'fermented_spider_eye', effects: '-4 melee attack damage (-2 hearts)', duration: '1:30' },
+  { name: 'harming', displayName: 'Potion of Harming', ingredient: 'fermented_spider_eye', effects: 'Deals 6 HP (3 hearts) instant damage', canAmplify: true },
+  { name: 'invisibility', displayName: 'Potion of Invisibility', ingredient: 'fermented_spider_eye', effects: 'Invisible to mobs/players — armor still visible', duration: '3:00' },
+  { name: 'slowness', displayName: 'Potion of Slowness', ingredient: 'fermented_spider_eye', effects: '-15% movement speed', duration: '1:30' },
+  { name: 'turtle_master', displayName: 'Potion of the Turtle Master', ingredient: 'turtle_helmet', effects: 'Slowness IV (-60% speed) + Resistance III (60% damage reduction)', duration: '0:20', canAmplify: true },
 
   // ── Level II potions (brewed by adding Glowstone Dust to the base potion) ──
-  { name: 'healing_2',       displayName: 'Potion of Healing II',           ingredient: 'glistering_melon_slice', level: 2, effects: 'Restores 8 hearts (16 HP) instantly' },
-  { name: 'strength_2',      displayName: 'Potion of Strength II',          ingredient: 'blaze_powder',           level: 2, effects: '+6 melee attack damage (+3 hearts)', duration: '1:30' },
-  { name: 'regeneration_2',  displayName: 'Potion of Regeneration II',      ingredient: 'ghast_tear',             level: 2, effects: 'Restores 1 heart every 1.2 seconds', duration: '0:22' },
-  { name: 'swiftness_2',     displayName: 'Potion of Swiftness II',         ingredient: 'sugar',                  level: 2, effects: '+40% movement speed', duration: '1:30' },
-  { name: 'leaping_2',       displayName: 'Potion of Leaping II',           ingredient: 'rabbit_foot',            level: 2, effects: '+100% jump height (2.5 blocks)', duration: '1:30' },
-  { name: 'poison_2',        displayName: 'Potion of Poison II',            ingredient: 'spider_eye',             level: 2, effects: 'Lose 1 heart every 0.4 seconds (cannot kill)', duration: '0:21' },
-  { name: 'harming_2',       displayName: 'Potion of Harming II',           ingredient: 'fermented_spider_eye',   level: 2, effects: 'Deals 12 HP (6 hearts) instant damage' },
-  { name: 'turtle_master_2', displayName: 'Potion of the Turtle Master II', ingredient: 'turtle_helmet',          level: 2, effects: 'Slowness VI (-90% speed) + Resistance IV (80% damage reduction)', duration: '0:20' },
+  { name: 'healing_2', displayName: 'Potion of Healing II', ingredient: 'glistering_melon_slice', level: 2, effects: 'Restores 8 hearts (16 HP) instantly' },
+  { name: 'strength_2', displayName: 'Potion of Strength II', ingredient: 'blaze_powder', level: 2, effects: '+6 melee attack damage (+3 hearts)', duration: '1:30' },
+  { name: 'regeneration_2', displayName: 'Potion of Regeneration II', ingredient: 'ghast_tear', level: 2, effects: 'Restores 1 heart every 1.2 seconds', duration: '0:22' },
+  { name: 'swiftness_2', displayName: 'Potion of Swiftness II', ingredient: 'sugar', level: 2, effects: '+40% movement speed', duration: '1:30' },
+  { name: 'leaping_2', displayName: 'Potion of Leaping II', ingredient: 'rabbit_foot', level: 2, effects: '+100% jump height (2.5 blocks)', duration: '1:30' },
+  { name: 'poison_2', displayName: 'Potion of Poison II', ingredient: 'spider_eye', level: 2, effects: 'Lose 1 heart every 0.4 seconds (cannot kill)', duration: '0:21' },
+  { name: 'harming_2', displayName: 'Potion of Harming II', ingredient: 'fermented_spider_eye', level: 2, effects: 'Deals 12 HP (6 hearts) instant damage' },
+  { name: 'turtle_master_2', displayName: 'Potion of the Turtle Master II', ingredient: 'turtle_helmet', level: 2, effects: 'Slowness VI (-90% speed) + Resistance IV (80% damage reduction)', duration: '0:20' },
 ];
 
 /** Items that support variant selection (potion type, etc.) */
@@ -187,8 +187,8 @@ function getPossibleVariants(itemName: string): { name: string; displayName: str
   // For potions, prefix changes by item type
   const prefix = itemName === 'potion' ? 'Potion'
     : itemName === 'splash_potion' ? 'Splash Potion'
-    : itemName === 'lingering_potion' ? 'Lingering Potion'
-    : 'Tipped Arrow';
+      : itemName === 'lingering_potion' ? 'Lingering Potion'
+        : 'Tipped Arrow';
   return POTION_VARIANTS.map(v => ({
     name: v.name,
     displayName: `${prefix} of ${v.displayName.replace(/Potion of /i, '')}`,
@@ -208,6 +208,7 @@ export interface CraftingNode {
   required_qty: number;
   collected_qty: number;
   is_resource: boolean;
+  is_block: boolean;
   depth: number;
   status: string;
   enchantments?: { name: string; level: number }[] | null;
@@ -280,6 +281,7 @@ export async function parseRecipeTree(
       required_qty: requiredQty,
       collected_qty: 0,
       is_resource: resource,
+      is_block: !!mcData.blocksByName[item.name],
       depth,
       status: 'pending',
     };
@@ -297,8 +299,8 @@ export async function parseRecipeTree(
       if (variantInfo) {
         const prefix = item.name === 'potion' ? 'Potion'
           : item.name === 'splash_potion' ? 'Splash Potion'
-          : item.name === 'lingering_potion' ? 'Lingering Potion'
-          : item.name === 'tipped_arrow' ? 'Tipped Arrow' : item.displayName;
+            : item.name === 'lingering_potion' ? 'Lingering Potion'
+              : item.name === 'tipped_arrow' ? 'Tipped Arrow' : item.displayName;
         node.display_name = `${prefix} of ${variantInfo.displayName.replace('Potion of ', '')}`;
       }
     }
@@ -369,6 +371,7 @@ export async function parseRecipeTree(
           required_qty: requiredQty,
           collected_qty: 0,
           is_resource: true,
+          is_block: false,
           depth: parentNode.depth + 1,
           status: 'pending',
         };
@@ -401,7 +404,8 @@ export async function parseRecipeTree(
           project_id: projectId, parent_id: null,
           item_name: 'nether_wart', display_name: 'Nether Wart',
           required_qty: totalQuantity, collected_qty: 0,
-          is_resource: true, depth: brewDepth, status: 'pending',
+          is_resource: true, is_block: !!mcData.blocksByName['nether_wart'],
+          depth: brewDepth, status: 'pending',
         };
         (nwNode as any)._parentIndex = rootIndex;
         allNodes.push(nwNode);
@@ -416,7 +420,8 @@ export async function parseRecipeTree(
           project_id: projectId, parent_id: null,
           item_name: ingItem.name, display_name: ingItem.displayName,
           required_qty: totalQuantity, collected_qty: 0,
-          is_resource: true, depth: brewDepth, status: 'pending',
+          is_resource: true, is_block: !!mcData.blocksByName[ingItem.name],
+          depth: brewDepth, status: 'pending',
         };
         (ingNode as any)._parentIndex = rootIndex;
         allNodes.push(ingNode);
@@ -432,7 +437,8 @@ export async function parseRecipeTree(
           project_id: projectId, parent_id: null,
           item_name: 'blaze_powder', display_name: 'Blaze Powder (fuel)',
           required_qty: fuelQty, collected_qty: 0,
-          is_resource: true, depth: brewDepth, status: 'pending',
+          is_resource: true, is_block: false,
+          depth: brewDepth, status: 'pending',
         };
         (bpNode as any)._parentIndex = rootIndex;
         allNodes.push(bpNode);
@@ -447,14 +453,14 @@ export async function parseRecipeTree(
           project_id: projectId, parent_id: null,
           item_name: 'glass_bottle', display_name: 'Glass Bottle',
           required_qty: totalQuantity, collected_qty: 0,
-          is_resource: true, depth: brewDepth, status: 'pending',
+          is_resource: true, is_block: false,
+          depth: brewDepth, status: 'pending',
         };
         (gbNode as any)._parentIndex = rootIndex;
         allNodes.push(gbNode);
         const gbExist = resourceTotals.get('glass_bottle');
         if (gbExist) gbExist.qty += totalQuantity; else resourceTotals.set('glass_bottle', { displayName: 'Glass Bottle', qty: totalQuantity });
       }
-
       // For splash potion: also needs Gunpowder
       if (rootItemName === 'splash_potion') {
         const gp = mcData.itemsByName['gunpowder'];
@@ -463,7 +469,8 @@ export async function parseRecipeTree(
             project_id: projectId, parent_id: null,
             item_name: 'gunpowder', display_name: 'Gunpowder',
             required_qty: totalQuantity, collected_qty: 0,
-            is_resource: true, depth: brewDepth, status: 'pending',
+            is_resource: true, is_block: false,
+            depth: brewDepth, status: 'pending',
           };
           (gpNode as any)._parentIndex = rootIndex;
           allNodes.push(gpNode);
@@ -480,7 +487,8 @@ export async function parseRecipeTree(
             project_id: projectId, parent_id: null,
             item_name: 'gunpowder', display_name: 'Gunpowder',
             required_qty: totalQuantity, collected_qty: 0,
-            is_resource: true, depth: brewDepth, status: 'pending',
+            is_resource: true, is_block: false,
+            depth: brewDepth, status: 'pending',
           };
           (gpNode as any)._parentIndex = rootIndex;
           allNodes.push(gpNode);
@@ -493,7 +501,8 @@ export async function parseRecipeTree(
             project_id: projectId, parent_id: null,
             item_name: 'dragon_breath', display_name: 'Dragon Breath',
             required_qty: totalQuantity, collected_qty: 0,
-            is_resource: true, depth: brewDepth, status: 'pending',
+            is_resource: true, is_block: false,
+            depth: brewDepth, status: 'pending',
           };
           (dbNode as any)._parentIndex = rootIndex;
           allNodes.push(dbNode);
@@ -510,7 +519,8 @@ export async function parseRecipeTree(
             project_id: projectId, parent_id: null,
             item_name: 'glowstone_dust', display_name: 'Glowstone Dust',
             required_qty: totalQuantity, collected_qty: 0,
-            is_resource: true, depth: brewDepth, status: 'pending',
+            is_resource: true, is_block: !!mcData.blocksByName['glowstone_dust'],
+            depth: brewDepth, status: 'pending',
           };
           (gdNode as any)._parentIndex = rootIndex;
           allNodes.push(gdNode);
@@ -550,6 +560,7 @@ export async function parseRecipeTree(
         required_qty: node.required_qty,
         collected_qty: 0,
         is_resource: node.is_resource,
+        is_block: node.is_block,
         depth: node.depth,
         status: 'pending',
         enchantments: node.enchantments || null,
@@ -572,6 +583,7 @@ export async function parseRecipeTree(
           const copy: any = { ...r };
           delete copy.enchantments;
           delete copy.variant;
+          delete copy.is_block;
           return copy;
         });
 
@@ -639,59 +651,59 @@ export function getEnchantmentMaxLevel(enchantmentName: string): number | null {
  */
 const ENCHANTMENT_MIN_LEVELS: Record<string, number[]> = {
   // ── Melee ──
-  sharpness:           [0, 1, 12, 23, 34, 45],
-  smite:               [0, 5, 13, 21, 29, 37],
-  bane_of_arthropods:  [0, 5, 13, 21, 29, 37],
-  knockback:           [0, 5, 25],
-  fire_aspect:         [0, 10, 30],
-  looting:             [0, 15, 24, 33],
-  sweeping_edge:       [0, 5, 14, 23],
+  sharpness: [0, 1, 12, 23, 34, 45],
+  smite: [0, 5, 13, 21, 29, 37],
+  bane_of_arthropods: [0, 5, 13, 21, 29, 37],
+  knockback: [0, 5, 25],
+  fire_aspect: [0, 10, 30],
+  looting: [0, 15, 24, 33],
+  sweeping_edge: [0, 5, 14, 23],
 
   // ── Tools ──
-  efficiency:          [0, 1, 11, 21, 31, 41],
-  silk_touch:          [0, 15],
-  fortune:             [0, 15, 24, 33],
-  unbreaking:          [0, 5, 13, 21],
+  efficiency: [0, 1, 11, 21, 31, 41],
+  silk_touch: [0, 15],
+  fortune: [0, 15, 24, 33],
+  unbreaking: [0, 5, 13, 21],
 
   // ── Bow ──
-  power:               [0, 1, 11, 21, 31, 41],
-  punch:               [0, 12, 32],
-  flame:               [0, 20],
-  infinity:            [0, 20],
+  power: [0, 1, 11, 21, 31, 41],
+  punch: [0, 12, 32],
+  flame: [0, 20],
+  infinity: [0, 20],
 
   // ── Armor ──
-  protection:          [0, 1, 12, 23, 34],
-  fire_protection:     [0, 10, 18, 26, 34],
-  blast_protection:    [0, 5, 13, 21, 29],
+  protection: [0, 1, 12, 23, 34],
+  fire_protection: [0, 10, 18, 26, 34],
+  blast_protection: [0, 5, 13, 21, 29],
   projectile_protection: [0, 3, 11, 19, 27],
-  feather_falling:     [0, 5, 11, 17, 23],
-  respiration:         [0, 10, 20, 30],
-  aqua_affinity:       [0, 1],
-  thorns:              [0, 10, 30, 50],
-  depth_strider:       [0, 10, 20, 30],
-  frost_walker:        [0, 10, 20],
-  soul_speed:          [0, 10, 20, 30],
-  swift_sneak:         [0, 15, 24, 33],
+  feather_falling: [0, 5, 11, 17, 23],
+  respiration: [0, 10, 20, 30],
+  aqua_affinity: [0, 1],
+  thorns: [0, 10, 30, 50],
+  depth_strider: [0, 10, 20, 30],
+  frost_walker: [0, 10, 20],
+  soul_speed: [0, 10, 20, 30],
+  swift_sneak: [0, 15, 24, 33],
 
   // ── Trident ──
-  loyalty:             [0, 12, 19, 26],
-  impaling:            [0, 1, 9, 17, 25, 33],
-  riptide:             [0, 17, 24, 31],
-  channeling:          [0, 25],
+  loyalty: [0, 12, 19, 26],
+  impaling: [0, 1, 9, 17, 25, 33],
+  riptide: [0, 17, 24, 31],
+  channeling: [0, 25],
 
   // ── Crossbow ──
-  multishot:           [0, 20],
-  quick_charge:        [0, 12, 32, 52],
-  piercing:            [0, 1, 11, 21, 31],
+  multishot: [0, 20],
+  quick_charge: [0, 12, 32, 52],
+  piercing: [0, 1, 11, 21, 31],
 
   // ── Fishing ──
-  luck_of_the_sea:     [0, 15, 24, 33],
-  lure:                [0, 15, 24, 33],
+  luck_of_the_sea: [0, 15, 24, 33],
+  lure: [0, 15, 24, 33],
 
   // ── Treasure (anvil/trading/loot only) ──
-  mending:             [0, 30],
-  binding_curse:       [0, 25],
-  vanishing_curse:     [0, 25],
+  mending: [0, 30],
+  binding_curse: [0, 25],
+  vanishing_curse: [0, 25],
 };
 
 /**
@@ -722,6 +734,7 @@ export function lookupItem(itemName: string) {
     name: item.name,
     displayName: item.displayName,
     isResource: isRawResource(item.name, item.id),
+    isBlock: !!mcData.blocksByName[item.name],
     hasRecipe: !!(
       (mcData.recipes[item.id] && mcData.recipes[item.id].length > 0)
       || MANUAL_RECIPES[item.name]
@@ -1062,7 +1075,8 @@ const MANUAL_ACQUISITION: Record<string, {
   music_disc_otherside: { locations: ['Dungeon chests', 'Stronghold corridor chests'], obtainedBy: ['Chest loot only'], notes: 'Rare disc added in 1.18. Does NOT drop from Creeper+Skeleton.' },
   // ── Brewing Ingredients ───────────────────────────────────
   nether_wart: { locations: ['Nether Fortress (stairwell gardens)', 'Bastion Remnant chests'], obtainedBy: ['Harvest from Nether Fortress', 'Farmable on Soul Sand in any dimension'], notes: 'Base ingredient for most potions. Plant on Soul Sand to farm — grows in any dimension.' },
-  turtle_scute: { locations: ['Beach biomes (where turtles live)'], obtainedBy: ['Baby Turtle drops 1 Scute when it grows into an adult'], notes: 'Breed 2 adult Turtles with Seagrass. The baby returns to its home beach and drops a Scute when grown. 5 Scutes craft a Turtle Shell helmet (water breathing).',
+  turtle_scute: {
+    locations: ['Beach biomes (where turtles live)'], obtainedBy: ['Baby Turtle drops 1 Scute when it grows into an adult'], notes: 'Breed 2 adult Turtles with Seagrass. The baby returns to its home beach and drops a Scute when grown. 5 Scutes craft a Turtle Shell helmet (water breathing).',
     procedure: {
       steps: [
         'Find 2 Turtles on a beach (their home beach)',
@@ -1559,11 +1573,11 @@ function getEnchantmentsForCategory(category: string): { name: string; level: nu
     return (
       candidates[category]
         ? candidates[category].map(n => {
-            const maxLvl = enchMap.get(n) || 5;
-            const reqs: number[] = [];
-            for (let i = 1; i <= maxLvl; i++) reqs.push(getEnchantmentMinLevel(n, i));
-            return { name: n, level: maxLvl, levelRequirements: reqs };
-          })
+          const maxLvl = enchMap.get(n) || 5;
+          const reqs: number[] = [];
+          for (let i = 1; i <= maxLvl; i++) reqs.push(getEnchantmentMinLevel(n, i));
+          return { name: n, level: maxLvl, levelRequirements: reqs };
+        })
         : []
     ).concat(common.length ? common : []);
   }

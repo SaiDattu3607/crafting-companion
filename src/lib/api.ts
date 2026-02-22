@@ -61,6 +61,7 @@ export interface CraftingNode {
   required_qty: number;
   collected_qty: number;
   is_resource: boolean;
+  is_block: boolean;
   depth: number;
   status: string;
   created_at: string;
@@ -122,6 +123,7 @@ export interface MinecraftItem {
   name: string;
   displayName: string;
   isResource: boolean;
+  isBlock?: boolean;
   hasRecipe?: boolean;
   category?: string;
   possibleEnchantments?: { name: string; level?: number; levelRequirements?: number[] }[] | null;

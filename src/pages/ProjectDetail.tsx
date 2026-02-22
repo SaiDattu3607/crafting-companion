@@ -25,7 +25,9 @@ import {
   Plus, Search, Package, Shield
 } from 'lucide-react';
 import { getBookRequirements, toRoman, getBestStrategy } from '@/lib/enchantmentBooks';
+import { getMinecraftAssetUrl } from '@/lib/minecraftAssets';
 import ItemDetailModal from '@/components/ItemDetailModal';
+import { ItemIconWithFallback } from '@/components/ItemIconWithFallback';
 import EnchantmentGridModal from '@/components/EnchantmentGridModal';
 import { toast } from '@/hooks/use-toast';
 
@@ -424,11 +426,23 @@ const ProjectDetail = () => {
   const getRootBookChildren = (root: CraftingNode) => getChildren(root.id).filter(c => c.item_name === 'enchanted_book');
   const enchantedRoots = rootNodes.filter(r => Array.isArray(r.enchantments) && r.enchantments.length > 0);
 
-  const NodeStatusIcon = ({ node }: { node: CraftingNode }) => {
-    const s = getNodeStatus(node);
-    if (s === 'complete') return <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />;
-    if (s === 'blocked') return <Ban className="w-4 h-4 text-red-400    flex-shrink-0" />;
-    return <Clock className="w-4 h-4 text-yellow-400 flex-shrink-0" />;
+  const ItemIcon = ({ node }: { node: CraftingNode }) => {
+    const status = getNodeStatus(node);
+
+    return (
+      <div className="relative w-6 h-6 flex-shrink-0 flex items-center justify-center">
+        <ItemIconWithFallback
+          itemName={node.item_name}
+          displayName={node.display_name}
+          isBlock={node.is_block}
+        />
+
+        {/* Small status indicator overlay */}
+        <div className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-black/50 ${status === 'complete' ? 'bg-emerald-500' :
+          status === 'blocked' ? 'bg-red-500' : 'bg-yellow-500'
+          }`} />
+      </div>
+    );
   };
 
   const nodeClass = (node: CraftingNode) => {
@@ -462,7 +476,7 @@ const ProjectDetail = () => {
           )}
           <div className={`flex-1 flex items-center justify-between px-3 py-2 rounded-xl mb-0.5 ${nodeClass(node)}`}>
             <div className="flex items-center gap-2 min-w-0">
-              <NodeStatusIcon node={node} />
+              <ItemIcon node={node} />
               <div className="flex items-center gap-2 flex-wrap min-w-0">
                 <span
                   className={`font-semibold truncate cursor-pointer hover:text-primary hover:underline underline-offset-2 transition-colors ${depth === 0 ? 'text-base' : 'text-sm'}`}
@@ -498,11 +512,10 @@ const ProjectDetail = () => {
                             setShowEnchantGrid(true);
                             soundManager.playSound('button');
                           }}
-                          className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium inline-flex items-center gap-1 cursor-pointer transition-all hover:scale-105 ${
-                            canDo
-                              ? 'bg-purple-500/15 text-purple-400 border border-purple-500/20 hover:bg-purple-500/25'
-                              : 'bg-amber-500/15 text-amber-400 border border-amber-500/20 hover:bg-amber-500/25'
-                          }`}
+                          className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium inline-flex items-center gap-1 cursor-pointer transition-all hover:scale-105 ${canDo
+                            ? 'bg-purple-500/15 text-purple-400 border border-purple-500/20 hover:bg-purple-500/25'
+                            : 'bg-amber-500/15 text-amber-400 border border-amber-500/20 hover:bg-amber-500/25'
+                            }`}
                           title={minXp !== null
                             ? canDo
                               ? `${en.name.replace(/_/g, ' ')} ${en.level} — Requires Lv ${minXp} (you: Lv ${myLevel}) ✓ · Click for details`
@@ -792,7 +805,14 @@ const ProjectDetail = () => {
                             onClick={() => handleAddItemSelect(item)}
                             className="w-full text-left px-4 py-2.5 hover:bg-primary/10 transition-colors flex items-center gap-3 border-b border-white/5 last:border-0"
                           >
-                            <span className="text-base">🎯</span>
+                            <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0">
+                              <img
+                                src={getMinecraftAssetUrl(item.name)}
+                                alt={item.displayName}
+                                className="w-6 h-6 object-contain pixelated"
+                                onError={(e) => { (e.target as HTMLImageElement).parentElement!.innerHTML = '🎯'; }}
+                              />
+                            </div>
                             <div>
                               <p className="text-sm font-medium text-foreground">{item.displayName}</p>
                               <p className="text-[10px] text-muted-foreground">{item.name}</p>
@@ -807,7 +827,14 @@ const ProjectDetail = () => {
                     {/* Selected item */}
                     <div className="flex items-center justify-between p-3 rounded-xl bg-primary/10 border border-primary/20">
                       <div className="flex items-center gap-3">
-                        <span className="text-lg">🎯</span>
+                        <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0">
+                          <img
+                            src={getMinecraftAssetUrl(addItemSelected.name)}
+                            alt={addItemSelected.displayName}
+                            className="w-8 h-8 object-contain pixelated"
+                            onError={(e) => { (e.target as HTMLImageElement).parentElement!.innerHTML = '🎯'; }}
+                          />
+                        </div>
                         <div>
                           <p className="font-semibold text-foreground text-sm">{addItemSelected.displayName}</p>
                           <p className="text-[10px] text-muted-foreground">{addItemSelected.name}</p>
@@ -1145,13 +1172,13 @@ const ProjectDetail = () => {
                   const isCurrentUser = m.user_id === user?.id;
                   const isActive = isCurrentUser || (lastActive && (new Date().getTime() - new Date(lastActive).getTime()) < 5 * 60 * 1000);
                   const roleIcon = m.role === 'miner' ? <HardHat className="w-3 h-3" /> :
-                                   m.role === 'builder' ? <Hammer className="w-3 h-3" /> :
-                                   m.role === 'planner' ? <BrainCircuit className="w-3 h-3" /> :
-                                   m.role === 'owner' ? <Sparkles className="w-3 h-3" /> : null;
+                    m.role === 'builder' ? <Hammer className="w-3 h-3" /> :
+                      m.role === 'planner' ? <BrainCircuit className="w-3 h-3" /> :
+                        m.role === 'owner' ? <Sparkles className="w-3 h-3" /> : null;
                   const roleColor = m.role === 'miner' ? 'text-amber-400' :
-                                    m.role === 'builder' ? 'text-blue-400' :
-                                    m.role === 'planner' ? 'text-purple-400' :
-                                    m.role === 'owner' ? 'text-emerald-400' : 'text-muted-foreground';
+                    m.role === 'builder' ? 'text-blue-400' :
+                      m.role === 'planner' ? 'text-purple-400' :
+                        m.role === 'owner' ? 'text-emerald-400' : 'text-muted-foreground';
 
                   return (
                     <div key={m.user_id} className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-colors">
@@ -1250,13 +1277,13 @@ const ProjectDetail = () => {
               <div className="space-y-2">
                 {suggestedTasks.slice(0, 8).map(task => {
                   const priorityColor = task.priority === 'high' ? 'border-red-500/25 bg-red-500/5' :
-                                        task.priority === 'medium' ? 'border-amber-500/25 bg-amber-500/5' :
-                                        'border-white/5 bg-white/[0.02]';
+                    task.priority === 'medium' ? 'border-amber-500/25 bg-amber-500/5' :
+                      'border-white/5 bg-white/[0.02]';
                   const priorityDot = task.priority === 'high' ? 'bg-red-400' :
-                                      task.priority === 'medium' ? 'bg-amber-400' : 'bg-white/30';
+                    task.priority === 'medium' ? 'bg-amber-400' : 'bg-white/30';
                   const actionIcon = task.action === 'collect' ? '📦' :
-                                     task.action === 'craft' ? '⚒' :
-                                     task.action === 'plan' ? '📋' : '🔍';
+                    task.action === 'craft' ? '⚒' :
+                      task.action === 'plan' ? '📋' : '🔍';
 
                   return (
                     <div key={task.id} className={`p-3 rounded-xl border ${priorityColor} transition-colors`}>

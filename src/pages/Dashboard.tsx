@@ -91,8 +91,6 @@ const Dashboard = () => {
     navigate('/new-project');
   };
 
-<<<<<<< HEAD
-=======
   const handleDelete = async (id: string) => {
     try {
       await deleteProject(id);
@@ -112,8 +110,6 @@ const Dashboard = () => {
       setError((err as Error).message);
     }
   };
-
->>>>>>> 3240394c9fd24ca2ccd6c0fc4e468f103bbd1f88
   const initials = (user.full_name || user.email || 'U')
     .split(' ')
     .map((w: string) => w[0])
@@ -178,11 +174,7 @@ const Dashboard = () => {
           </div>
           <Button
             onClick={handleNewProject}
-<<<<<<< HEAD
-            className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl gap-2"
-=======
             className="btn-glow bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl gap-2 px-5"
->>>>>>> 3240394c9fd24ca2ccd6c0fc4e468f103bbd1f88
           >
             <Plus className="w-4 h-4" />
             New Project
@@ -213,13 +205,13 @@ const Dashboard = () => {
               const projectName = invite.projects?.name || 'a project';
               const isResponding = respondingInvite === invite.id;
               const roleIcon = invite.role === 'miner' ? <HardHat className="w-3 h-3" /> :
-                               invite.role === 'builder' ? <Hammer className="w-3 h-3" /> :
-                               invite.role === 'planner' ? <BrainCircuit className="w-3 h-3" /> :
-                               <UserPlus className="w-3 h-3" />;
+                invite.role === 'builder' ? <Hammer className="w-3 h-3" /> :
+                  invite.role === 'planner' ? <BrainCircuit className="w-3 h-3" /> :
+                    <UserPlus className="w-3 h-3" />;
               const roleColor = invite.role === 'miner' ? 'text-amber-400 bg-amber-500/10 border-amber-500/20' :
-                                invite.role === 'builder' ? 'text-blue-400 bg-blue-500/10 border-blue-500/20' :
-                                invite.role === 'planner' ? 'text-purple-400 bg-purple-500/10 border-purple-500/20' :
-                                'text-muted-foreground bg-white/5 border-white/10';
+                invite.role === 'builder' ? 'text-blue-400 bg-blue-500/10 border-blue-500/20' :
+                  invite.role === 'planner' ? 'text-purple-400 bg-purple-500/10 border-purple-500/20' :
+                    'text-muted-foreground bg-white/5 border-white/10';
 
               return (
                 <div key={invite.id} className="glass-strong rounded-2xl border border-primary/15 p-5 animate-in slide-in-from-top-2 duration-300">
@@ -310,9 +302,6 @@ const Dashboard = () => {
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {projects.map(p => (
-<<<<<<< HEAD
-              <ProjectCard key={p.id} project={p} onClick={() => { soundManager.playSound('craft'); navigate(`/project/${p.id}`); }} />
-=======
               <ProjectCard
                 key={p.id}
                 project={p}
@@ -320,7 +309,6 @@ const Dashboard = () => {
                 onDelete={handleDelete}
                 onToggleDone={handleToggleDone}
               />
->>>>>>> 3240394c9fd24ca2ccd6c0fc4e468f103bbd1f88
             ))}
           </div>
         )}

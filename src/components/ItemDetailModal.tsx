@@ -10,16 +10,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Loader2, MapPin, Sword, Pickaxe, UtensilsCrossed, Info, Anvil, Grid3X3, Shuffle, Flame, FlaskConical, Clock } from 'lucide-react';
 import { fetchItemDetail, type ItemDetail, type RecipeSlot } from '@/lib/api';
-
-// Minecraft item image — using mc.nerothe.com which is reliable for item renders
-function itemImageUrl(itemName: string) {
-  return `https://mc-heads.net/item/${itemName}`;
-}
-
-// Fallback pixel art style image
-function fallbackImageUrl(itemName: string) {
-  return `https://minecraft-api.vercel.app/images/items/${itemName}.png`;
-}
+import { getMinecraftAssetUrl } from '@/lib/minecraftAssets';
+import { ItemIconWithFallback } from './ItemIconWithFallback';
 
 interface Props {
   itemName: string | null;
@@ -30,14 +22,10 @@ interface Props {
 export default function ItemDetailModal({ itemName, open, onClose }: Props) {
   const [detail, setDetail] = useState<ItemDetail | null>(null);
   const [loading, setLoading] = useState(false);
-  const [imgError, setImgError] = useState(false);
-  const [imgFallbackError, setImgFallbackError] = useState(false);
 
   useEffect(() => {
     if (!itemName || !open) {
       setDetail(null);
-      setImgError(false);
-      setImgFallbackError(false);
       return;
     }
     setLoading(true);
@@ -64,23 +52,12 @@ export default function ItemDetailModal({ itemName, open, onClose }: Props) {
             <DialogHeader>
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
-                  {!imgError ? (
-                    <img
-                      src={itemImageUrl(detail.name)}
-                      alt={detail.displayName}
-                      className="w-12 h-12 object-contain pixelated"
-                      onError={() => setImgError(true)}
-                    />
-                  ) : !imgFallbackError ? (
-                    <img
-                      src={fallbackImageUrl(detail.name)}
-                      alt={detail.displayName}
-                      className="w-12 h-12 object-contain pixelated"
-                      onError={() => setImgFallbackError(true)}
-                    />
-                  ) : (
-                    <span className="text-2xl">📦</span>
-                  )}
+                  <ItemIconWithFallback
+                    itemName={detail.name}
+                    displayName={detail.displayName}
+                    className="w-12 h-12 object-contain pixelated"
+                    isBlock={detail.category === 'block'}
+                  />
                 </div>
                 <div>
                   <DialogTitle className="text-xl font-bold">{detail.displayName}</DialogTitle>
@@ -379,18 +356,11 @@ function RecipeSlotBox({ slot }: { slot: RecipeSlot | null }) {
       className="w-12 h-12 bg-stone-900/60 rounded border border-white/10 flex items-center justify-center relative group cursor-default"
       title={slot.displayName}
     >
-      {!imgErr ? (
-        <img
-          src={itemImageUrl(slot.name)}
-          alt={slot.displayName}
-          className="w-8 h-8 object-contain pixelated"
-          onError={() => setImgErr(true)}
-        />
-      ) : (
-        <span className="text-[10px] text-center text-foreground/60 leading-tight px-0.5">
-          {slot.displayName}
-        </span>
-      )}
+      <ItemIconWithFallback
+        itemName={slot.name}
+        displayName={slot.displayName}
+        className="w-8 h-8 object-contain pixelated"
+      />
       {/* Tooltip on hover */}
       <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 bg-black/90 text-white text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
         {slot.displayName}
@@ -405,16 +375,12 @@ function RecipeResultSlot({ item, count }: { item: ItemDetail; count: number }) 
 
   return (
     <div className="w-14 h-14 bg-amber-500/10 rounded-lg border border-amber-500/20 flex items-center justify-center relative">
-      {!imgErr ? (
-        <img
-          src={itemImageUrl(item.name)}
-          alt={item.displayName}
-          className="w-10 h-10 object-contain pixelated"
-          onError={() => setImgErr(true)}
-        />
-      ) : (
-        <span className="text-xs text-center text-foreground/60">{item.displayName}</span>
-      )}
+      <ItemIconWithFallback
+        itemName={item.name}
+        displayName={item.displayName}
+        className="w-10 h-10 object-contain pixelated"
+        isBlock={item.category === 'block'}
+      />
       {count > 1 && (
         <span className="absolute -bottom-1 -right-1 text-[10px] bg-amber-500 text-black font-bold rounded-full w-4 h-4 flex items-center justify-center">
           {count}
