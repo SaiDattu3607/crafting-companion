@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { getBookRequirements, toRoman, getBestStrategy } from '@/lib/enchantmentBooks';
 import ItemDetailModal from '@/components/ItemDetailModal';
+import EnchantmentGridModal from '@/components/EnchantmentGridModal';
 import { toast } from '@/hooks/use-toast';
 
 const ProjectDetail = () => {
@@ -86,6 +87,11 @@ const ProjectDetail = () => {
   // Item detail modal
   const [detailItemName, setDetailItemName] = useState<string | null>(null);
   const [showItemDetail, setShowItemDetail] = useState(false);
+
+  // Enchantment grid modal
+  const [enchantGridItem, setEnchantGridItem] = useState<string | null>(null);
+  const [enchantGridEnchants, setEnchantGridEnchants] = useState<{ name: string; level: number }[]>([]);
+  const [showEnchantGrid, setShowEnchantGrid] = useState(false);
 
   /** Get the minimum XP level required for an enchantment at a given tier */
   const getMinXpLevel = (enchName: string, enchLevel: number): number | null => {
@@ -483,18 +489,25 @@ const ProjectDetail = () => {
                       const bestName = bestMember ? ((bestMember.profiles as any)?.full_name || (bestMember.profiles as any)?.email || 'User') : null;
 
                       return (
-                        <span
+                        <button
                           key={`${en.name}-${i}`}
-                          className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium inline-flex items-center gap-1 ${
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEnchantGridItem(node.item_name);
+                            setEnchantGridEnchants((node.enchantments || []).map((e: any) => ({ name: e.name, level: e.level })));
+                            setShowEnchantGrid(true);
+                            soundManager.playSound('button');
+                          }}
+                          className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium inline-flex items-center gap-1 cursor-pointer transition-all hover:scale-105 ${
                             canDo
-                              ? 'bg-purple-500/15 text-purple-400 border border-purple-500/20'
-                              : 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
+                              ? 'bg-purple-500/15 text-purple-400 border border-purple-500/20 hover:bg-purple-500/25'
+                              : 'bg-amber-500/15 text-amber-400 border border-amber-500/20 hover:bg-amber-500/25'
                           }`}
                           title={minXp !== null
                             ? canDo
-                              ? `${en.name.replace(/_/g, ' ')} ${en.level} — Requires Lv ${minXp} (you: Lv ${myLevel}) ✓`
-                              : `${en.name.replace(/_/g, ' ')} ${en.level} — Requires Lv ${minXp} (you: Lv ${myLevel}) ✗${bestName ? ` — ${bestName} can do it` : ''}`
-                            : undefined
+                              ? `${en.name.replace(/_/g, ' ')} ${en.level} — Requires Lv ${minXp} (you: Lv ${myLevel}) ✓ · Click for details`
+                              : `${en.name.replace(/_/g, ' ')} ${en.level} — Requires Lv ${minXp} (you: Lv ${myLevel}) ✗${bestName ? ` — ${bestName} can do it` : ''} · Click for details`
+                            : `${en.name.replace(/_/g, ' ')} ${en.level} · Click for details`
                           }
                         >
                           {en.name.replace(/_/g, ' ')} {en.level}
@@ -508,7 +521,7 @@ const ProjectDetail = () => {
                               → {bestName.split(' ')[0]}
                             </span>
                           )}
-                        </span>
+                        </button>
                       );
                     })}
                     <button
@@ -666,23 +679,47 @@ const ProjectDetail = () => {
       {/* Enchantment Summary Panel (all enchanted roots) */}
       {enchantedRoots.map(eRoot => (
         <div key={eRoot.id} className="mx-6 mt-4 p-5 glass-strong border border-purple-500/20 rounded-2xl">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20">
-              <Sparkles className="w-5 h-5 text-purple-400" />
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20">
+                <Sparkles className="w-5 h-5 text-purple-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-foreground">✨ Enchantment Plan</h2>
+                <p className="text-xs text-muted-foreground">Requirements for your {eRoot.display_name}</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-foreground">✨ Enchantment Plan</h2>
-              <p className="text-xs text-muted-foreground">Requirements for your {eRoot.display_name}</p>
-            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setEnchantGridItem(eRoot.item_name);
+                setEnchantGridEnchants((eRoot.enchantments || []).map((e: any) => ({ name: e.name, level: e.level })));
+                setShowEnchantGrid(true);
+                soundManager.playSound('button');
+              }}
+              className="rounded-xl border-purple-500/20 hover:border-purple-500/40 text-purple-400 hover:text-purple-300 gap-1.5 h-8 px-3 text-xs"
+            >
+              <BookOpen className="w-3.5 h-3.5" /> View All Enchantments
+            </Button>
           </div>
           <div className="flex flex-wrap gap-3">
             {(eRoot.enchantments || []).map((en: any, i: number) => (
-              <div key={i} className="bg-purple-500/5 border border-purple-500/10 px-4 py-3 rounded-xl flex items-center gap-3">
+              <button
+                key={i}
+                onClick={() => {
+                  setEnchantGridItem(eRoot.item_name);
+                  setEnchantGridEnchants((eRoot.enchantments || []).map((e: any) => ({ name: e.name, level: e.level })));
+                  setShowEnchantGrid(true);
+                  soundManager.playSound('button');
+                }}
+                className="bg-purple-500/5 border border-purple-500/10 px-4 py-3 rounded-xl flex items-center gap-3 hover:bg-purple-500/10 hover:border-purple-500/20 transition-all cursor-pointer"
+              >
                 <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-300 font-mono text-sm">
                   {toRoman(en.level)}
                 </div>
                 <span className="text-sm font-semibold text-purple-200">{en.name.replace(/_/g, ' ')}</span>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -1494,6 +1531,14 @@ const ProjectDetail = () => {
         itemName={detailItemName}
         open={showItemDetail}
         onClose={() => { setShowItemDetail(false); setDetailItemName(null); }}
+      />
+
+      {/* Enchantment Grid Modal */}
+      <EnchantmentGridModal
+        open={showEnchantGrid}
+        onClose={() => { setShowEnchantGrid(false); setEnchantGridItem(null); setEnchantGridEnchants([]); }}
+        itemName={enchantGridItem}
+        activeEnchantments={enchantGridEnchants}
       />
     </div>
   );
