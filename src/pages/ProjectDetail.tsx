@@ -5,7 +5,7 @@ import { soundManager } from '@/lib/sound';
 import {
   fetchProject, contributeToNode, sendProjectInvite,
   fetchContributions, fetchBottleneck, fetchProgress,
-  updateNodeEnchantments, updateMemberRole,
+  fetchLeaderboard, updateNodeEnchantments, updateMemberRole,
   fetchTaskSuggestions, savePlanSnapshot, fetchPlanSnapshots, restorePlanSnapshot,
   addTargetItem, searchMinecraftItems, lookupMinecraftItem,
   updateProfile,
@@ -1468,8 +1468,8 @@ const ProjectDetail = () => {
                           )}
                         </div>
                         <div className={`absolute -top-1 -left-1 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-[#0a0a0b] ${i === 0 ? 'bg-emerald-500 text-white shadow-[0_0_10px_rgba(16,185,129,0.5)]' :
-                            i === 1 ? 'bg-slate-400 text-white' :
-                              i === 2 ? 'bg-amber-600 text-white' : 'bg-secondary text-muted-foreground'
+                          i === 1 ? 'bg-slate-400 text-white' :
+                            i === 2 ? 'bg-amber-600 text-white' : 'bg-secondary text-muted-foreground'
                           }`}>
                           {i + 1}
                         </div>
