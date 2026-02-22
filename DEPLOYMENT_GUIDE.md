@@ -1,37 +1,33 @@
-# Render Deployment Guide
+# Vercel Full-Stack Deployment Guide
 
-I have already prepared your code for deployment by adding the necessary scripts and a `render.yaml` blueprint. Since this involves your Render and GitHub accounts, you will need to perform a few final steps.
+I have updated your code to allow both the **Frontend** and **Backend** to run together on Vercel. You no longer need Render.
 
-## Option 1: Assistant-Assisted (Browser)
-If you want me to help you through the browser, follow these steps:
-1. **Push your changes**: Run `git push origin master` (or your main branch) in your terminal.
-2. **Open Render**: Tell me to "Open Render dashboard in the browser".
-3. **Setup**: I will guide you through connecting your repo. *Note: You will need to log in yourself when the browser opens.*
+## Steps to Deploy
 
-## Option 2: Manual Setup (Recommended)
-Follow these steps to deploy using the blueprint I created:
+### 1. Commit and Push
+Run these commands in your terminal to save the new configuration:
+```bash
+git add .
+git commit -m "chore: deploy full-stack to vercel"
+git push origin master
+```
 
-1. **Commit and Push**:
-   ```bash
-   git add .
-   git commit -m "chore: prepare for render deployment"
-   git push origin master
-   ```
+### 2. Configure Vercel Dashboard
+Go to your project settings in the [Vercel Dashboard](https://vercel.com/dashboard):
 
-2. **Login to Render**: Go to [dashboard.render.com](https://dashboard.render.com).
+1.  **Environment Variables**: Ensure these keys are added to your Vercel project:
+    - `SUPABASE_URL`
+    - `SUPABASE_ANON_KEY`
+    - `SUPABASE_SERVICE_ROLE_KEY`
+    - `MC_VERSION` (set to `1.20.2`)
+    - `VITE_API_URL` (Set this to `/api` — Vercel will now handle routing internally!)
 
-3. **Deploy with Blueprint**:
-   - Click **New** -> **Blueprint**.
-   - Connect your GitHub repository.
-   - Render will automatically detect the `render.yaml` file I created.
-   - Click **Approve**.
+2.  **Redeploy**:
+    - Go to the **Deployments** tab and click **Redeploy** on your latest push.
 
-4. **Add Environment Variables**:
-   In the Render dashboard, go to your new Web Service's **Environment** tab and ensure these keys from your `.env.local` are added:
-   - `SUPABASE_URL`
-   - `SUPABASE_ANON_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY`
-   - `MC_VERSION` (set to `1.20.2`)
+## Why this is better:
+- **No CORS issues**: Since both frontend and backend are on the same domain, they talk to each other perfectly.
+- **One Dashboard**: Manage everything in Vercel.
+- **Cost**: Both are covered under Vercel's free/hobby tier.
 
-5. **Update Frontend**:
-   Once deployed, Render will provide a URL (e.g., `https://craftchain-api.onrender.com`). You will need to tell me that URL so I can update your frontend to point to the live backend.
+Once Vercel finished building, your app should be fully functional at your `.vercel.app` URL!

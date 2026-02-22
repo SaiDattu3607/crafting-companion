@@ -26,9 +26,16 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // ── Middleware ──────────────────────────────────────────────────
+app.use((req, _res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url} - Origin: ${req.headers.origin}`);
+  next();
+});
+
 app.use(cors({
-  origin: true,  // Allow any origin (for LAN access)
+  origin: true, // This reflects the Origin header back
   credentials: true,
+  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-client-info'],
 }));
 app.use(express.json());
 
@@ -68,30 +75,32 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   res.status(500).json({ error: 'Internal server error' });
 });
 
-// ── Start Server ───────────────────────────────────────────────
-app.listen(Number(PORT), '0.0.0.0', () => {
-  console.log(`
-╔══════════════════════════════════════════════════╗
-║           ⛏  CraftChain API Server  ⛏          ║
-║                                                  ║
-║   Running on: http://localhost:${PORT}             ║
-║   Health:     http://localhost:${PORT}/api/health   ║
-║                                                  ║
-║   Endpoints:                                     ║
-║   GET    /api/projects                           ║
-║   POST   /api/projects                           ║
-║   GET    /api/projects/:id                       ║
-║   DELETE /api/projects/:id                       ║
-║   POST   /api/projects/:id/contribute            ║
-║   POST   /api/projects/:id/members               ║
-║   GET    /api/projects/:id/contributions         ║
-║   GET    /api/projects/:id/leaderboard           ║
-║   GET    /api/projects/:id/bottleneck            ║
-║   GET    /api/projects/:id/progress              ║
-║   GET    /api/items/search?q=...                 ║
-║   GET    /api/items/:itemName                    ║
-╚══════════════════════════════════════════════════╝
-  `);
-});
+// ── Start Server (Only if not in Vercel) ────────────────────────
+if (!process.env.VERCEL) {
+  app.listen(Number(PORT), '0.0.0.0', () => {
+    console.log(`
+  ╔══════════════════════════════════════════════════╗
+  ║           ⛏  CraftChain API Server  ⛏          ║
+  ║                                                  ║
+  ║   Running on: http://localhost:${PORT}             ║
+  ║   Health:     http://localhost:${PORT}/api/health   ║
+  ║                                                  ║
+  ║   Endpoints:                                     ║
+  ║   GET    /api/projects                           ║
+  ║   POST   /api/projects                           ║
+  ║   GET    /api/projects/:id                       ║
+  ║   DELETE /api/projects/:id                       ║
+  ║   POST   /api/projects/:id/contribute            ║
+  ║   POST   /api/projects/:id/members               ║
+  ║   GET    /api/projects/:id/contributions         ║
+  ║   GET    /api/projects/:id/leaderboard           ║
+  ║   GET    /api/projects/:id/bottleneck            ║
+  ║   GET    /api/projects/:id/progress              ║
+  ║   GET    /api/items/search?q=...                 ║
+  ║   GET    /api/items/:itemName                    ║
+  ╚══════════════════════════════════════════════════╝
+    `);
+  });
+}
 
 export default app;
