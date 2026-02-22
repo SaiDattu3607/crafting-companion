@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Search, Loader2, Sparkles, X, Plus, Package, AlertTriangle } from 'lucide-react';
+import { getMinecraftAssetUrl } from '@/lib/minecraftAssets';
+import { ItemIconWithFallback } from '@/components/ItemIconWithFallback';
 
 /* ── Single target-item form (reusable per item slot) ─────────── */
 interface ItemFormProps {
@@ -96,7 +98,14 @@ const ItemForm = ({ index, item, onAdd, onRemove, isOnly }: ItemFormProps) => {
       {selectedItem ? (
         <div className="flex items-center justify-between p-3 rounded-xl bg-primary/10 border border-primary/20">
           <div className="flex items-center gap-3">
-            <span className="text-lg">🎯</span>
+            <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0">
+              <ItemIconWithFallback
+                itemName={selectedItem.name}
+                displayName={selectedItem.displayName}
+                className="w-8 h-8 object-contain pixelated"
+                isBlock={selectedItem.isBlock}
+              />
+            </div>
             <div>
               <p className="font-semibold text-foreground text-sm">{selectedItem.displayName}</p>
               <p className="text-xs text-muted-foreground">{selectedItem.name}</p>
@@ -134,8 +143,18 @@ const ItemForm = ({ index, item, onAdd, onRemove, isOnly }: ItemFormProps) => {
                     setSearchResults([]);
                   }}
                 >
-                  <span className="font-medium text-sm group-hover:text-primary transition-colors">{sr.displayName}</span>
-                  <span className="text-xs text-muted-foreground">{sr.isResource ? '🪨 Resource' : '⚒ Craftable'}</span>
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0">
+                      <ItemIconWithFallback
+                        itemName={sr.name}
+                        displayName={sr.displayName}
+                        className="w-6 h-6 object-contain pixelated"
+                        isBlock={sr.isBlock}
+                      />
+                    </div>
+                    <span className="font-medium text-sm group-hover:text-primary transition-colors truncate">{sr.displayName}</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground ml-2 flex-shrink-0">{sr.isResource ? '🪨 Resource' : '⚒ Craftable'}</span>
                 </button>
               ))}
             </div>
@@ -257,8 +276,8 @@ const ItemForm = ({ index, item, onAdd, onRemove, isOnly }: ItemFormProps) => {
                 const canDo = !minXp || myLevel >= minXp;
                 return (
                   <span key={e.name} className={`inline-flex items-center gap-1.5 border px-2.5 py-0.5 rounded-full text-[10px] font-medium ${canDo
-                      ? 'bg-purple-500/15 border-purple-500/25 text-purple-300'
-                      : 'bg-amber-500/15 border-amber-500/25 text-amber-300'
+                    ? 'bg-purple-500/15 border-purple-500/25 text-purple-300'
+                    : 'bg-amber-500/15 border-amber-500/25 text-amber-300'
                     }`}>
                     {e.name.replace(/_/g, ' ')} {e.level}
                     {minXp && <span className="text-[9px] opacity-60">Lv{minXp}</span>}
@@ -424,7 +443,7 @@ const NewProject = () => {
           </Button>
         </form>
       </main>
-    </div>
+    </div >
   );
 };
 

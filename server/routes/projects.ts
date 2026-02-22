@@ -7,7 +7,7 @@
 import { Router, Request, Response } from 'express';
 import { supabaseForUser } from '../config/supabase.js';
 import { authMiddleware, projectMemberGuard } from '../middleware/auth.js';
-import { parseRecipeTree, searchItems, lookupItem, getEnchantmentMaxLevel, getEnchantmentMinLevel } from '../services/recipeParser.js';
+import { parseRecipeTree, searchItems, lookupItem, getEnchantmentMaxLevel, getEnchantmentMinLevel, mcData } from '../services/recipeParser.js';
 
 const router = Router();
 
@@ -306,7 +306,10 @@ router.get('/:projectId', projectMemberGuard, async (req: Request, res: Response
 
     res.json({
       project,
-      nodes: nodes || [],
+      nodes: (nodes || []).map((n: any) => ({
+        ...n,
+        is_block: n.is_block ?? !!(mcData.blocksByName[n.item_name])
+      })),
       members: members || [],
       snapshotCount: snapshotCount || 0,
     });
@@ -372,7 +375,7 @@ router.post('/:projectId/items', projectMemberGuard, async (req: Request, res: R
     }
 
     // Parse and insert the new item's recipe tree
-    const parseResult = await parseRecipeTree(projectId, itemName, quantity, sb, enchantments, variant);
+    const parseResult = await parseRecipeTree(projectId, itemName as string, quantity, sb, enchantments, variant);
 
     res.status(201).json({
       success: true,

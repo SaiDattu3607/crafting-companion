@@ -17,9 +17,10 @@ import {
   getAnvilSteps, getBestStrategy,
 } from '@/lib/enchantmentBooks';
 import { fetchItemDetail, lookupMinecraftItem, type MinecraftItem, type ItemDetail } from '@/lib/api';
+import { getMinecraftAssetUrl } from '@/lib/minecraftAssets';
 
 function itemImageUrl(name: string) {
-  return `https://mc-heads.net/item/${name}`;
+  return getMinecraftAssetUrl(name);
 }
 
 // ── Props ────────────────────────────────────────────────────────
@@ -186,13 +187,12 @@ export default function EnchantmentGridModal({
                       <tr
                         key={ench.name}
                         onClick={() => setSelectedEnchant(isSelected ? null : ench.name)}
-                        className={`cursor-pointer transition-colors ${
-                          isSelected
+                        className={`cursor-pointer transition-colors ${isSelected
                             ? 'bg-white/[0.06]'
                             : ri % 2 === 0
                               ? 'bg-transparent hover:bg-white/[0.03]'
                               : 'bg-white/[0.015] hover:bg-white/[0.04]'
-                        }`}
+                          }`}
                       >
                         {/* Enchantment name */}
                         <td className="px-3 py-2 border-b border-white/5">
@@ -232,9 +232,8 @@ export default function EnchantmentGridModal({
                             >
                               {exists ? (
                                 <div
-                                  className={`mx-auto w-8 h-7 rounded-md border flex items-center justify-center text-[10px] font-mono font-bold transition-all ${cellClass} ${
-                                    isApplied ? 'text-purple-200 shadow-sm shadow-purple-500/20' : isTable ? 'text-emerald-400/70' : 'text-amber-400/60'
-                                  }`}
+                                  className={`mx-auto w-8 h-7 rounded-md border flex items-center justify-center text-[10px] font-mono font-bold transition-all ${cellClass} ${isApplied ? 'text-purple-200 shadow-sm shadow-purple-500/20' : isTable ? 'text-emerald-400/70' : 'text-amber-400/60'
+                                    }`}
                                   title={`${ench.displayName} ${toRoman(lvl)}${xpReq ? ` — Lv ${xpReq} at table` : ''}${isApplied ? ' ✓ applied' : ''}`}
                                 >
                                   {xpReq ? xpReq : isApplied ? '✓' : '·'}
