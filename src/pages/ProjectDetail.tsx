@@ -759,7 +759,7 @@ const ProjectDetail = () => {
 
           <div className="divide-y divide-white/5">
             {displayEnchantmentNodes.map(node => (
-              <div key={node.id} className="p-6 space-y-6 bg-white/[0.01]">
+              <div key={node.id} className="p-4 space-y-4 bg-white/[0.01]">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
@@ -799,14 +799,6 @@ const ProjectDetail = () => {
                   ) : (
                     <div className="text-[10px] text-muted-foreground/60 italic px-1">No enchantments applied yet</div>
                   )}
-                </div>
-
-                <div className="bg-black/20 rounded-xl p-4 border border-white/5">
-                  <EnchantmentMatrix
-                    itemName={node.item_name}
-                    activeEnchantments={node.enchantments || []}
-                    possibleEnchantments={enchMetadata[node.item_name]?.possibleEnchantments || []}
-                  />
                 </div>
               </div>
             ))}
