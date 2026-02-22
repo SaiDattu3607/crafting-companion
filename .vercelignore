@@ -1,0 +1,18 @@
+# Exclude redundant project folder
+crafting-companion/
+
+# Exclude local environments and logs
+.env.local
+.env
+build_error.log
+tsc_errors.log
+*.log
+
+# Exclude development tools
+.gemini/
+.agent/
+brain/
+
+# Exclude large lock files if Vercel doesn't need them
+bun.lockb
+package-lock.json
