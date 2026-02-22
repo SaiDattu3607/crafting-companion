@@ -17,6 +17,21 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
 dotenv.config({ path: path.resolve(__dirname, '.env') });
 
+console.log('--- SERVER STARTING ---');
+console.log('Node Version:', process.version);
+console.log('CWD:', process.cwd());
+console.log('PORT:', process.env.PORT);
+console.log('VERCEL:', process.env.VERCEL);
+
+process.on('uncaughtException', (err) => {
+  console.error('CRITICAL: Uncaught Exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('CRITICAL: Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
 import projectRoutes from './routes/projects.js';
 import contributionRoutes from './routes/contributions.js';
 import itemRoutes from './routes/items.js';
