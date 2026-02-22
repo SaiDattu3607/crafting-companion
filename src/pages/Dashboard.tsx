@@ -94,7 +94,7 @@ const Dashboard = () => {
   const handleDelete = async (id: string) => {
     try {
       await deleteProject(id);
-      soundManager.playSound('button');
+      soundManager.playSound('back');
       setProjects(prev => prev.filter(p => p.id !== id));
     } catch (err) {
       setError((err as Error).message);
@@ -104,7 +104,7 @@ const Dashboard = () => {
   const handleToggleDone = async (id: string, done: boolean) => {
     try {
       await updateProjectStatus(id, done ? 'completed' : 'active');
-      soundManager.playSound('button');
+      soundManager.playSound('craft');
       setProjects(prev => prev.map(p => p.id === id ? { ...p, status: done ? 'completed' : 'active' } : p));
     } catch (err) {
       setError((err as Error).message);
@@ -305,7 +305,7 @@ const Dashboard = () => {
               <ProjectCard
                 key={p.id}
                 project={p}
-                onClick={() => { soundManager.playSound('button'); navigate(`/project/${p.id}`); }}
+                onClick={() => { soundManager.playSound('craft'); navigate(`/project/${p.id}`); }}
                 onDelete={handleDelete}
                 onToggleDone={handleToggleDone}
               />
