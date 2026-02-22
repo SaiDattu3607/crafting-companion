@@ -149,10 +149,12 @@ export default function EnchantmentGridModal({
               itemName={itemName}
               activeEnchantments={activeEnchantments}
               possibleEnchantments={item?.possibleEnchantments || detail?.possibleEnchantments || []}
+              onSelect={setSelectedEnchant}
+              selectedEnchant={selectedEnchant}
             />
             {/* Tip under table */}
             <p className="text-[10px] text-muted-foreground/60 mt-4 text-center">
-              Numbers show the XP level required at the enchanting table
+              Numbers show the XP level required at the enchanting table · Click a row for strategy
             </p>
           </div>
         )}

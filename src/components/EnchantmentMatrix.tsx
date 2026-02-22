@@ -8,12 +8,16 @@ interface Props {
     itemName: string;
     activeEnchantments: { name: string; level: number }[];
     possibleEnchantments: { name: string; level?: number; levelRequirements?: number[] }[];
+    onSelect?: (name: string | null) => void;
+    selectedEnchant?: string | null;
 }
 
 export default function EnchantmentMatrix({
     itemName,
     activeEnchantments,
     possibleEnchantments,
+    onSelect,
+    selectedEnchant,
 }: Props) {
     const enchantments = useMemo(() => {
         return possibleEnchantments.map(e => {
@@ -76,10 +80,12 @@ export default function EnchantmentMatrix({
 
                             return (
                                 <tr
-                                    key={ench.name}
-                                    className={`transition-colors ${ri % 2 === 0
-                                            ? 'bg-transparent'
-                                            : 'bg-white/[0.015]'
+                                    onClick={() => onSelect?.(selectedEnchant === ench.name ? null : ench.name)}
+                                    className={`transition-colors h-10 ${onSelect ? 'cursor-pointer' : ''} ${selectedEnchant === ench.name
+                                            ? 'bg-purple-500/10'
+                                            : ri % 2 === 0
+                                                ? 'bg-transparent hover:bg-white/[0.02]'
+                                                : 'bg-white/[0.015] hover:bg-white/5'
                                         }`}
                                 >
                                     <td className="px-3 py-1.5 border-b border-white/5">

@@ -739,68 +739,80 @@ const ProjectDetail = () => {
         )
       }
 
-      {/* Enchantment Summary Panel (targets & enchanted items) */}
-      {displayEnchantmentNodes.map(node => (
-        <div key={node.id} className="mx-6 mt-4 p-5 glass-strong border border-purple-500/20 rounded-2xl">
-          <div className="flex items-center justify-between mb-3">
+      {/* ── Enchantment Summary Panel (Consolidated) ────────────────── */}
+      {displayEnchantmentNodes.length > 0 && (
+        <div className="mx-6 mt-4 glass-strong border border-purple-500/20 rounded-2xl overflow-hidden">
+          <div className="p-5 border-b border-white/5 bg-purple-500/5 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20">
                 <Sparkles className="w-5 h-5 text-purple-400" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-foreground">✨ Enchantment Plan</h2>
-                <p className="text-xs text-muted-foreground">Requirements for your {node.display_name}</p>
+                <h2 className="text-lg font-bold text-foreground">✨ Master Enchantment Plan</h2>
+                <p className="text-xs text-muted-foreground">Strategic requirements for your project targets</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {node.parent_id && (
-                <span className="text-[10px] bg-white/5 px-2 py-0.5 rounded-full text-muted-foreground uppercase tracking-wider">Sub-item</span>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setEnchantGridItem(node.item_name);
-                  setEnchantGridEnchants((node.enchantments || []).map((e: any) => ({ name: e.name, level: e.level })));
-                  setShowEnchantGrid(true);
-                  soundManager.playSound('button');
-                }}
-                className="rounded-xl border-purple-500/20 hover:border-purple-500/40 text-purple-400 hover:text-purple-300 gap-1.5 h-8 px-3 text-xs"
-              >
-                <BookOpen className="w-3.5 h-3.5" /> View All Enchantments
-              </Button>
+            <div className="flex items-center gap-2 text-[10px] text-muted-foreground bg-white/5 px-3 py-1 rounded-full uppercase tracking-widest">
+              {displayEnchantmentNodes.length} Item{displayEnchantmentNodes.length !== 1 ? 's' : ''}
             </div>
           </div>
-          <div className="flex flex-wrap gap-3 mb-6">
-            {(node.enchantments || []).map((en: any, i: number) => (
-              <button
-                key={i}
-                onClick={() => {
-                  setEnchantGridItem(node.item_name);
-                  setEnchantGridEnchants((node.enchantments || []).map((e: any) => ({ name: e.name, level: e.level })));
-                  setShowEnchantGrid(true);
-                  soundManager.playSound('button');
-                }}
-                className="bg-purple-500/5 border border-purple-500/10 px-4 py-3 rounded-xl flex items-center gap-3 hover:bg-purple-500/10 hover:border-purple-500/20 transition-all cursor-pointer"
-              >
-                <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-300 font-mono text-sm">
-                  {toRoman(en.level)}
+
+          <div className="divide-y divide-white/5">
+            {displayEnchantmentNodes.map(node => (
+              <div key={node.id} className="p-6 space-y-6 bg-white/[0.01]">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+                      <ItemIconWithFallback itemName={node.item_name} displayName={node.display_name} isBlock={node.is_block} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-foreground">{node.display_name}</h3>
+                      {node.parent_id && <span className="text-[9px] text-muted-foreground uppercase tracking-tighter bg-white/5 px-1.5 py-0.5 rounded">Sub-item</span>}
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setEnchantGridItem(node.item_name);
+                      setEnchantGridEnchants((node.enchantments || []).map((e: any) => ({ name: e.name, level: e.level })));
+                      setShowEnchantGrid(true);
+                      soundManager.playSound('button');
+                    }}
+                    className="rounded-xl border-purple-500/20 hover:border-purple-500/40 text-purple-400 hover:text-purple-300 gap-1.5 h-8 px-3 text-xs"
+                  >
+                    <BookOpen className="w-3.5 h-3.5" /> View All Enchantments
+                  </Button>
                 </div>
-                <span className="text-sm font-semibold text-purple-200">{en.name.replace(/_/g, ' ')}</span>
-              </button>
+
+                <div className="flex flex-wrap gap-2">
+                  {(node.enchantments || []).length > 0 ? (
+                    (node.enchantments || []).map((en: any, i: number) => (
+                      <div
+                        key={i}
+                        className="bg-purple-500/5 border border-purple-500/10 px-3 py-1.5 rounded-lg flex items-center gap-2"
+                      >
+                        <span className="text-[10px] font-mono font-bold text-purple-300 bg-purple-500/10 w-5 h-5 rounded flex items-center justify-center">{toRoman(en.level)}</span>
+                        <span className="text-xs font-semibold text-purple-200">{en.name.replace(/_/g, ' ')}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-[10px] text-muted-foreground/60 italic px-1">No enchantments applied yet</div>
+                  )}
+                </div>
+
+                <div className="bg-black/20 rounded-xl p-4 border border-white/5">
+                  <EnchantmentMatrix
+                    itemName={node.item_name}
+                    activeEnchantments={node.enchantments || []}
+                    possibleEnchantments={enchMetadata[node.item_name]?.possibleEnchantments || []}
+                  />
+                </div>
+              </div>
             ))}
           </div>
-
-          {/* New Embedded Matrix */}
-          <div className="bg-white/5 rounded-xl p-4 border border-white/5">
-            <EnchantmentMatrix
-              itemName={node.item_name}
-              activeEnchantments={node.enchantments || []}
-              possibleEnchantments={enchMetadata[node.item_name]?.possibleEnchantments || []}
-            />
-          </div>
         </div>
-      ))}
+      )}
 
       {
         error && (
@@ -1508,14 +1520,20 @@ const ProjectDetail = () => {
           )}
 
           {/* Leaderboard Card */}
-          {leaderboard.length > 0 && (
-            <div className="glass-strong rounded-2xl border border-white/5 p-6">
-              <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-widest mb-6 flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <Trophy className="w-4 h-4 text-emerald-400" /> Leaderboard
-                </span>
-                <span className="text-[10px] text-muted-foreground/40 font-normal">Contributions</span>
-              </h2>
+          <div className="glass-strong rounded-2xl border border-white/5 p-6">
+            <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-widest mb-6 flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-emerald-400" /> Leaderboard
+              </span>
+              <span className="text-[10px] text-muted-foreground/40 font-normal">Contributions</span>
+            </h2>
+
+            {leaderboard.length === 0 ? (
+              <div className="text-center py-6 border border-dashed border-white/10 rounded-xl bg-white/[0.02]">
+                <p className="text-xs text-muted-foreground italic">No contributions yet</p>
+                <p className="text-[10px] text-muted-foreground/40 mt-1">Be the first to help!</p>
+              </div>
+            ) : (
               <div className="space-y-4">
                 {leaderboard.slice(0, 5).map((entry, i) => (
                   <div key={entry.userId} className="flex items-center justify-between group">
@@ -1525,7 +1543,7 @@ const ProjectDetail = () => {
                           {entry.avatar_url ? (
                             <img src={entry.avatar_url} alt={entry.full_name} className="w-full h-full object-cover" />
                           ) : (
-                            entry.full_name[0].toUpperCase()
+                            (entry.full_name || 'U')[0].toUpperCase()
                           )}
                         </div>
                         <div className={`absolute -top-1 -left-1 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-[#0a0a0b] ${i === 0 ? 'bg-emerald-500 text-white shadow-[0_0_10px_rgba(16,185,129,0.5)]' :
@@ -1537,7 +1555,7 @@ const ProjectDetail = () => {
                       </div>
                       <div>
                         <p className="text-xs font-bold text-foreground group-hover:text-primary transition-colors cursor-default">
-                          {entry.full_name}
+                          {entry.full_name || 'Anonymous User'}
                         </p>
                         <p className="text-[10px] text-muted-foreground">Level {members.find(m => m.user_id === entry.userId)?.profiles && (members.find(m => m.user_id === entry.userId)?.profiles as any).minecraft_level || 0}</p>
                       </div>
@@ -1549,8 +1567,8 @@ const ProjectDetail = () => {
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Activity Feed */}
           <div className="glass-strong rounded-2xl border border-white/5 p-6">
