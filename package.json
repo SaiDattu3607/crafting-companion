@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "server": "tsx server/index.ts",
     "server:dev": "tsx watch server/index.ts",
+    "start": "tsx server/index.ts",
     "db:migrate": "tsx server/scripts/migrate.ts"
   },
   "dependencies": {

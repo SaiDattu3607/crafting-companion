@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: craftchain-api
+    runtime: node
+    plan: free # or starter
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: 3001
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: MC_VERSION
+        value: "1.20.2"
