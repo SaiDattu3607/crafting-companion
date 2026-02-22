@@ -427,7 +427,7 @@ const ProjectDetail = () => {
   // Per-root helpers (for multi-item projects)
   const getRootItemChildren = (root: CraftingNode) => getChildren(root.id).filter(c => c.item_name !== 'enchanted_book');
   const getRootBookChildren = (root: CraftingNode) => getChildren(root.id).filter(c => c.item_name === 'enchanted_book');
-  const enchantedRoots = rootNodes.filter(r => Array.isArray(r.enchantments) && r.enchantments.length > 0);
+  const allEnchantedNodes = nodes.filter(n => Array.isArray(n.enchantments) && n.enchantments.length > 0);
 
   const ItemIcon = ({ node }: { node: CraftingNode }) => {
     const status = getNodeStatus(node);
@@ -692,9 +692,9 @@ const ProjectDetail = () => {
         )
       }
 
-      {/* Enchantment Summary Panel (all enchanted roots) */}
-      {enchantedRoots.map(eRoot => (
-        <div key={eRoot.id} className="mx-6 mt-4 p-5 glass-strong border border-purple-500/20 rounded-2xl">
+      {/* Enchantment Summary Panel (all enchanted items) */}
+      {allEnchantedNodes.map(node => (
+        <div key={node.id} className="mx-6 mt-4 p-5 glass-strong border border-purple-500/20 rounded-2xl">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20">
@@ -702,30 +702,35 @@ const ProjectDetail = () => {
               </div>
               <div>
                 <h2 className="text-lg font-bold text-foreground">✨ Enchantment Plan</h2>
-                <p className="text-xs text-muted-foreground">Requirements for your {eRoot.display_name}</p>
+                <p className="text-xs text-muted-foreground">Requirements for your {node.display_name}</p>
               </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setEnchantGridItem(eRoot.item_name);
-                setEnchantGridEnchants((eRoot.enchantments || []).map((e: any) => ({ name: e.name, level: e.level })));
-                setShowEnchantGrid(true);
-                soundManager.playSound('button');
-              }}
-              className="rounded-xl border-purple-500/20 hover:border-purple-500/40 text-purple-400 hover:text-purple-300 gap-1.5 h-8 px-3 text-xs"
-            >
-              <BookOpen className="w-3.5 h-3.5" /> View All Enchantments
-            </Button>
+            <div className="flex items-center gap-2">
+              {node.parent_id && (
+                <span className="text-[10px] bg-white/5 px-2 py-0.5 rounded-full text-muted-foreground uppercase tracking-wider">Sub-item</span>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setEnchantGridItem(node.item_name);
+                  setEnchantGridEnchants((node.enchantments || []).map((e: any) => ({ name: e.name, level: e.level })));
+                  setShowEnchantGrid(true);
+                  soundManager.playSound('button');
+                }}
+                className="rounded-xl border-purple-500/20 hover:border-purple-500/40 text-purple-400 hover:text-purple-300 gap-1.5 h-8 px-3 text-xs"
+              >
+                <BookOpen className="w-3.5 h-3.5" /> View All Enchantments
+              </Button>
+            </div>
           </div>
           <div className="flex flex-wrap gap-3">
-            {(eRoot.enchantments || []).map((en: any, i: number) => (
+            {(node.enchantments || []).map((en: any, i: number) => (
               <button
                 key={i}
                 onClick={() => {
-                  setEnchantGridItem(eRoot.item_name);
-                  setEnchantGridEnchants((eRoot.enchantments || []).map((e: any) => ({ name: e.name, level: e.level })));
+                  setEnchantGridItem(node.item_name);
+                  setEnchantGridEnchants((node.enchantments || []).map((e: any) => ({ name: e.name, level: e.level })));
                   setShowEnchantGrid(true);
                   soundManager.playSound('button');
                 }}
@@ -733,7 +738,7 @@ const ProjectDetail = () => {
               >
                 <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-300 font-mono text-sm">
                   {toRoman(en.level)}
-                </div>
+                  +                </div>
                 <span className="text-sm font-semibold text-purple-200">{en.name.replace(/_/g, ' ')}</span>
               </button>
             ))}
@@ -996,8 +1001,8 @@ const ProjectDetail = () => {
             })}
           </div>
 
-          {/* Enchantment Book Guide (all enchanted roots) */}
-          {enchantedRoots.length > 0 && (
+          {/* Enchantment Book Guide (all enchanted items) */}
+          {allEnchantedNodes.length > 0 && (
             <div className="glass-strong rounded-2xl border border-white/5 p-6">
               <div className="flex items-center gap-2 mb-6">
                 <BookOpen className="w-5 h-5 text-amber-400" />
@@ -1005,21 +1010,21 @@ const ProjectDetail = () => {
               </div>
 
               <div className="grid gap-4">
-                {enchantedRoots.flatMap(eRoot => getBookRequirements(eRoot.enchantments || []).map(req => ({ ...req, _rootId: eRoot.id }))).map((req) => {
-                  const isExpanded = expandedBook === req.enchantmentName;
+                {allEnchantedNodes.flatMap(node => getBookRequirements(node.enchantments || []).map(req => ({ ...req, _nodeId: node.id, _nodeName: node.display_name }))).map((req) => {
+                  const isExpanded = expandedBook === `${(req as any)._nodeId}-${req.enchantmentName}`;
                   const strategy = getBestStrategy(req.enchantmentName, req.targetLevel);
 
                   return (
-                    <div key={`${(req as any)._rootId}-${req.enchantmentName}`} className="glass rounded-xl border border-white/5 overflow-hidden">
+                    <div key={`${(req as any)._nodeId}-${req.enchantmentName}`} className="glass rounded-xl border border-white/5 overflow-hidden">
                       <button
-                        onClick={() => setExpandedBook(isExpanded ? null : req.enchantmentName)}
+                        onClick={() => setExpandedBook(isExpanded ? null : `${(req as any)._nodeId}-${req.enchantmentName}`)}
                         className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors text-left"
                       >
                         <div className="flex items-center gap-4">
                           <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-xl">📕</div>
                           <div>
                             <p className="font-bold text-foreground">{req.displayName} {toRoman(req.targetLevel)}</p>
-                            <p className="text-xs text-muted-foreground">{req.booksNeeded} level-1 books needed</p>
+                            <p className="text-xs text-muted-foreground">{req.booksNeeded} level-1 books needed for {(req as any)._nodeName}</p>
                           </div>
                         </div>
                         {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
