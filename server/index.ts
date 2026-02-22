@@ -89,8 +89,10 @@ const distPath = path.resolve(__dirname, '../dist');
 app.use(express.static(distPath));
 
 // Fallback to index.html for SPA routing
-app.get('(.*)', (req, res, next) => {
+// Note: Express 5 requires named parameters for wildcards
+app.get('/:splat*', (req, res, next) => {
   if (req.path.startsWith('/api')) return next();
+  console.log(`SPA Fallback: Serving index.html for ${req.path}`);
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
