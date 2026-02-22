@@ -69,6 +69,16 @@ app.use('/api/projects', contributionRoutes);
 app.use('/api/items', itemRoutes);
 app.use('/api/admin', adminRoutes);
 
+// ── Static Files (Frontend) ───────────────────────────────────
+const distPath = path.resolve(__dirname, '../dist');
+app.use(express.static(distPath));
+
+// Fallback to index.html for SPA routing
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api')) return next();
+  res.sendFile(path.join(distPath, 'index.html'));
+});
+
 // ── Error Handler ──────────────────────────────────────────────
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error('Unhandled error:', err);
