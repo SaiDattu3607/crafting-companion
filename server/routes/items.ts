@@ -6,7 +6,7 @@
 
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
-import { searchItems, lookupItem } from '../services/recipeParser.js';
+import { searchItems, lookupItem, getItemDetail } from '../services/recipeParser.js';
 
 const router = Router();
 
@@ -23,6 +23,17 @@ router.get('/search', async (req: Request, res: Response) => {
   }
   const items = searchItems(query, 20);
   res.json({ items });
+});
+
+// ── GET /api/items/:itemName/detail ─────────────────────────────
+// Get detailed item info including recipe grid, acquisition, drops
+router.get('/:itemName/detail', async (req: Request, res: Response) => {
+  const detail = getItemDetail(req.params.itemName as string);
+  if (!detail) {
+    res.status(404).json({ error: `Item "${req.params.itemName}" not found` });
+    return;
+  }
+  res.json(detail);
 });
 
 // ── GET /api/items/:itemName ───────────────────────────────────

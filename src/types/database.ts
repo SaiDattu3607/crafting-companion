@@ -20,6 +20,7 @@ export type Database = {
                     email: string | null
                     full_name: string | null
                     id: string
+                    minecraft_level: number
                     updated_at: string | null
                 }
                 Insert: {
@@ -28,6 +29,7 @@ export type Database = {
                     created_at?: string | null
                     email?: string | null
                     full_name?: string | null
+                    minecraft_level?: number
                     id: string
                     updated_at?: string | null
                 }
@@ -38,6 +40,7 @@ export type Database = {
                     email?: string | null
                     full_name?: string | null
                     id?: string
+                    minecraft_level?: number
                     updated_at?: string | null
                 }
                 Relationships: []
