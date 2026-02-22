@@ -256,11 +256,10 @@ const ItemForm = ({ index, item, onAdd, onRemove, isOnly }: ItemFormProps) => {
                 const myLevel = user?.minecraft_level ?? 0;
                 const canDo = !minXp || myLevel >= minXp;
                 return (
-                  <span key={e.name} className={`inline-flex items-center gap-1.5 border px-2.5 py-0.5 rounded-full text-[10px] font-medium ${
-                    canDo
+                  <span key={e.name} className={`inline-flex items-center gap-1.5 border px-2.5 py-0.5 rounded-full text-[10px] font-medium ${canDo
                       ? 'bg-purple-500/15 border-purple-500/25 text-purple-300'
                       : 'bg-amber-500/15 border-amber-500/25 text-amber-300'
-                  }`}>
+                    }`}>
                     {e.name.replace(/_/g, ' ')} {e.level}
                     {minXp && <span className="text-[9px] opacity-60">Lv{minXp}</span>}
                     <button type="button" onClick={() => { soundManager.playSound('button'); setEnchantments(es => es.filter(x => x.name !== e.name)); }}
@@ -315,12 +314,7 @@ const NewProject = () => {
     e.preventDefault();
     if (!name.trim() || validItems.length === 0) return;
 
-<<<<<<< HEAD
-
     soundManager.playSound('craft');
-=======
-    soundManager.playSound('button');
->>>>>>> 3240394c9fd24ca2ccd6c0fc4e468f103bbd1f88
     setCreating(true);
     setError('');
     try {
@@ -384,133 +378,11 @@ const NewProject = () => {
 
           {/* Section 2: Target Items */}
           <div className="glass-strong rounded-2xl border border-white/5 p-6 space-y-4">
-<<<<<<< HEAD
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-widest">Target Item</h2>
-
-            {selectedItem ? (
-              <div className="flex items-center justify-between p-4 rounded-xl bg-primary/10 border border-primary/20">
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">🎯</span>
-                  <div>
-                    <p className="font-semibold text-foreground">{selectedItem.displayName}</p>
-                    <p className="text-xs text-muted-foreground">{selectedItem.name}</p>
-                  </div>
-                  {selectedItem.isResource && (
-                    <span className="text-xs badge-pending px-2 py-0.5 rounded-full">Resource</span>
-                  )}
-                </div>
-                <Button type="button" variant="ghost" size="sm" onClick={() => { soundManager.playSound('back'); setSelectedItem(null); setItemSearch(''); }}
-                  className="rounded-xl text-muted-foreground hover:text-foreground">
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-            ) : (
-              <div className="relative">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  value={itemSearch}
-                  onChange={e => setItemSearch(e.target.value)}
-                  placeholder="Search items… e.g. beacon, diamond_sword"
-                  className="bg-secondary/60 border-white/8 rounded-xl h-11 pl-10 focus:border-primary/50"
-                />
-                {searching && <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />}
-
-                {searchResults.length > 0 && (
-                  <div className="absolute z-20 w-full mt-2 glass-strong rounded-xl border border-white/8 shadow-2xl overflow-hidden max-h-56 overflow-y-auto">
-                    {searchResults.map(item => (
-                      <button
-                        key={item.name}
-                        type="button"
-                        className="w-full text-left px-4 py-3 hover:bg-primary/10 transition-colors flex items-center justify-between group border-b border-white/5 last:border-0"
-                        onClick={async () => {
-                          soundManager.playSound('button');
-                          try {
-                            const full = await lookupMinecraftItem(item.name);
-                            setSelectedItem(full || item);
-                          } catch { setSelectedItem(item); }
-                          setSearchResults([]);
-                          if (!name) setName(`Craft ${item.displayName}`);
-                        }}
-                      >
-                        <span className="font-medium group-hover:text-primary transition-colors">{item.displayName}</span>
-                        <span className="text-xs text-muted-foreground">{item.isResource ? '🪨 Resource' : '⚒ Craftable'}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="w-32">
-              <label className="block text-sm font-medium text-foreground mb-1.5">Quantity</label>
-              <Input
-                type="number" min={1} max={999}
-                value={quantity}
-                onChange={e => setQuantity(parseInt(e.target.value) || 1)}
-                className="bg-secondary/60 border-white/8 rounded-xl h-11 focus:border-primary/50"
-              />
-=======
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-widest">Target Items</h2>
               <span className="text-xs text-muted-foreground">{validItems.length} item{validItems.length !== 1 ? 's' : ''} selected</span>
->>>>>>> 3240394c9fd24ca2ccd6c0fc4e468f103bbd1f88
             </div>
 
-<<<<<<< HEAD
-          {/* Section 3: Enchantments */}
-          {!selectedItem?.isResource && (
-            <div className="glass-strong rounded-2xl border border-white/5 p-6 space-y-4">
-              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                Enchantments <span className="font-normal normal-case">(optional)</span>
-              </h2>
-              <div className="flex items-center gap-2 flex-wrap">
-                <select
-                  value={enchantName}
-                  onChange={e => setEnchantName(e.target.value)}
-                  className="bg-secondary/60 border border-white/8 rounded-xl px-3 py-2 text-sm text-foreground flex-1 min-w-0"
-                >
-                  <option value="">Select enchantment</option>
-                  {selectedItem?.possibleEnchantments?.map(pe => (
-                    <option key={pe.name} value={pe.name}>{pe.name.replace(/_/g, ' ')}</option>
-                  ))}
-                </select>
-                <select
-                  value={enchantLevel}
-                  onChange={e => setEnchantLevel(parseInt(e.target.value) || 1)}
-                  className="bg-secondary/60 border border-white/8 rounded-xl px-3 py-2 text-sm text-foreground w-16"
-                >
-                  {[1, 2, 3, 4, 5].map(l => <option key={l} value={l}>{l}</option>)}
-                </select>
-                <Button
-                  type="button" size="sm"
-                  onClick={() => {
-                    soundManager.playSound('button');
-                    if (!enchantName) return;
-                    setEnchantments(es => {
-                      const exists = es.find(e => e.name === enchantName);
-                      if (exists) return es.map(e => e.name === enchantName ? { ...e, level: enchantLevel } : e);
-                      return [...es, { name: enchantName, level: enchantLevel }];
-                    });
-                  }}
-                  className="bg-purple-500/20 border border-purple-500/30 text-purple-300 hover:bg-purple-500/30 rounded-xl"
-                >
-                  Add
-                </Button>
-              </div>
-
-              {enchantments.length > 0 && (
-                <div className="flex gap-2 flex-wrap">
-                  {enchantments.map(e => (
-                    <span key={e.name} className="inline-flex items-center gap-2 bg-purple-500/15 border border-purple-500/25 text-purple-300 px-3 py-1 rounded-full text-xs font-medium">
-                      {e.name.replace(/_/g, ' ')} {e.level}
-                      <button type="button" onClick={() => { soundManager.playSound('back'); setEnchantments(es => es.filter(x => x.name !== e.name)); }}
-                        className="hover:text-white transition-colors">✕</button>
-                    </span>
-                  ))}
-                </div>
-              )}
-=======
             <div className="space-y-3">
               {targetItems.map((item, i) => (
                 <ItemForm
@@ -522,7 +394,6 @@ const NewProject = () => {
                   isOnly={targetItems.length === 1}
                 />
               ))}
->>>>>>> 3240394c9fd24ca2ccd6c0fc4e468f103bbd1f88
             </div>
 
             <Button
