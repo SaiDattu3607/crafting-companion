@@ -41,6 +41,7 @@ const ProjectDetail = () => {
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [bottlenecks, setBottlenecks] = useState<BottleneckItem[]>([]);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [progress, setProgress] = useState<ProjectProgress | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -121,11 +122,12 @@ const ProjectDetail = () => {
     if (!id) return;
     try {
       setLoading(true);
-      const [projectData, contribs, bottleneckData, progressData] = await Promise.all([
+      const [projectData, contribs, bottleneckData, progressData, leaderboardData] = await Promise.all([
         fetchProject(id),
         fetchContributions(id).catch(() => []),
         fetchBottleneck(id).catch(() => []),
         fetchProgress(id).catch(() => null),
+        fetchLeaderboard(id).catch(() => []),
       ]);
 
       const parsedNodes = projectData.nodes.map((node: any) => {
@@ -141,6 +143,7 @@ const ProjectDetail = () => {
       setMembers(projectData.members);
       setContributions(contribs);
       setBottlenecks(bottleneckData);
+      setLeaderboard(leaderboardData);
       setProgress(progressData);
       setError('');
 
@@ -1436,6 +1439,51 @@ const ProjectDetail = () => {
                     </div>
                     <div className="w-full bg-red-500/10 h-1 rounded-full overflow-hidden">
                       <div className="bg-red-500 h-full" style={{ width: `${(b.collected_qty / b.required_qty) * 100}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Leaderboard Card */}
+          {leaderboard.length > 0 && (
+            <div className="glass-strong rounded-2xl border border-white/5 p-6">
+              <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-widest mb-6 flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <Trophy className="w-4 h-4 text-emerald-400" /> Leaderboard
+                </span>
+                <span className="text-[10px] text-muted-foreground/40 font-normal">Contributions</span>
+              </h2>
+              <div className="space-y-4">
+                {leaderboard.slice(0, 5).map((entry, i) => (
+                  <div key={entry.userId} className="flex items-center justify-between group">
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <div className="w-8 h-8 rounded-full bg-secondary border border-white/10 flex items-center justify-center text-xs font-black text-primary overflow-hidden">
+                          {entry.avatar_url ? (
+                            <img src={entry.avatar_url} alt={entry.full_name} className="w-full h-full object-cover" />
+                          ) : (
+                            entry.full_name[0].toUpperCase()
+                          )}
+                        </div>
+                        <div className={`absolute -top-1 -left-1 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-[#0a0a0b] ${i === 0 ? 'bg-emerald-500 text-white shadow-[0_0_10px_rgba(16,185,129,0.5)]' :
+                            i === 1 ? 'bg-slate-400 text-white' :
+                              i === 2 ? 'bg-amber-600 text-white' : 'bg-secondary text-muted-foreground'
+                          }`}>
+                          {i + 1}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-foreground group-hover:text-primary transition-colors cursor-default">
+                          {entry.full_name}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">Level {members.find(m => m.user_id === entry.userId)?.profiles && (members.find(m => m.user_id === entry.userId)?.profiles as any).minecraft_level || 0}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-black text-primary">{entry.total_contributions.toLocaleString()}</p>
+                      <p className="text-[9px] text-muted-foreground/40 uppercase tracking-tighter">Units</p>
                     </div>
                   </div>
                 ))}
