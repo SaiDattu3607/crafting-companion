@@ -65,6 +65,7 @@ export interface CraftingNode {
   status: string;
   created_at: string;
   enchantments?: { name: string; level: number }[] | null;
+  variant?: string | null;
 }
 
 export type MemberRole = 'owner' | 'member' | 'miner' | 'builder' | 'planner';
@@ -123,6 +124,75 @@ export interface MinecraftItem {
   hasRecipe?: boolean;
   category?: string;
   possibleEnchantments?: { name: string; level?: number }[] | null;
+  possibleVariants?: { name: string; displayName: string; effects?: string; duration?: string }[] | null;
+}
+
+export interface RecipeSlot {
+  name: string;
+  displayName: string;
+}
+
+export interface ShapedRecipe {
+  type: 'shaped';
+  grid: (RecipeSlot | null)[][];
+  outputCount: number;
+}
+
+export interface ShapelessRecipe {
+  type: 'shapeless';
+  ingredients: RecipeSlot[];
+  outputCount: number;
+}
+
+export interface SmithingRecipe {
+  type: 'smithing';
+  ingredients: { name: string; displayName: string; qty: number }[];
+  outputCount: number;
+}
+
+export type Recipe = ShapedRecipe | ShapelessRecipe | SmithingRecipe;
+
+export interface EntityDrop {
+  entity: string;
+  displayName: string;
+  dropChance: number;
+  stackSizeRange: [number, number];
+}
+
+export interface BlockSource {
+  block: string;
+  displayName: string;
+}
+
+export interface ProcedureInfo {
+  steps: string[];
+  station?: string;
+  fuel?: string;
+}
+
+export interface AcquisitionInfo {
+  locations?: string[];
+  obtainedBy?: string[];
+  notes?: string;
+  procedure?: ProcedureInfo | null;
+}
+
+export interface ItemDetail {
+  id: number;
+  name: string;
+  displayName: string;
+  stackSize: number;
+  isResource: boolean;
+  hasRecipe: boolean;
+  category: string;
+  possibleEnchantments: { name: string; level?: number }[];
+  possibleVariants?: { name: string; displayName: string; effects?: string; duration?: string }[] | null;
+  imageUrl: string;
+  recipe: Recipe | null;
+  entityDrops: EntityDrop[];
+  blockSources: BlockSource[];
+  acquisition: AcquisitionInfo | null;
+  foodInfo: { foodPoints: number; saturation: number } | null;
 }
 
 export interface ParseResult {
@@ -160,6 +230,7 @@ export interface TargetItem {
   displayName: string;
   quantity: number;
   enchantments: { name: string; level: number }[] | null;
+  variant: string | null;
 }
 
 export async function createMultiItemProject(
@@ -176,6 +247,7 @@ export async function createMultiItemProject(
         itemName: i.itemName,
         quantity: i.quantity,
         enchantments: i.enchantments,
+        variant: i.variant,
       })),
     }),
   });
@@ -201,10 +273,11 @@ export async function addTargetItem(
   itemName: string,
   quantity: number = 1,
   enchantments: { name: string; level: number }[] | null = null,
+  variant: string | null = null,
 ): Promise<{ success: boolean; tree: ParseResult }> {
   return apiFetch(`/projects/${projectId}/items`, {
     method: 'POST',
-    body: JSON.stringify({ itemName, quantity, enchantments }),
+    body: JSON.stringify({ itemName, quantity, enchantments, variant }),
   });
 }
 
@@ -374,6 +447,15 @@ export async function searchMinecraftItems(query: string): Promise<MinecraftItem
 export async function lookupMinecraftItem(itemName: string): Promise<MinecraftItem | null> {
   try {
     return await apiFetch<MinecraftItem>(`/items/${itemName}`);
+  } catch {
+    return null;
+  }
+}
+
+/** Get detailed item info including recipe, drops, and acquisition */
+export async function fetchItemDetail(itemName: string): Promise<ItemDetail | null> {
+  try {
+    return await apiFetch<ItemDetail>(`/items/${itemName}/detail`);
   } catch {
     return null;
   }

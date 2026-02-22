@@ -7,7 +7,7 @@
 import { Router, Request, Response } from 'express';
 import { supabaseForUser } from '../config/supabase.js';
 import { authMiddleware, projectMemberGuard } from '../middleware/auth.js';
-import { parseRecipeTree, searchItems, lookupItem } from '../services/recipeParser.js';
+import { parseRecipeTree, searchItems, lookupItem, getEnchantmentMaxLevel } from '../services/recipeParser.js';
 
 const router = Router();
 
@@ -54,7 +54,7 @@ router.post('/', async (req: Request, res: Response) => {
     const { name, description, rootItemName, quantity = 1, enchantments = null, items } = req.body;
 
     // Build the list of target items
-    type TargetItem = { itemName: string; quantity: number; enchantments: { name: string; level: number }[] | null };
+    type TargetItem = { itemName: string; quantity: number; enchantments: { name: string; level: number }[] | null; variant: string | null };
     let targets: TargetItem[] = [];
 
     if (Array.isArray(items) && items.length > 0) {
@@ -62,9 +62,10 @@ router.post('/', async (req: Request, res: Response) => {
         itemName: it.itemName,
         quantity: it.quantity || 1,
         enchantments: it.enchantments || null,
+        variant: it.variant || null,
       }));
     } else if (rootItemName) {
-      targets = [{ itemName: rootItemName, quantity, enchantments }];
+      targets = [{ itemName: rootItemName, quantity, enchantments, variant: req.body.variant || null }];
     }
 
     if (!name || targets.length === 0) {
@@ -106,7 +107,7 @@ router.post('/', async (req: Request, res: Response) => {
     // Parse recipe trees for all target items
     const trees = [];
     for (const t of targets) {
-      const parseResult = await parseRecipeTree(project.id, t.itemName, t.quantity, sb, t.enchantments);
+      const parseResult = await parseRecipeTree(project.id, t.itemName, t.quantity, sb, t.enchantments, t.variant);
       trees.push(parseResult);
     }
 
@@ -343,7 +344,7 @@ router.delete('/:projectId', async (req: Request, res: Response) => {
 router.post('/:projectId/items', projectMemberGuard, async (req: Request, res: Response) => {
   try {
     const { projectId } = req.params;
-    const { itemName, quantity = 1, enchantments = null } = req.body;
+    const { itemName, quantity = 1, enchantments = null, variant = null } = req.body;
 
     if (!itemName) {
       res.status(400).json({ error: 'itemName is required' });
@@ -371,7 +372,7 @@ router.post('/:projectId/items', projectMemberGuard, async (req: Request, res: R
     }
 
     // Parse and insert the new item's recipe tree
-    const parseResult = await parseRecipeTree(projectId, itemName, quantity, sb, enchantments);
+    const parseResult = await parseRecipeTree(projectId, itemName, quantity, sb, enchantments, variant);
 
     res.status(201).json({
       success: true,
@@ -1033,6 +1034,11 @@ router.patch('/:projectId/nodes/:nodeId/enchantments', projectMemberGuard, async
     for (const e of enchantments) {
       if (!e.name || typeof e.level !== 'number' || e.level < 1) {
         res.status(400).json({ error: `Invalid enchantment: ${JSON.stringify(e)}` });
+        return;
+      }
+      const maxLevel = getEnchantmentMaxLevel(e.name);
+      if (maxLevel && e.level > maxLevel) {
+        res.status(400).json({ error: `${e.name.replace(/_/g, ' ')} has a max level of ${maxLevel}`, maxLevel, enchantment: e.name });
         return;
       }
     }

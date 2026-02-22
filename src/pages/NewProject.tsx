@@ -26,6 +26,7 @@ const ItemForm = ({ index, item, onAdd, onRemove, isOnly }: ItemFormProps) => {
   const [enchantName, setEnchantName] = useState('');
   const [enchantLevel, setEnchantLevel] = useState(1);
   const [enchantments, setEnchantments] = useState<{ name: string; level: number }[]>(item?.enchantments || []);
+  const [variant, setVariant] = useState<string>(item?.variant || '');
 
   useEffect(() => {
     if (selectedItem?.possibleEnchantments?.length) {
@@ -33,9 +34,10 @@ const ItemForm = ({ index, item, onAdd, onRemove, isOnly }: ItemFormProps) => {
     } else {
       setEnchantName('');
     }
+    setVariant('');
   }, [selectedItem]);
 
-  // Sync back to parent whenever selection/qty/enchantments change
+  // Sync back to parent whenever selection/qty/enchantments/variant change
   useEffect(() => {
     if (selectedItem) {
       onAdd({
@@ -43,9 +45,10 @@ const ItemForm = ({ index, item, onAdd, onRemove, isOnly }: ItemFormProps) => {
         displayName: selectedItem.displayName,
         quantity,
         enchantments: enchantments.length > 0 ? enchantments : null,
+        variant: variant || null,
       });
     }
-  }, [selectedItem, quantity, enchantments]);
+  }, [selectedItem, quantity, enchantments, variant]);
 
   const doSearch = useCallback(async (query: string) => {
     if (query.length < 2) { setSearchResults([]); return; }
@@ -154,6 +157,33 @@ const ItemForm = ({ index, item, onAdd, onRemove, isOnly }: ItemFormProps) => {
         </div>
       )}
 
+      {/* Variant (potion type, etc.) */}
+      {selectedItem && selectedItem.possibleVariants && selectedItem.possibleVariants.length > 0 && (
+        <div className="space-y-2 pt-2 border-t border-white/5">
+          <div className="flex items-center gap-2">
+            <span className="text-sm">🧪</span>
+            <span className="text-xs font-medium text-muted-foreground">Potion Type</span>
+          </div>
+          <select
+            value={variant}
+            onChange={e => setVariant(e.target.value)}
+            className="w-full bg-secondary/60 border border-white/8 rounded-xl px-2.5 py-1.5 text-xs text-foreground"
+          >
+            <option value="">Select a type…</option>
+            <optgroup label="Base Potions">
+              {selectedItem.possibleVariants.filter(v => !v.name.endsWith('_2')).map(v => (
+                <option key={v.name} value={v.name}>{v.displayName}</option>
+              ))}
+            </optgroup>
+            <optgroup label="Level II (add Glowstone Dust)">
+              {selectedItem.possibleVariants.filter(v => v.name.endsWith('_2')).map(v => (
+                <option key={v.name} value={v.name}>{v.displayName}</option>
+              ))}
+            </optgroup>
+          </select>
+        </div>
+      )}
+
       {/* Enchantments */}
       {selectedItem && !selectedItem.isResource && selectedItem.possibleEnchantments && selectedItem.possibleEnchantments.length > 0 && (
         <div className="space-y-3 pt-2 border-t border-white/5">
@@ -177,7 +207,7 @@ const ItemForm = ({ index, item, onAdd, onRemove, isOnly }: ItemFormProps) => {
               onChange={e => setEnchantLevel(parseInt(e.target.value) || 1)}
               className="bg-secondary/60 border border-white/8 rounded-xl px-2.5 py-1.5 text-xs text-foreground w-14"
             >
-              {[1, 2, 3, 4, 5].map(l => <option key={l} value={l}>{l}</option>)}
+              {Array.from({ length: selectedItem.possibleEnchantments.find(e => e.name === enchantName)?.level || 5 }, (_, i) => i + 1).map(l => <option key={l} value={l}>{l}</option>)}
             </select>
             <Button
               type="button" size="sm"

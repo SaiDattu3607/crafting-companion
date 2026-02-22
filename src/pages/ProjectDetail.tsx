@@ -7,7 +7,7 @@ import {
   fetchContributions, fetchBottleneck, fetchProgress,
   updateNodeEnchantments, updateMemberRole,
   fetchTaskSuggestions, savePlanSnapshot, fetchPlanSnapshots, restorePlanSnapshot,
-  addTargetItem, searchMinecraftItems,
+  addTargetItem, searchMinecraftItems, lookupMinecraftItem,
   type Project, type CraftingNode, type Contribution,
   type BottleneckItem, type ProjectProgress, type ProjectMember,
   type MemberRole, type SuggestedTask, type PlanSnapshot,
@@ -24,6 +24,8 @@ import {
   Plus, Search, Package
 } from 'lucide-react';
 import { getBookRequirements, toRoman, getBestStrategy } from '@/lib/enchantmentBooks';
+import ItemDetailModal from '@/components/ItemDetailModal';
+import { toast } from '@/hooks/use-toast';
 
 const ProjectDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -68,6 +70,7 @@ const ProjectDetail = () => {
   const [addItemEnchantName, setAddItemEnchantName] = useState('');
   const [addItemEnchantLevel, setAddItemEnchantLevel] = useState(1);
   const [addItemEnchantments, setAddItemEnchantments] = useState<{ name: string; level: number }[]>([]);
+  const [addItemVariant, setAddItemVariant] = useState<string>('');
   const [addingItem, setAddingItem] = useState(false);
 
   // Enchantment editing state
@@ -75,6 +78,10 @@ const ProjectDetail = () => {
   const [editEnchantmentLevels, setEditEnchantmentLevels] = useState<{ name: string; level: number }[]>([]);
   const [savingEnchantments, setSavingEnchantments] = useState(false);
   const [expandedBook, setExpandedBook] = useState<string | null>(null);
+
+  // Item detail modal
+  const [detailItemName, setDetailItemName] = useState<string | null>(null);
+  const [showItemDetail, setShowItemDetail] = useState(false);
 
   const loadProject = useCallback(async () => {
     if (!id) return;
@@ -260,7 +267,12 @@ const ProjectDetail = () => {
       setEditingEnchantments(null);
       await loadProject();
     } catch (err) {
-      setError((err as Error).message);
+      const msg = (err as Error).message;
+      toast({
+        title: 'Enchantment Error',
+        description: msg,
+        variant: 'destructive',
+      });
     } finally {
       setSavingEnchantments(false);
     }
@@ -272,14 +284,21 @@ const ProjectDetail = () => {
   };
 
   // ── Add Item handlers ──────────────────────────────────────────
-  const handleAddItemSelect = (item: MinecraftItem) => {
-    setAddItemSelected(item);
+  const handleAddItemSelect = async (item: MinecraftItem) => {
+    // Fetch full item data (with possibleEnchantments & possibleVariants)
+    let fullItem = item;
+    try {
+      const looked = await lookupMinecraftItem(item.name);
+      if (looked) fullItem = looked;
+    } catch { /* use search result as fallback */ }
+    setAddItemSelected(fullItem);
     setAddItemSearch('');
     setAddItemResults([]);
     setAddItemQty(1);
     setAddItemEnchantments([]);
-    if (item.possibleEnchantments?.length) {
-      setAddItemEnchantName(item.possibleEnchantments[0].name);
+    setAddItemVariant('');
+    if (fullItem.possibleEnchantments?.length) {
+      setAddItemEnchantName(fullItem.possibleEnchantments[0].name);
     } else {
       setAddItemEnchantName('');
     }
@@ -294,6 +313,7 @@ const ProjectDetail = () => {
         addItemSelected.name,
         addItemQty,
         addItemEnchantments.length > 0 ? addItemEnchantments : null,
+        addItemVariant || null,
       );
       soundManager.playSound('craft');
       // Reset state
@@ -301,6 +321,7 @@ const ProjectDetail = () => {
       setAddItemSearch('');
       setAddItemQty(1);
       setAddItemEnchantments([]);
+      setAddItemVariant('');
       setShowAddItem(false);
       // Reload the project to show new nodes
       await loadProject();
@@ -318,6 +339,7 @@ const ProjectDetail = () => {
     setAddItemResults([]);
     setAddItemQty(1);
     setAddItemEnchantments([]);
+    setAddItemVariant('');
   };
 
   const handleGoHome = () => {
@@ -378,7 +400,11 @@ const ProjectDetail = () => {
             <div className="flex items-center gap-2 min-w-0">
               <NodeStatusIcon node={node} />
               <div className="flex items-center gap-2 flex-wrap min-w-0">
-                <span className={`font-semibold truncate ${depth === 0 ? 'text-base' : 'text-sm'}`}>
+                <span
+                  className={`font-semibold truncate cursor-pointer hover:text-primary hover:underline underline-offset-2 transition-colors ${depth === 0 ? 'text-base' : 'text-sm'}`}
+                  onClick={(e) => { e.stopPropagation(); setDetailItemName(node.item_name); setShowItemDetail(true); }}
+                  title="Click for item details"
+                >
                   {depth === 0 && node.enchantments?.length
                     ? `${node.display_name} (${node.enchantments.map(e => `${e.name.replace(/_/g, ' ')} ${e.level}`).join(', ')})`
                     : node.display_name}
@@ -406,6 +432,13 @@ const ProjectDetail = () => {
                   </div>
                 )}
 
+                {/* Variant badge (potion type) */}
+                {node.variant && (
+                  <span className="text-[10px] bg-teal-500/15 text-teal-400 border border-teal-500/20 px-1.5 py-0.5 rounded-full font-medium">
+                    🧪 {node.variant.replace(/_/g, ' ')}
+                  </span>
+                )}
+
                 {/* Inline Editing */}
                 {editingEnchantments === node.id && (
                   <div className="flex items-center gap-1.5 bg-purple-500/10 px-2 py-1 rounded-lg border border-purple-500/20">
@@ -414,10 +447,16 @@ const ProjectDetail = () => {
                         {en.name.replace(/_/g, ' ')}
                         <input
                           type="number" min={1} max={10}
-                          value={en.level}
+                          value={en.level || ''}
                           onChange={(e) => {
+                            const raw = e.target.value;
                             const newLevels = [...editEnchantmentLevels];
-                            newLevels[i] = { ...newLevels[i], level: Math.max(1, Math.min(10, Number(e.target.value))) };
+                            newLevels[i] = { ...newLevels[i], level: raw === '' ? 0 : Math.min(10, parseInt(raw) || 0) };
+                            setEditEnchantmentLevels(newLevels);
+                          }}
+                          onBlur={() => {
+                            const newLevels = [...editEnchantmentLevels];
+                            if (newLevels[i].level < 1) newLevels[i] = { ...newLevels[i], level: 1 };
                             setEditEnchantmentLevels(newLevels);
                           }}
                           className="w-7 h-4 text-center bg-purple-500/20 border border-purple-400/30 rounded text-purple-200"
@@ -666,6 +705,32 @@ const ProjectDetail = () => {
                       />
                     </div>
 
+                    {/* Variant selection (potions, splash potions, etc.) */}
+                    {addItemSelected.possibleVariants && addItemSelected.possibleVariants.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                          🧪 Potion Type
+                        </p>
+                        <select
+                          value={addItemVariant}
+                          onChange={e => setAddItemVariant(e.target.value)}
+                          className="w-full bg-secondary/60 border border-white/8 rounded-lg px-2 py-1.5 text-xs text-foreground"
+                        >
+                          <option value="">Select a type…</option>
+                          <optgroup label="Base Potions">
+                            {addItemSelected.possibleVariants.filter(v => !v.name.endsWith('_2')).map(v => (
+                              <option key={v.name} value={v.name}>{v.displayName}</option>
+                            ))}
+                          </optgroup>
+                          <optgroup label="Level II (add Glowstone Dust)">
+                            {addItemSelected.possibleVariants.filter(v => v.name.endsWith('_2')).map(v => (
+                              <option key={v.name} value={v.name}>{v.displayName}</option>
+                            ))}
+                          </optgroup>
+                        </select>
+                      </div>
+                    )}
+
                     {/* Enchantments (if applicable) */}
                     {addItemSelected.possibleEnchantments && addItemSelected.possibleEnchantments.length > 0 && (
                       <div className="space-y-2">
@@ -680,7 +745,7 @@ const ProjectDetail = () => {
                           >
                             {addItemSelected.possibleEnchantments.map(e => (
                               <option key={e.name} value={e.name}>
-                                {e.name.replace(/_/g, ' ')} (max {e.level || 1})
+                                {e.name.replace(/_/g, ' ')} (max {e.level})
                               </option>
                             ))}
                           </select>
@@ -688,8 +753,12 @@ const ProjectDetail = () => {
                             type="number"
                             min={1}
                             max={addItemSelected.possibleEnchantments.find(e => e.name === addItemEnchantName)?.level || 5}
-                            value={addItemEnchantLevel}
-                            onChange={e => setAddItemEnchantLevel(Math.max(1, Number(e.target.value)))}
+                            value={addItemEnchantLevel || ''}
+                            onChange={e => {
+                              const raw = e.target.value;
+                              setAddItemEnchantLevel(raw === '' ? 0 : Math.min(addItemSelected.possibleEnchantments?.find(en => en.name === addItemEnchantName)?.level || 5, parseInt(raw) || 0));
+                            }}
+                            onBlur={() => { if (addItemEnchantLevel < 1) setAddItemEnchantLevel(1); }}
                             className="bg-secondary/60 border-white/8 rounded-lg h-7 w-16 text-xs"
                           />
                           <Button
@@ -1292,6 +1361,13 @@ const ProjectDetail = () => {
           </div>
         </div>
       </main>
+
+      {/* Item Detail Modal */}
+      <ItemDetailModal
+        itemName={detailItemName}
+        open={showItemDetail}
+        onClose={() => { setShowItemDetail(false); setDetailItemName(null); }}
+      />
     </div>
   );
 };
