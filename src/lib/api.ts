@@ -476,9 +476,9 @@ export interface EnchantmentDetail {
   tradeable: boolean;
   discoverable: boolean;
   exclude: string[];
-  levels: { level: number; booksNeeded: number; minCost: number; maxCost: number }[];
-  anvilSteps: { step: number; description: string }[];
-  sources: { source: string; icon: string }[];
+  levels: { level: number; booksNeeded: number; minXp: number }[];
+  anvilSteps: { targetLevel: number; steps: { step: number; inputLevel: number; outputLevel: number; count: number }[] }[];
+  sources: { method: string; description: string; icon: string; maxLevel: number }[];
   bestStrategy: string;
 }
 

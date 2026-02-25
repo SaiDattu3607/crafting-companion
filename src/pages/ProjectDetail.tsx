@@ -451,17 +451,24 @@ const ProjectDetail = () => {
   const getRootItemChildren = (root: CraftingNode) => getChildren(root.id).filter(c => c.item_name !== 'enchanted_book');
   const getRootBookChildren = (root: CraftingNode) => getChildren(root.id).filter(c => c.item_name === 'enchanted_book');
 
+  /** Get only enchantments whose corresponding book nodes are fully collected */
+  const getCollectedEnchantments = (node: CraftingNode): { name: string; level: number }[] => {
+    const bookChildren = nodes.filter(
+      n => n.parent_id === node.id && n.item_name === 'enchanted_book'
+    );
+    if (bookChildren.length === 0) {
+      // No book children — return empty (nothing collected)
+      return [];
+    }
+    return bookChildren
+      .filter(b => b.collected_qty >= b.required_qty)
+      .flatMap(b => (b.enchantments || []).map((e: any) => ({ name: e.name, level: e.level })));
+  };
+
   // Decide which nodes should show an Enchantment Summary panel
   const displayEnchantmentNodes = nodes.filter(node => {
-    // 1. Show if it actually has enchantments
+    // Only show if it actually has enchantments assigned
     if (Array.isArray(node.enchantments) && node.enchantments.length > 0) return true;
-
-    // 2. Show for root nodes if they are enchantable (determined by metadata)
-    if (node.parent_id === null) {
-      const meta = enchMetadata[node.item_name];
-      if (meta && Array.isArray(meta.possibleEnchantments) && meta.possibleEnchantments.length > 0) return true;
-    }
-
     return false;
   });
 
@@ -549,7 +556,7 @@ const ProjectDetail = () => {
                 {editingEnchantments !== node.id && (() => {
                   const hasEnchants = Array.isArray(node.enchantments) && node.enchantments.length > 0;
                   const meta = enchMetadata[node.item_name];
-                  const isEnchantable = (meta && Array.isArray(meta.possibleEnchantments) && meta.possibleEnchantments.length > 0) || (node.parent_id === null && !node.is_resource) || hasEnchants;
+                  const isEnchantable = hasEnchants || (meta && Array.isArray(meta.possibleEnchantments) && meta.possibleEnchantments.length > 0);
 
                   if (!isEnchantable) return null;
 
@@ -571,7 +578,7 @@ const ProjectDetail = () => {
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setEnchantGridItem(node.item_name);
-                                  setEnchantGridEnchants((node.enchantments || []).map((e: any) => ({ name: e.name, level: e.level })));
+                                  setEnchantGridEnchants(getCollectedEnchantments(node));
                                   setShowEnchantGrid(true);
                                   soundManager.playSound('button');
                                 }}
@@ -796,7 +803,7 @@ const ProjectDetail = () => {
                     size="sm"
                     onClick={() => {
                       setEnchantGridItem(node.item_name);
-                      setEnchantGridEnchants((node.enchantments || []).map((e: any) => ({ name: e.name, level: e.level })));
+                      setEnchantGridEnchants(getCollectedEnchantments(node));
                       setShowEnchantGrid(true);
                       soundManager.playSound('button');
                     }}

@@ -15,7 +15,7 @@ import {
   Sparkles, BookOpen, Loader2, ArrowRight, Info,
 } from 'lucide-react';
 import { fetchEnchantmentData, type EnchantmentDetail } from '@/lib/api';
-import { toRoman, booksNeededForLevel, getAnvilSteps, getBestStrategy } from '@/lib/enchantmentBooks';
+import { toRoman, booksNeededForLevel, getAnvilSteps, getBestStrategy, getEnchantmentInfo } from '@/lib/enchantmentBooks';
 
 // ── Props ────────────────────────────────────────────────────────
 
@@ -54,11 +54,21 @@ export default function EnchantedBookModal({
   const displayName = data?.displayName
     || enchantmentName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   const booksNeeded = booksNeededForLevel(targetLevel);
-  const anvilSteps = data?.anvilSteps?.length
-    ? data.anvilSteps
-    : getAnvilSteps(targetLevel).map(s => ({ step: s.step, description: s.description }));
+
+  // Get anvil steps for this specific target level from server data, or fall back to client
+  const serverAnvilEntry = data?.anvilSteps?.find(a => a.targetLevel === targetLevel);
+  const anvilSteps = serverAnvilEntry
+    ? serverAnvilEntry.steps
+    : getAnvilSteps(targetLevel);
+
   const strategy = data?.bestStrategy || getBestStrategy(enchantmentName, targetLevel);
-  const sources = data?.sources || [];
+
+  // Sources: prefer server data, fall back to client-side enchantment data which has rich descriptions
+  const clientInfo = getEnchantmentInfo(enchantmentName);
+  const sources = data?.sources?.length
+    ? data.sources
+    : (clientInfo?.sources || []).map(s => ({ method: s.method, description: s.description, icon: s.icon, maxLevel: s.maxLevel }));
+
   const maxLevel = data?.maxLevel ?? targetLevel;
   const isTreasure = data?.treasureOnly ?? false;
   const isCurse = data?.curse ?? false;
@@ -82,7 +92,7 @@ export default function EnchantedBookModal({
                 </div>
                 <div className="min-w-0">
                   <DialogTitle className="text-xl font-bold flex items-center gap-2 flex-wrap">
-                    {displayName} {toRoman(targetLevel)}
+                    Enchanted Book ({displayName} {toRoman(targetLevel)})
                     {isTreasure && (
                       <span className="text-[10px] bg-yellow-500/15 text-yellow-400 border border-yellow-500/20 px-1.5 py-0.5 rounded-full font-medium">
                         Treasure
@@ -134,7 +144,7 @@ export default function EnchantedBookModal({
                       <p className="font-bold">{toRoman(lv.level)}</p>
                       <p className="text-[9px] mt-0.5">{lv.booksNeeded} book{lv.booksNeeded !== 1 ? 's' : ''}</p>
                       <p className="text-[8px] text-muted-foreground/60 mt-0.5">
-                        XP {lv.minCost}–{lv.maxCost}
+                        XP {lv.minXp}+
                       </p>
                     </div>
                   ))}
@@ -149,28 +159,20 @@ export default function EnchantedBookModal({
                   Anvil Combining Progress · {booksNeeded} books → 1 final
                 </p>
                 <div className="space-y-1.5">
-                  {anvilSteps.map((step, idx) => {
-                    // Parse step info from client-side data
-                    const clientStep = getAnvilSteps(targetLevel)[idx];
-                    const inputLevel = clientStep?.inputLevel ?? idx + 1;
-                    const outputLevel = clientStep?.outputLevel ?? idx + 2;
-                    const count = clientStep?.count ?? Math.pow(2, targetLevel - idx - 2);
-
-                    return (
-                      <div key={step.step} className="flex items-center gap-3 text-sm px-3 py-2 rounded-lg bg-white/5">
-                        <span className="text-muted-foreground font-mono text-[10px] w-5 flex-shrink-0">
-                          #{step.step}
-                        </span>
-                        <span className="flex-1 font-medium text-xs">
-                          {count}× [{toRoman(inputLevel)} + {toRoman(inputLevel)}]
-                        </span>
-                        <ArrowRight className="w-3 h-3 text-muted-foreground" />
-                        <span className="text-purple-400 font-bold text-xs">
-                          {count}× {toRoman(outputLevel)}
-                        </span>
-                      </div>
-                    );
-                  })}
+                  {anvilSteps.map((step) => (
+                    <div key={step.step} className="flex items-center gap-3 text-sm px-3 py-2 rounded-lg bg-white/5">
+                      <span className="text-muted-foreground font-mono text-[10px] w-5 flex-shrink-0">
+                        #{step.step}
+                      </span>
+                      <span className="flex-1 font-medium text-xs">
+                        {step.count}× [{toRoman(step.inputLevel)} + {toRoman(step.inputLevel)}]
+                      </span>
+                      <ArrowRight className="w-3 h-3 text-muted-foreground" />
+                      <span className="text-purple-400 font-bold text-xs">
+                        {step.count}× {toRoman(step.outputLevel)}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -186,7 +188,8 @@ export default function EnchantedBookModal({
                     <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-secondary/40 border border-white/5">
                       <span className="text-lg flex-shrink-0">{src.icon}</span>
                       <div className="min-w-0">
-                        <p className="text-xs font-bold text-foreground">{src.source}</p>
+                        <p className="text-xs font-bold text-foreground">{src.method}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{src.description}</p>
                       </div>
                     </div>
                   ))}
