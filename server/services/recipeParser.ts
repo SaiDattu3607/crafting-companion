@@ -1634,8 +1634,8 @@ function getEnchantmentsForCategory(category: string): { name: string; level: nu
     return out;
   };
 
-  // Common enchantments useful for many tools
-  const common = pick(['unbreaking', 'mending']);
+  // Common enchantments useful for many tools/armor (NOT food/generic items)
+  const common = category !== 'generic' ? pick(['unbreaking', 'mending']) : [];
 
   // Category → candidate enchantment names (fall back to heuristics)
   const candidates: Record<string, string[]> = {
@@ -1651,6 +1651,10 @@ function getEnchantmentsForCategory(category: string): { name: string; level: nu
   };
 
   const names = candidates[category] || [];
+
+  // Generic category (food, potions, dyes, etc.) — no enchantments
+  if (category === 'generic' && names.length === 0) return [];
+
   const found = pick(names);
 
   // append common enchants that exist

@@ -528,14 +528,31 @@ const ProjectDetail = () => {
                   className={`font-semibold truncate cursor-pointer hover:text-primary hover:underline underline-offset-2 transition-colors ${depth === 0 ? 'text-base' : 'text-sm'}`}
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (node.item_name === 'enchanted_book' && node.enchantments?.length) {
-                      const ench = node.enchantments[0];
-                      setBookModalEnchant(ench.name);
-                      setBookModalLevel(ench.level);
-                      // Find parent node name for context
-                      const parent = nodes.find(n => n.id === node.parent_id);
-                      setBookModalForItem(parent?.display_name);
-                      setShowBookModal(true);
+                    if (node.item_name === 'enchanted_book') {
+                      // Try to get enchantment from node data, or parse from display_name
+                      let enchName: string | null = null;
+                      let enchLevel = 1;
+                      if (node.enchantments?.length) {
+                        enchName = node.enchantments[0].name;
+                        enchLevel = node.enchantments[0].level;
+                      } else {
+                        // Parse from display_name like "Enchanted Book (sharpness 4)"
+                        const match = node.display_name.match(/\(([\w\s]+?)\s+(\d+)\)/);
+                        if (match) {
+                          enchName = match[1].trim().replace(/\s+/g, '_');
+                          enchLevel = parseInt(match[2]) || 1;
+                        }
+                      }
+                      if (enchName) {
+                        setBookModalEnchant(enchName);
+                        setBookModalLevel(enchLevel);
+                        const parent = nodes.find(n => n.id === node.parent_id);
+                        setBookModalForItem(parent?.display_name);
+                        setShowBookModal(true);
+                      } else {
+                        setDetailItemName(node.item_name);
+                        setShowItemDetail(true);
+                      }
                     } else {
                       setDetailItemName(node.item_name);
                       setShowItemDetail(true);
@@ -589,7 +606,7 @@ const ProjectDetail = () => {
                                 title={minXp !== null
                                   ? canDo
                                     ? `${en.name.replace(/_/g, ' ')} ${en.level} — Requires Lv ${minXp} (you: Lv ${myLevel}) ✓ · Click for details`
-                                    : `${en.name.replace(/_/g, ' ')} ${en.level} — Requires Lv ${minXp} (you: Lv ${myLevel}) ✗${bestName ? ` — ${bestName} can do it` : ''} · Click for details`
+                                    : `${en.name.replace(/_/g, ' ')} ${en.level} — Requires Lv ${minXp} (you: Lv ${myLevel}) ✗${bestName ? ` — ${bestName} can do it` : ' — No team member has the level'} · Click for details`
                                   : `${en.name.replace(/_/g, ' ')} ${en.level} · Click for details`
                                 }
                               >
@@ -600,8 +617,13 @@ const ProjectDetail = () => {
                                   </span>
                                 )}
                                 {!canDo && bestName && (
-                                  <span className="text-[9px] text-emerald-400/80">
-                                    → {bestName.split(' ')[0]}
+                                  <span className="text-[9px] text-emerald-400/80 font-semibold">
+                                    → {bestName}
+                                  </span>
+                                )}
+                                {!canDo && !bestName && minXp !== null && (
+                                  <span className="text-[9px] text-red-400/80 font-semibold">
+                                    ✗ no one
                                   </span>
                                 )}
                               </button>
@@ -815,15 +837,45 @@ const ProjectDetail = () => {
 
                 <div className="flex flex-wrap gap-2">
                   {(node.enchantments || []).length > 0 ? (
-                    (node.enchantments || []).map((en: any, i: number) => (
-                      <div
-                        key={i}
-                        className="bg-purple-500/5 border border-purple-500/10 px-3 py-1.5 rounded-lg flex items-center gap-2"
-                      >
-                        <span className="text-[10px] font-mono font-bold text-purple-300 bg-purple-500/10 w-5 h-5 rounded flex items-center justify-center">{toRoman(en.level)}</span>
-                        <span className="text-xs font-semibold text-purple-200">{en.name.replace(/_/g, ' ')}</span>
-                      </div>
-                    ))
+                    (node.enchantments || []).map((en: any, i: number) => {
+                      const minXp = getMinXpLevel(en.name, en.level);
+                      const myLevel = user?.minecraft_level ?? 0;
+                      const canDo = minXp !== null ? myLevel >= minXp : true;
+                      const bestMember = !canDo ? getBestMemberForEnchantment(en.name, en.level) : null;
+                      const bestName = bestMember ? ((bestMember.profiles as any)?.full_name || (bestMember.profiles as any)?.email || 'User') : null;
+
+                      return (
+                        <div
+                          key={i}
+                          className={`px-3 py-1.5 rounded-lg flex items-center gap-2 ${
+                            canDo
+                              ? 'bg-purple-500/5 border border-purple-500/10'
+                              : 'bg-amber-500/5 border border-amber-500/15'
+                          }`}
+                        >
+                          <span className={`text-[10px] font-mono font-bold w-5 h-5 rounded flex items-center justify-center ${
+                            canDo ? 'text-purple-300 bg-purple-500/10' : 'text-amber-300 bg-amber-500/10'
+                          }`}>{toRoman(en.level)}</span>
+                          <span className={`text-xs font-semibold ${canDo ? 'text-purple-200' : 'text-amber-200'}`}>
+                            {en.name.replace(/_/g, ' ')}
+                          </span>
+                          {minXp !== null && (
+                            <span className={`text-[9px] ${canDo ? 'text-muted-foreground/50' : 'text-amber-400/70 font-bold'}`}>
+                              Lv{minXp}
+                            </span>
+                          )}
+                          {canDo && (
+                            <span className="text-[9px] text-emerald-400/70">✓ You</span>
+                          )}
+                          {!canDo && bestName && (
+                            <span className="text-[9px] text-emerald-400/80 font-semibold">→ {bestName}</span>
+                          )}
+                          {!canDo && !bestName && minXp !== null && (
+                            <span className="text-[9px] text-red-400/80 font-semibold">✗ No one can</span>
+                          )}
+                        </div>
+                      );
+                    })
                   ) : (
                     <div className="text-[10px] text-muted-foreground/60 italic px-1">No enchantments applied yet</div>
                   )}
@@ -980,8 +1032,9 @@ const ProjectDetail = () => {
                       </div>
                     )}
 
-                    {/* Enchantments (if applicable) */}
-                    {addItemSelected.possibleEnchantments && addItemSelected.possibleEnchantments.length > 0 && (
+                    {/* Enchantments (if applicable — only for tools/armor/weapons, not food/generic) */}
+                    {addItemSelected.possibleEnchantments && addItemSelected.possibleEnchantments.length > 0
+                      && addItemSelected.category !== 'generic' && (
                       <div className="space-y-2">
                         <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
                           <Sparkles className="w-3 h-3 text-purple-400" /> Enchantments (optional)
