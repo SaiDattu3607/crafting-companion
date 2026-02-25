@@ -74,6 +74,7 @@ export default function EnchantedBookModal({
   const isCurse = data?.curse ?? false;
   const category = data?.category ?? '';
   const excludes = data?.exclude ?? [];
+  const description = data?.description || null;
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
@@ -116,6 +117,13 @@ export default function EnchantedBookModal({
                 </div>
               </div>
             </DialogHeader>
+
+            {/* ── Description ─────────────────────────────── */}
+            {description && (
+              <div className="px-6 pb-2">
+                <p className="text-sm text-foreground/80 leading-relaxed">{description}</p>
+              </div>
+            )}
 
             {/* ── Best Strategy Tip ───────────────────────── */}
             <div className="px-6 pb-2">

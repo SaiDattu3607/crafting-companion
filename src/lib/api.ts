@@ -468,6 +468,7 @@ export async function fetchItemDetail(itemName: string): Promise<ItemDetail | nu
 export interface EnchantmentDetail {
   name: string;
   displayName: string;
+  description?: string | null;
   maxLevel: number;
   treasureOnly: boolean;
   curse: boolean;

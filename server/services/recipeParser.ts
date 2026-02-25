@@ -635,6 +635,49 @@ export function getEnchantmentMaxLevel(enchantmentName: string): number | null {
  * Get full enchantment details from minecraft-data for a given enchantment name.
  * Used by the Enchanted Book Guide modal.
  */
+// ── Enchantment descriptions (what each enchantment actually does) ─────────
+const ENCHANTMENT_DESCRIPTIONS: Record<string, string> = {
+  sharpness: 'Increases melee damage by 0.5 × level + 0.5. Applies to swords and axes.',
+  smite: 'Increases damage against undead mobs (zombies, skeletons, wither, phantoms) by 2.5 × level.',
+  bane_of_arthropods: 'Increases damage against arthropod mobs (spiders, silverfish, endermites, bees) by 2.5 × level and applies Slowness IV.',
+  knockback: 'Increases knockback distance by 3 blocks per level when hitting mobs.',
+  fire_aspect: 'Sets the target on fire for 4 seconds per level, dealing extra fire damage.',
+  looting: 'Increases maximum mob loot drops by 1 per level and improves rare drop chances.',
+  sweeping: 'Increases sweeping attack damage. Also known as Sweeping Edge.',
+  efficiency: 'Increases mining speed. Each level adds 1 + level² to mining speed.',
+  silk_touch: 'Mined blocks drop themselves instead of their usual drops (e.g., stone instead of cobblestone).',
+  fortune: 'Increases the number of drops from mining. Level III can yield up to 4× drops from ores.',
+  unbreaking: 'Increases item durability. At level III, tools last roughly 4× longer on average.',
+  mending: 'Repairs the item using XP orbs collected while holding it. 1 XP = 2 durability.',
+  protection: 'Reduces all incoming damage by 4% per level. Stacks across armor pieces (max 80%).',
+  projectile_protection: 'Reduces projectile damage (arrows, fireballs, etc.) by 8% per level.',
+  blast_protection: 'Reduces explosion damage by 8% per level and reduces explosion knockback.',
+  fire_protection: 'Reduces fire damage by 8% per level and reduces burn time.',
+  thorns: 'Gives a chance to deal 1-4 damage to attackers when hit. Higher levels increase the chance.',
+  feather_falling: 'Reduces fall damage by 12% per level. Essential for boots.',
+  respiration: 'Extends underwater breathing time by 15 seconds per level and improves underwater vision.',
+  aqua_affinity: 'Removes the underwater mining speed penalty. Full mining speed underwater.',
+  depth_strider: 'Increases underwater movement speed. Level III matches walking speed on land.',
+  frost_walker: 'Creates frosted ice blocks when walking on water. Treasure enchantment.',
+  soul_speed: 'Increases walking speed on soul sand and soul soil. Found only in Bastion Remnants.',
+  power: 'Increases arrow damage by 25% × (level + 1). At level V, arrows deal 150% extra damage.',
+  punch: 'Increases arrow knockback by 3 blocks per level.',
+  flame: 'Arrows set targets on fire for 5 seconds, dealing 4 extra fire damage.',
+  infinity: 'Shooting doesn\'t consume arrows (must have at least 1 arrow). Incompatible with Mending.',
+  luck_of_the_sea: 'Increases chance of catching treasure items while fishing by ~2% per level.',
+  lure: 'Decreases wait time for fish to bite by 5 seconds per level.',
+  impaling: 'Increases damage against aquatic mobs by 2.5 per level (Java) or all mobs in water (Bedrock).',
+  loyalty: 'Trident returns after being thrown. Higher levels make it return faster.',
+  channeling: 'During thunderstorms, thrown trident summons a lightning bolt on impact.',
+  riptide: 'Throwing the trident propels the player when in water or rain. Incompatible with Loyalty/Channeling.',
+  multishot: 'Crossbow fires 3 arrows at once but only consumes 1 arrow.',
+  piercing: 'Arrows pass through multiple entities. Level determines how many extra entities.',
+  quick_charge: 'Decreases crossbow reload time by 0.25 seconds per level.',
+  curse_of_vanishing: 'Item disappears when the player dies instead of dropping. Cannot be removed.',
+  curse_of_binding: 'Prevents removing the item from its armor slot once equipped. Only removed by dying or breaking.',
+  swift_sneak: 'Increases sneaking speed. At level III, sneak speed is 75% of walking speed.',
+};
+
 export function getEnchantmentData(enchantmentName: string) {
   const key = enchantmentName.toLowerCase().replace(/\s+/g, '_');
   const enchantmentsArray: any[] = (mcData as any).enchantmentsArray || [];
@@ -716,6 +759,7 @@ export function getEnchantmentData(enchantmentName: string) {
   return {
     name: ench.name,
     displayName: ench.displayName,
+    description: ENCHANTMENT_DESCRIPTIONS[key] || null,
     maxLevel,
     treasureOnly: ench.treasureOnly || false,
     curse: ench.curse || false,

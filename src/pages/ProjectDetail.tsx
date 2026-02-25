@@ -115,17 +115,13 @@ const ProjectDetail = () => {
     return null;
   };
 
-  /** Get the member with the highest minecraft_level who can do a given enchantment */
-  const getBestMemberForEnchantment = (enchName: string, enchLevel: number) => {
+  /** Get names of all team members (excluding self) who can perform an enchantment */
+  const getCapableMemberNames = (enchName: string, enchLevel: number): string[] => {
     const minLevel = getMinXpLevel(enchName, enchLevel);
-    if (minLevel === null) return null;
-    const capable = members.filter(m => {
-      const mLevel = (m.profiles as any)?.minecraft_level ?? 0;
-      return mLevel >= minLevel;
-    });
-    if (capable.length === 0) return null;
-    // Return the member with the highest level
-    return capable.sort((a, b) => ((b.profiles as any)?.minecraft_level ?? 0) - ((a.profiles as any)?.minecraft_level ?? 0))[0];
+    if (minLevel === null) return [];
+    return members
+      .filter(m => m.user_id !== user?.id && ((m.profiles as any)?.minecraft_level ?? 0) >= minLevel)
+      .map(m => (m.profiles as any)?.full_name || (m.profiles as any)?.email || 'User');
   };
 
   const loadProject = useCallback(async () => {
@@ -467,8 +463,13 @@ const ProjectDetail = () => {
 
   // Decide which nodes should show an Enchantment Summary panel
   const displayEnchantmentNodes = nodes.filter(node => {
-    // Only show if it actually has enchantments assigned
+    // Show if it actually has enchantments assigned
     if (Array.isArray(node.enchantments) && node.enchantments.length > 0) return true;
+    // Also show root target items that are enchantable (based on metadata), excluding food/generic
+    if (node.parent_id === null && node.item_name !== 'enchanted_book') {
+      const meta = enchMetadata[node.item_name];
+      if (meta && meta.category !== 'generic' && Array.isArray(meta.possibleEnchantments) && meta.possibleEnchantments.length > 0) return true;
+    }
     return false;
   });
 
@@ -586,8 +587,7 @@ const ProjectDetail = () => {
                             const minXp = getMinXpLevel(en.name, en.level);
                             const myLevel = user?.minecraft_level ?? 0;
                             const canDo = minXp !== null ? myLevel >= minXp : true;
-                            const bestMember = !canDo ? getBestMemberForEnchantment(en.name, en.level) : null;
-                            const bestName = bestMember ? ((bestMember.profiles as any)?.full_name || (bestMember.profiles as any)?.email || 'User') : null;
+                            const capableNames = !canDo ? getCapableMemberNames(en.name, en.level) : [];
 
                             return (
                               <button
@@ -606,7 +606,7 @@ const ProjectDetail = () => {
                                 title={minXp !== null
                                   ? canDo
                                     ? `${en.name.replace(/_/g, ' ')} ${en.level} — Requires Lv ${minXp} (you: Lv ${myLevel}) ✓ · Click for details`
-                                    : `${en.name.replace(/_/g, ' ')} ${en.level} — Requires Lv ${minXp} (you: Lv ${myLevel}) ✗${bestName ? ` — ${bestName} can do it` : ' — No team member has the level'} · Click for details`
+                                    : `${en.name.replace(/_/g, ' ')} ${en.level} — Requires Lv ${minXp} (you: Lv ${myLevel}) ✗${capableNames.length ? ` — ${capableNames.join(', ')} can do it` : ' — No team member has the level'} · Click for details`
                                   : `${en.name.replace(/_/g, ' ')} ${en.level} · Click for details`
                                 }
                               >
@@ -616,12 +616,12 @@ const ProjectDetail = () => {
                                     Lv{minXp}
                                   </span>
                                 )}
-                                {!canDo && bestName && (
+                                {!canDo && capableNames.length > 0 && (
                                   <span className="text-[9px] text-emerald-400/80 font-semibold">
-                                    → {bestName}
+                                    → {capableNames.join(', ')}
                                   </span>
                                 )}
-                                {!canDo && !bestName && minXp !== null && (
+                                {!canDo && capableNames.length === 0 && minXp !== null && (
                                   <span className="text-[9px] text-red-400/80 font-semibold">
                                     ✗ no one
                                   </span>
@@ -841,8 +841,7 @@ const ProjectDetail = () => {
                       const minXp = getMinXpLevel(en.name, en.level);
                       const myLevel = user?.minecraft_level ?? 0;
                       const canDo = minXp !== null ? myLevel >= minXp : true;
-                      const bestMember = !canDo ? getBestMemberForEnchantment(en.name, en.level) : null;
-                      const bestName = bestMember ? ((bestMember.profiles as any)?.full_name || (bestMember.profiles as any)?.email || 'User') : null;
+                      const capableNames = !canDo ? getCapableMemberNames(en.name, en.level) : [];
 
                       return (
                         <div
@@ -867,10 +866,10 @@ const ProjectDetail = () => {
                           {canDo && (
                             <span className="text-[9px] text-emerald-400/70">✓ You</span>
                           )}
-                          {!canDo && bestName && (
-                            <span className="text-[9px] text-emerald-400/80 font-semibold">→ {bestName}</span>
+                          {!canDo && capableNames.length > 0 && (
+                            <span className="text-[9px] text-emerald-400/80 font-semibold">→ {capableNames.join(', ')}</span>
                           )}
-                          {!canDo && !bestName && minXp !== null && (
+                          {!canDo && capableNames.length === 0 && minXp !== null && (
                             <span className="text-[9px] text-red-400/80 font-semibold">✗ No one can</span>
                           )}
                         </div>
