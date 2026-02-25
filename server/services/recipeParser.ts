@@ -386,6 +386,8 @@ export async function parseRecipeTree(
     if (variantInfo) {
       const rootIndex = 0;
       const rootNode = allNodes[rootIndex];
+      // Potions are brewed, not raw resources — mark as craftable so UI shows "⚒ Craft"
+      rootNode.is_resource = false;
       const brewDepth = rootNode.depth + 1;
 
       // Add Nether Wart (base ingredient for Awkward Potion)

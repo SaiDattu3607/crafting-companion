@@ -657,27 +657,28 @@ const ProjectDetail = () => {
                 {/* Inline Editing */}
                 {editingEnchantments === node.id && (
                   <div className="flex items-center gap-1.5 bg-purple-500/10 px-2 py-1 rounded-lg border border-purple-500/20">
-                    {editEnchantmentLevels.map((en, i) => (
-                      <span key={`${en.name}-${i}`} className="inline-flex items-center gap-1 text-[10px] text-purple-300 font-medium">
-                        {en.name.replace(/_/g, ' ')}
-                        <input
-                          type="number" min={1} max={10}
-                          value={en.level || ''}
-                          onChange={(e) => {
-                            const raw = e.target.value;
-                            const newLevels = [...editEnchantmentLevels];
-                            newLevels[i] = { ...newLevels[i], level: raw === '' ? 0 : Math.min(10, parseInt(raw) || 0) };
-                            setEditEnchantmentLevels(newLevels);
-                          }}
-                          onBlur={() => {
-                            const newLevels = [...editEnchantmentLevels];
-                            if (newLevels[i].level < 1) newLevels[i] = { ...newLevels[i], level: 1 };
-                            setEditEnchantmentLevels(newLevels);
-                          }}
-                          className="w-7 h-4 text-center bg-purple-500/20 border border-purple-400/30 rounded text-purple-200"
-                        />
-                      </span>
-                    ))}
+                    {editEnchantmentLevels.map((en, i) => {
+                      const meta = enchMetadata[nodes.find(n => n.id === editingEnchantments)?.item_name || ''];
+                      const maxLvl = meta?.possibleEnchantments?.find(pe => pe.name === en.name)?.level || 5;
+                      return (
+                        <span key={`${en.name}-${i}`} className="inline-flex items-center gap-1 text-[10px] text-purple-300 font-medium">
+                          {en.name.replace(/_/g, ' ')}
+                          <select
+                            value={en.level}
+                            onChange={(e) => {
+                              const newLevels = [...editEnchantmentLevels];
+                              newLevels[i] = { ...newLevels[i], level: parseInt(e.target.value) || 1 };
+                              setEditEnchantmentLevels(newLevels);
+                            }}
+                            className="w-8 h-4 text-center bg-purple-500/20 border border-purple-400/30 rounded text-purple-200 text-[10px] appearance-none px-0.5"
+                          >
+                            {Array.from({ length: maxLvl }, (_, j) => j + 1).map(l => (
+                              <option key={l} value={l}>{l}</option>
+                            ))}
+                          </select>
+                        </span>
+                      );
+                    })}
                     <button onClick={() => handleSaveEnchantments(node.id)} disabled={savingEnchantments} className="text-emerald-400 hover:text-emerald-300">
                       {savingEnchantments ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
                     </button>
@@ -1041,7 +1042,12 @@ const ProjectDetail = () => {
                         <div className="flex gap-2 flex-wrap">
                           <select
                             value={addItemEnchantName}
-                            onChange={e => setAddItemEnchantName(e.target.value)}
+                            onChange={e => {
+                              const newName = e.target.value;
+                              setAddItemEnchantName(newName);
+                              const newMax = addItemSelected.possibleEnchantments?.find(en => en.name === newName)?.level || 1;
+                              if (addItemEnchantLevel > newMax) setAddItemEnchantLevel(newMax);
+                            }}
                             className="bg-secondary/60 border border-white/8 rounded-lg px-2 py-1 text-xs text-foreground flex-1 min-w-[120px]"
                           >
                             {addItemSelected.possibleEnchantments.map(e => (
@@ -1050,18 +1056,15 @@ const ProjectDetail = () => {
                               </option>
                             ))}
                           </select>
-                          <Input
-                            type="number"
-                            min={1}
-                            max={addItemSelected.possibleEnchantments.find(e => e.name === addItemEnchantName)?.level || 5}
-                            value={addItemEnchantLevel || ''}
-                            onChange={e => {
-                              const raw = e.target.value;
-                              setAddItemEnchantLevel(raw === '' ? 0 : Math.min(addItemSelected.possibleEnchantments?.find(en => en.name === addItemEnchantName)?.level || 5, parseInt(raw) || 0));
-                            }}
-                            onBlur={() => { if (addItemEnchantLevel < 1) setAddItemEnchantLevel(1); }}
-                            className="bg-secondary/60 border-white/8 rounded-lg h-7 w-16 text-xs"
-                          />
+                          <select
+                            value={addItemEnchantLevel}
+                            onChange={e => setAddItemEnchantLevel(parseInt(e.target.value) || 1)}
+                            className="bg-secondary/60 border border-white/8 rounded-lg px-2 py-1 text-xs text-foreground w-14"
+                          >
+                            {Array.from({ length: addItemSelected.possibleEnchantments.find(e => e.name === addItemEnchantName)?.level || 1 }, (_, i) => i + 1).map(l => (
+                              <option key={l} value={l}>{l}</option>
+                            ))}
+                          </select>
                           <Button
                             size="sm"
                             variant="outline"
@@ -1077,14 +1080,30 @@ const ProjectDetail = () => {
                         </div>
                         {addItemEnchantments.length > 0 && (
                           <div className="flex flex-wrap gap-1.5">
-                            {addItemEnchantments.map((e, i) => (
-                              <span key={i} className="inline-flex items-center gap-1 bg-purple-500/10 border border-purple-500/20 text-purple-200 text-[10px] px-2 py-0.5 rounded-full">
-                                {e.name.replace(/_/g, ' ')} {toRoman(e.level)}
-                                <button onClick={() => setAddItemEnchantments(addItemEnchantments.filter((_, j) => j !== i))} className="hover:text-red-400">
-                                  <X className="w-2.5 h-2.5" />
-                                </button>
-                              </span>
-                            ))}
+                            {addItemEnchantments.map((e, i) => {
+                              const maxLvl = addItemSelected.possibleEnchantments?.find(pe => pe.name === e.name)?.level || 1;
+                              return (
+                                <span key={i} className="inline-flex items-center gap-1 bg-purple-500/10 border border-purple-500/20 text-purple-200 text-[10px] px-2 py-0.5 rounded-full">
+                                  {e.name.replace(/_/g, ' ')}
+                                  <select
+                                    value={e.level}
+                                    onChange={(ev) => {
+                                      const newEnchants = [...addItemEnchantments];
+                                      newEnchants[i] = { ...newEnchants[i], level: parseInt(ev.target.value) || 1 };
+                                      setAddItemEnchantments(newEnchants);
+                                    }}
+                                    className="bg-purple-500/20 border-none rounded text-purple-200 text-[10px] px-0.5 py-0 h-4 appearance-none cursor-pointer focus:outline-none"
+                                  >
+                                    {Array.from({ length: maxLvl }, (_, j) => j + 1).map(l => (
+                                      <option key={l} value={l}>{toRoman(l)}</option>
+                                    ))}
+                                  </select>
+                                  <button onClick={() => setAddItemEnchantments(addItemEnchantments.filter((_, j) => j !== i))} className="hover:text-red-400">
+                                    <X className="w-2.5 h-2.5" />
+                                  </button>
+                                </span>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
