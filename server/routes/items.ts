@@ -6,12 +6,23 @@
 
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
-import { searchItems, lookupItem, getItemDetail } from '../services/recipeParser.js';
+import { searchItems, lookupItem, getItemDetail, getEnchantmentData } from '../services/recipeParser.js';
 
 const router = Router();
 
 // Authentication required but no project membership needed
 router.use(authMiddleware);
+
+// ── GET /api/items/enchantment/:enchantmentName ────────────────
+// Get full enchantment data from minecraft-data (for Enchanted Book Guide modal)
+router.get('/enchantment/:enchantmentName', async (req: Request, res: Response) => {
+  const data = getEnchantmentData(req.params.enchantmentName);
+  if (!data) {
+    res.status(404).json({ error: `Enchantment "${req.params.enchantmentName}" not found` });
+    return;
+  }
+  res.json(data);
+});
 
 // ── GET /api/items/search?q=... ────────────────────────────────
 // Search Minecraft items by partial name

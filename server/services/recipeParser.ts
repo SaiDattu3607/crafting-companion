@@ -246,14 +246,9 @@ export async function parseRecipeTree(
     throw new Error(`Unknown Minecraft item: "${rootItemName}". Check the item name.`);
   }
 
-  // If enchantments were requested on the final item, apply a simple
-  // planning multiplier so enchantments affect required quantities.
-  // Each enchant level increases resource needs by 20% (rounded up).
-  const totalEnchantLevels = (enchantments || []).reduce((s, e) => s + (e?.level || 0), 0);
-  if (totalEnchantLevels > 0) {
-    const multiplier = 1 + 0.2 * totalEnchantLevels;
-    totalQuantity = Math.ceil(totalQuantity * multiplier);
-  }
+  // If enchantments were requested on the final item, note it but do NOT
+  // inflate totalQuantity — enchantments are applied separately at an anvil
+  // and do not change the base crafting resource needs.
 
   // Track all nodes to batch insert
   const allNodes: CraftingNode[] = [];
@@ -351,41 +346,37 @@ export async function parseRecipeTree(
 
   // For each enchantable tool/armor in the tree, add an Enchanted Book requirement per enchantment
   if (enchantments && enchantments.length > 0) {
-    const bookAdds: { parentIndex: number; requiredQty: number }[] = [];
-    for (let i = 0; i < allNodes.length; i++) {
-      const node = allNodes[i];
-      if (!enchantmentAppliesToItem(node.item_name, enchantments)) continue;
-      bookAdds.push({ parentIndex: i, requiredQty: node.required_qty });
-    }
+    // Only the root node (depth 0) should get enchanted books — enchantments are applied
+    // to the final item, not to intermediate crafting steps.
+    const rootNode = allNodes[0];
+    const rootIndex = 0;
+
     // Create a separate enchanted book node per enchantment
     for (const ench of enchantments) {
       const enchLabel = `${ench.name.replace(/_/g, ' ')} ${ench.level}`;
-      let enchBookQty = 0;
-      for (const { parentIndex, requiredQty } of bookAdds) {
-        const parentNode = allNodes[parentIndex];
-        const bookNode: CraftingNode = {
-          project_id: projectId,
-          parent_id: null,
-          item_name: 'enchanted_book',
-          display_name: `Enchanted Book (${enchLabel})`,
-          required_qty: requiredQty,
-          collected_qty: 0,
-          is_resource: true,
-          is_block: false,
-          depth: parentNode.depth + 1,
-          status: 'pending',
-        };
-        (bookNode as any)._parentIndex = parentIndex;
-        allNodes.push(bookNode);
-        enchBookQty += requiredQty;
-      }
-      if (enchBookQty > 0) {
-        const key = `enchanted_book:${ench.name}`;
-        resourceTotals.set(key, {
-          displayName: `Enchanted Book (${enchLabel})`,
-          qty: enchBookQty,
-        });
-      }
+      // Need exactly 1 book per final item being crafted
+      const bookQty = rootNode.required_qty;
+      const bookNode: CraftingNode = {
+        project_id: projectId,
+        parent_id: null,
+        item_name: 'enchanted_book',
+        display_name: `Enchanted Book (${enchLabel})`,
+        required_qty: bookQty,
+        collected_qty: 0,
+        is_resource: true,
+        is_block: false,
+        depth: rootNode.depth + 1,
+        status: 'pending',
+        enchantments: [{ name: ench.name, level: ench.level }],
+      };
+      (bookNode as any)._parentIndex = rootIndex;
+      allNodes.push(bookNode);
+
+      const key = `enchanted_book:${ench.name}`;
+      resourceTotals.set(key, {
+        displayName: `Enchanted Book (${enchLabel})`,
+        qty: bookQty,
+      });
     }
   }
 
@@ -638,6 +629,106 @@ export function getEnchantmentMaxLevel(enchantmentName: string): number | null {
   const enchantmentsArray: any[] = (mcData as any).enchantmentsArray || [];
   const ench = enchantmentsArray.find((e: any) => e.name === enchantmentName);
   return ench ? (ench.maxLevel || 1) : null;
+}
+
+/**
+ * Get full enchantment details from minecraft-data for a given enchantment name.
+ * Used by the Enchanted Book Guide modal.
+ */
+export function getEnchantmentData(enchantmentName: string) {
+  const key = enchantmentName.toLowerCase().replace(/\s+/g, '_');
+  const enchantmentsArray: any[] = (mcData as any).enchantmentsArray || [];
+  const ench = enchantmentsArray.find((e: any) => e.name === key);
+  if (!ench) return null;
+
+  const maxLevel = ench.maxLevel || 1;
+  const minLevels = ENCHANTMENT_MIN_LEVELS[key];
+
+  // Build level requirements
+  const levels: { level: number; minXp: number; booksNeeded: number }[] = [];
+  for (let lvl = 1; lvl <= maxLevel; lvl++) {
+    levels.push({
+      level: lvl,
+      minXp: minLevels ? (lvl < minLevels.length ? minLevels[lvl] : lvl * 8) : lvl * 8,
+      booksNeeded: Math.pow(2, lvl - 1), // 2^(lvl-1) level-1 books needed
+    });
+  }
+
+  // Build anvil combining steps for each target level
+  const anvilSteps: { targetLevel: number; steps: { step: number; inputLevel: number; outputLevel: number; count: number }[] }[] = [];
+  for (let target = 2; target <= maxLevel; target++) {
+    const steps: { step: number; inputLevel: number; outputLevel: number; count: number }[] = [];
+    for (let lvl = 1; lvl < target; lvl++) {
+      const count = Math.pow(2, target - lvl - 1);
+      steps.push({ step: lvl, inputLevel: lvl, outputLevel: lvl + 1, count });
+    }
+    anvilSteps.push({ targetLevel: target, steps });
+  }
+
+  // Determine where to obtain enchanted books
+  const sources: { method: string; description: string; icon: string; maxLevel: number }[] = [];
+  if (!ench.treasureOnly) {
+    const maxTableLvl = Math.min(maxLevel, ench.category === 'breakable' ? 0 : maxLevel);
+    if (maxTableLvl > 0) {
+      sources.push({
+        method: 'Enchanting Table',
+        description: `Enchant a book at an enchanting table (up to level ${Math.min(maxTableLvl, 4)})`,
+        icon: '📖',
+        maxLevel: Math.min(maxTableLvl, 4),
+      });
+    }
+  }
+  if (ench.tradeable) {
+    sources.push({
+      method: 'Villager Trading',
+      description: `Trade with a Librarian villager`,
+      icon: '🧑‍🌾',
+      maxLevel,
+    });
+  }
+  if (ench.discoverable) {
+    sources.push({
+      method: 'Chest Loot',
+      description: 'Found in various structure chests (Dungeons, Temples, Bastions)',
+      icon: '📦',
+      maxLevel,
+    });
+  }
+  if (!ench.treasureOnly) {
+    sources.push({
+      method: 'Fishing',
+      description: 'Rare catch while fishing with Luck of the Sea',
+      icon: '🎣',
+      maxLevel: Math.min(maxLevel, 4),
+    });
+  }
+
+  // Best strategy
+  let bestStrategy: string;
+  if (ench.tradeable) {
+    bestStrategy = `Best: Trade with a Librarian villager for a ${ench.displayName} book directly.`;
+  } else if (ench.treasureOnly) {
+    bestStrategy = `${ench.displayName} is treasure-only — find it in structure chests or via trading.`;
+  } else {
+    bestStrategy = `Enchant books at a level 30 enchanting table, or trade with a Librarian.`;
+  }
+
+  return {
+    name: ench.name,
+    displayName: ench.displayName,
+    maxLevel,
+    treasureOnly: ench.treasureOnly || false,
+    curse: ench.curse || false,
+    category: ench.category,
+    weight: ench.weight,
+    tradeable: ench.tradeable || false,
+    discoverable: ench.discoverable || false,
+    exclude: ench.exclude || [],
+    levels,
+    anvilSteps,
+    sources,
+    bestStrategy,
+  };
 }
 
 /**

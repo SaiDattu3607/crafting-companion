@@ -464,6 +464,33 @@ export async function fetchItemDetail(itemName: string): Promise<ItemDetail | nu
   }
 }
 
+/** Enchantment data returned from the server */
+export interface EnchantmentDetail {
+  name: string;
+  displayName: string;
+  maxLevel: number;
+  treasureOnly: boolean;
+  curse: boolean;
+  category: string;
+  weight: number;
+  tradeable: boolean;
+  discoverable: boolean;
+  exclude: string[];
+  levels: { level: number; booksNeeded: number; minCost: number; maxCost: number }[];
+  anvilSteps: { step: number; description: string }[];
+  sources: { source: string; icon: string }[];
+  bestStrategy: string;
+}
+
+/** Fetch enchantment data (levels, anvil steps, sources) */
+export async function fetchEnchantmentData(enchantmentName: string): Promise<EnchantmentDetail | null> {
+  try {
+    return await apiFetch<EnchantmentDetail>(`/items/enchantment/${enchantmentName}`);
+  } catch {
+    return null;
+  }
+}
+
 // ── Invite System ──────────────────────────────────────────────
 
 export interface ProjectInvite {

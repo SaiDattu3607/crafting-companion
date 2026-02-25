@@ -29,6 +29,7 @@ import { getMinecraftAssetUrl } from '@/lib/minecraftAssets';
 import ItemDetailModal from '@/components/ItemDetailModal';
 import { ItemIconWithFallback } from '@/components/ItemIconWithFallback';
 import EnchantmentGridModal from '@/components/EnchantmentGridModal';
+import EnchantedBookModal from '@/components/EnchantedBookModal';
 import EnchantmentMatrix from '@/components/EnchantmentMatrix';
 import { toast } from '@/hooks/use-toast';
 
@@ -98,6 +99,12 @@ const ProjectDetail = () => {
   const [enchantGridItem, setEnchantGridItem] = useState<string | null>(null);
   const [enchantGridEnchants, setEnchantGridEnchants] = useState<{ name: string; level: number }[]>([]);
   const [showEnchantGrid, setShowEnchantGrid] = useState(false);
+
+  // Enchanted Book detail modal
+  const [bookModalEnchant, setBookModalEnchant] = useState<string | null>(null);
+  const [bookModalLevel, setBookModalLevel] = useState(1);
+  const [bookModalForItem, setBookModalForItem] = useState<string | undefined>(undefined);
+  const [showBookModal, setShowBookModal] = useState(false);
 
   /** Get the minimum XP level required for an enchantment at a given tier */
   const getMinXpLevel = (enchName: string, enchLevel: number): number | null => {
@@ -512,8 +519,22 @@ const ProjectDetail = () => {
               <div className="flex items-center gap-2 flex-wrap min-w-0">
                 <span
                   className={`font-semibold truncate cursor-pointer hover:text-primary hover:underline underline-offset-2 transition-colors ${depth === 0 ? 'text-base' : 'text-sm'}`}
-                  onClick={(e) => { e.stopPropagation(); setDetailItemName(node.item_name); setShowItemDetail(true); }}
-                  title="Click for item details"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (node.item_name === 'enchanted_book' && node.enchantments?.length) {
+                      const ench = node.enchantments[0];
+                      setBookModalEnchant(ench.name);
+                      setBookModalLevel(ench.level);
+                      // Find parent node name for context
+                      const parent = nodes.find(n => n.id === node.parent_id);
+                      setBookModalForItem(parent?.display_name);
+                      setShowBookModal(true);
+                    } else {
+                      setDetailItemName(node.item_name);
+                      setShowItemDetail(true);
+                    }
+                  }}
+                  title={node.item_name === 'enchanted_book' ? 'Click for enchantment details' : 'Click for item details'}
                 >
                   {depth === 0 && node.enchantments?.length
                     ? `${node.display_name} (${node.enchantments.map(e => `${e.name.replace(/_/g, ' ')} ${e.level}`).join(', ')})`
@@ -1088,7 +1109,22 @@ const ProjectDetail = () => {
                         <div className="flex items-center gap-4">
                           <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-xl">📕</div>
                           <div>
-                            <p className="font-bold text-foreground">{req.displayName} {toRoman(req.targetLevel)}</p>
+                            <p className="font-bold text-foreground">
+                              <span
+                                className="cursor-pointer hover:text-primary hover:underline underline-offset-2 transition-colors"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setBookModalEnchant(req.enchantmentName);
+                                  setBookModalLevel(req.targetLevel);
+                                  setBookModalForItem((req as any)._nodeName);
+                                  setShowBookModal(true);
+                                  soundManager.playSound('button');
+                                }}
+                                title="Click for enchantment details"
+                              >
+                                {req.displayName} {toRoman(req.targetLevel)}
+                              </span>
+                            </p>
                             <p className="text-xs text-muted-foreground">{req.booksNeeded} level-1 books needed for {(req as any)._nodeName}</p>
                           </div>
                         </div>
@@ -1693,6 +1729,15 @@ const ProjectDetail = () => {
         onClose={() => { setShowEnchantGrid(false); setEnchantGridItem(null); setEnchantGridEnchants([]); }}
         itemName={enchantGridItem}
         activeEnchantments={enchantGridEnchants}
+      />
+
+      {/* Enchanted Book Detail Modal */}
+      <EnchantedBookModal
+        open={showBookModal}
+        onClose={() => { setShowBookModal(false); setBookModalEnchant(null); }}
+        enchantmentName={bookModalEnchant}
+        targetLevel={bookModalLevel}
+        forItemName={bookModalForItem}
       />
     </div>
   );
