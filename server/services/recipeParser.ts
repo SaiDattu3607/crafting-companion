@@ -569,11 +569,53 @@ export async function parseRecipeTree(
       .select('id');
 
     // If the insert failed due to missing columns in the DB
-    // (e.g. migration not applied), retry without the extra columns.
+    // (e.g. migration not applied), retry progressively stripping columns.
     if (error) {
       const msg = (error.message || '').toLowerCase();
-      if (msg.includes('enchantments') || msg.includes('variant') || msg.includes('schema')) {
-        console.warn('Database missing column(s); retrying insert without enchantments/variant.');
+
+      // First try: strip only is_block (preserve enchantments/variant)
+      if (msg.includes('is_block') || msg.includes('schema')) {
+        console.warn('Database missing is_block column; retrying without it.');
+        const rowsNoBlock = rowsToInsert.map(r => {
+          const copy: any = { ...r };
+          delete copy.is_block;
+          return copy;
+        });
+
+        const retry1 = await supabase
+          .from('crafting_nodes')
+          .insert(rowsNoBlock)
+          .select('id');
+
+        if (!retry1.error) {
+          inserted = retry1.data;
+          error = null;
+        } else {
+          // Second try: also strip enchantments/variant
+          const retryMsg = (retry1.error.message || '').toLowerCase();
+          if (retryMsg.includes('enchantments') || retryMsg.includes('variant') || retryMsg.includes('schema')) {
+            console.warn('Database missing additional column(s); retrying without enchantments/variant/is_block.');
+            const rowsStripped = rowsToInsert.map(r => {
+              const copy: any = { ...r };
+              delete copy.enchantments;
+              delete copy.variant;
+              delete copy.is_block;
+              return copy;
+            });
+
+            const retry2 = await supabase
+              .from('crafting_nodes')
+              .insert(rowsStripped)
+              .select('id');
+
+            inserted = retry2.data;
+            error = retry2.error;
+          } else {
+            error = retry1.error;
+          }
+        }
+      } else if (msg.includes('enchantments') || msg.includes('variant')) {
+        console.warn('Database missing enchantments/variant column(s); retrying without them.');
         const rowsStripped = rowsToInsert.map(r => {
           const copy: any = { ...r };
           delete copy.enchantments;
@@ -589,10 +631,9 @@ export async function parseRecipeTree(
 
         inserted = retry.data;
         error = retry.error;
-        if (error) {
-          throw new Error(`Failed to insert crafting nodes at depth ${d} (after stripping columns): ${error.message}`);
-        }
-      } else {
+      }
+
+      if (error) {
         throw new Error(`Failed to insert crafting nodes at depth ${d}: ${error.message}`);
       }
     }

@@ -1125,7 +1125,6 @@ router.patch('/:projectId/nodes/:nodeId/enchantments', projectMemberGuard, async
           required_qty: bookQty,
           collected_qty: 0,
           is_resource: true,
-          is_block: false,
           depth: bookDepth,
           status: 'pending',
           enchantments: [{ name: ench.name, level: ench.level }],
