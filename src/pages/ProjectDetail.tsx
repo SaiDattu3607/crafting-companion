@@ -463,10 +463,12 @@ const ProjectDetail = () => {
 
   // Decide which nodes should show an Enchantment Summary panel
   const displayEnchantmentNodes = nodes.filter(node => {
+    // Never show enchanted_book nodes separately — their info is shown under the parent
+    if (node.item_name === 'enchanted_book') return false;
     // Show if it actually has enchantments assigned
     if (Array.isArray(node.enchantments) && node.enchantments.length > 0) return true;
     // Also show root target items that are enchantable (based on metadata), excluding food/generic
-    if (node.parent_id === null && node.item_name !== 'enchanted_book') {
+    if (node.parent_id === null) {
       const meta = enchMetadata[node.item_name];
       if (meta && meta.category !== 'generic' && Array.isArray(meta.possibleEnchantments) && meta.possibleEnchantments.length > 0) return true;
     }
@@ -561,7 +563,7 @@ const ProjectDetail = () => {
                   }}
                   title={node.item_name === 'enchanted_book' ? 'Click for enchantment details' : 'Click for item details'}
                 >
-                  {depth === 0 && node.enchantments?.length
+                  {depth === 0 && node.item_name !== 'enchanted_book' && node.enchantments?.length
                     ? `${node.display_name} (${node.enchantments.map(e => `${e.name.replace(/_/g, ' ')} ${e.level}`).join(', ')})`
                     : node.display_name}
                 </span>
@@ -569,9 +571,8 @@ const ProjectDetail = () => {
                   {node.collected_qty}/{node.required_qty}
                 </span>
 
-                {/* Enchantment Display/Edit in Tree */}
-                {/* Enchantment Display/Edit in Tree */}
-                {editingEnchantments !== node.id && (() => {
+                {/* Enchantment Display/Edit in Tree (not for enchanted_book nodes) */}
+                {node.item_name !== 'enchanted_book' && editingEnchantments !== node.id && (() => {
                   const hasEnchants = Array.isArray(node.enchantments) && node.enchantments.length > 0;
                   const meta = enchMetadata[node.item_name];
                   const isEnchantable = hasEnchants || (meta && Array.isArray(meta.possibleEnchantments) && meta.possibleEnchantments.length > 0);
