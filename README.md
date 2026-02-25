@@ -74,7 +74,7 @@
 *   **Backend**: Node.js, Express 5 (Modern wildcard routing)
 *   **Infrastructure**: Supabase (PostgreSQL + RLS + Realtime)
 *   **Data APIs**: [minecraft-data](https://www.npmjs.com/package/minecraft-data)
-*   **Hosting**: Railway (Auto-scaling & CD)
+*   **Hosting**: Render (Auto-scaling & CD)
 
 ---
 

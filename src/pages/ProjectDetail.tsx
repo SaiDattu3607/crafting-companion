@@ -1572,6 +1572,7 @@ const ProjectDetail = () => {
                 <p className="text-sm">No recent signals</p>
               </div>
             ) : (
+              <div className="max-h-[500px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
               <div className="space-y-6 relative before:absolute before:left-[13px] before:top-2 before:bottom-2 before:w-px before:bg-white/5">
                 {contributions.slice(0, 15).map(c => {
                   const isMilestone = c.action === 'milestone';
@@ -1666,6 +1667,7 @@ const ProjectDetail = () => {
                     </div>
                   );
                 })}
+              </div>
               </div>
             )}
           </div>
