@@ -583,52 +583,66 @@ const ProjectDetail = () => {
                       {hasEnchants && (
                         <>
                           <Sparkles className="w-3 h-3 text-purple-400" />
-                          {node.enchantments!.map((en: any, i: number) => {
-                            const minXp = getMinXpLevel(en.name, en.level);
-                            const myLevel = user?.minecraft_level ?? 0;
-                            const canDo = minXp !== null ? myLevel >= minXp : true;
-                            const capableNames = !canDo ? getCapableMemberNames(en.name, en.level) : [];
+                          {(() => {
+                            const collectedSet = getCollectedEnchantments(node);
+                            const isApplied = (eName: string, eLevel: number) =>
+                              collectedSet.some(c => c.name === eName && c.level === eLevel);
 
-                            return (
-                              <button
-                                key={`${en.name}-${i}`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setEnchantGridItem(node.item_name);
-                                  setEnchantGridEnchants(getCollectedEnchantments(node));
-                                  setShowEnchantGrid(true);
-                                  soundManager.playSound('button');
-                                }}
-                                className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium inline-flex items-center gap-1 cursor-pointer transition-all hover:scale-105 ${canDo
-                                  ? 'bg-purple-500/15 text-purple-400 border border-purple-500/20 hover:bg-purple-500/25'
-                                  : 'bg-amber-500/15 text-amber-400 border border-amber-500/20 hover:bg-amber-500/25'
+                            return node.enchantments!.map((en: any, i: number) => {
+                              const minXp = getMinXpLevel(en.name, en.level);
+                              const myLevel = user?.minecraft_level ?? 0;
+                              const canDo = minXp !== null ? myLevel >= minXp : true;
+                              const capableNames = !canDo ? getCapableMemberNames(en.name, en.level) : [];
+                              const applied = isApplied(en.name, en.level);
+
+                              return (
+                                <button
+                                  key={`${en.name}-${i}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEnchantGridItem(node.item_name);
+                                    setEnchantGridEnchants(getCollectedEnchantments(node));
+                                    setShowEnchantGrid(true);
+                                    soundManager.playSound('button');
+                                  }}
+                                  className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium inline-flex items-center gap-1 cursor-pointer transition-all hover:scale-105 ${
+                                    applied
+                                      ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/25'
+                                      : canDo
+                                        ? 'bg-purple-500/15 text-purple-400 border border-purple-500/20 hover:bg-purple-500/25'
+                                        : 'bg-amber-500/15 text-amber-400 border border-amber-500/20 hover:bg-amber-500/25'
                                   }`}
-                                title={minXp !== null
-                                  ? canDo
-                                    ? `${en.name.replace(/_/g, ' ')} ${en.level} — Requires Lv ${minXp} (you: Lv ${myLevel}) ✓ · Click for details`
-                                    : `${en.name.replace(/_/g, ' ')} ${en.level} — Requires Lv ${minXp} (you: Lv ${myLevel}) ✗${capableNames.length ? ` — ${capableNames.join(', ')} can do it` : ' — No team member has the level'} · Click for details`
-                                  : `${en.name.replace(/_/g, ' ')} ${en.level} · Click for details`
-                                }
-                              >
-                                {en.name.replace(/_/g, ' ')} {en.level}
-                                {minXp !== null && (
-                                  <span className={`text-[9px] opacity-70 ${canDo ? '' : 'font-bold'}`}>
-                                    Lv{minXp}
-                                  </span>
-                                )}
-                                {!canDo && capableNames.length > 0 && (
-                                  <span className="text-[9px] text-emerald-400/80 font-semibold">
-                                    → {capableNames.join(', ')}
-                                  </span>
-                                )}
-                                {!canDo && capableNames.length === 0 && minXp !== null && (
-                                  <span className="text-[9px] text-red-400/80 font-semibold">
-                                    ✗ no one
-                                  </span>
-                                )}
-                              </button>
-                            );
-                          })}
+                                  title={
+                                    applied
+                                      ? `${en.name.replace(/_/g, ' ')} ${en.level} — ✓ Book Collected · Click for details`
+                                      : minXp !== null
+                                        ? canDo
+                                          ? `${en.name.replace(/_/g, ' ')} ${en.level} — Requires Lv ${minXp} (you: Lv ${myLevel}) ✓ · Click for details`
+                                          : `${en.name.replace(/_/g, ' ')} ${en.level} — Requires Lv ${minXp} (you: Lv ${myLevel}) ✗${capableNames.length ? ` — ${capableNames.join(', ')} can do it` : ' — No team member has the level'} · Click for details`
+                                        : `${en.name.replace(/_/g, ' ')} ${en.level} · Click for details`
+                                  }
+                                >
+                                  {applied && <span className="text-[9px]">✓</span>}
+                                  {en.name.replace(/_/g, ' ')} {en.level}
+                                  {!applied && minXp !== null && (
+                                    <span className={`text-[9px] opacity-70 ${canDo ? '' : 'font-bold'}`}>
+                                      Lv{minXp}
+                                    </span>
+                                  )}
+                                  {!applied && !canDo && capableNames.length > 0 && (
+                                    <span className="text-[9px] text-emerald-400/80 font-semibold">
+                                      → {capableNames.join(', ')}
+                                    </span>
+                                  )}
+                                  {!applied && !canDo && capableNames.length === 0 && minXp !== null && (
+                                    <span className="text-[9px] text-red-400/80 font-semibold">
+                                      ✗ no one
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            });
+                          })()}
                         </>
                       )}
                       {(hasEnchants || node.parent_id === null) && (
@@ -840,44 +854,56 @@ const ProjectDetail = () => {
 
                 <div className="flex flex-wrap gap-2">
                   {(node.enchantments || []).length > 0 ? (
-                    (node.enchantments || []).map((en: any, i: number) => {
-                      const minXp = getMinXpLevel(en.name, en.level);
-                      const myLevel = user?.minecraft_level ?? 0;
-                      const canDo = minXp !== null ? myLevel >= minXp : true;
-                      const capableNames = !canDo ? getCapableMemberNames(en.name, en.level) : [];
+                    (() => {
+                      const collectedSet = getCollectedEnchantments(node);
+                      const isApplied = (eName: string, eLevel: number) =>
+                        collectedSet.some(c => c.name === eName && c.level === eLevel);
 
-                      return (
-                        <div
-                          key={i}
-                          className={`px-3 py-1.5 rounded-lg flex items-center gap-2 ${
-                            canDo
-                              ? 'bg-purple-500/5 border border-purple-500/10'
-                              : 'bg-amber-500/5 border border-amber-500/15'
-                          }`}
-                        >
-                          <span className={`text-[10px] font-mono font-bold w-5 h-5 rounded flex items-center justify-center ${
-                            canDo ? 'text-purple-300 bg-purple-500/10' : 'text-amber-300 bg-amber-500/10'
-                          }`}>{toRoman(en.level)}</span>
-                          <span className={`text-xs font-semibold ${canDo ? 'text-purple-200' : 'text-amber-200'}`}>
-                            {en.name.replace(/_/g, ' ')}
-                          </span>
-                          {minXp !== null && (
-                            <span className={`text-[9px] ${canDo ? 'text-muted-foreground/50' : 'text-amber-400/70 font-bold'}`}>
-                              Lv{minXp}
+                      return (node.enchantments || []).map((en: any, i: number) => {
+                        const minXp = getMinXpLevel(en.name, en.level);
+                        const myLevel = user?.minecraft_level ?? 0;
+                        const canDo = minXp !== null ? myLevel >= minXp : true;
+                        const capableNames = !canDo ? getCapableMemberNames(en.name, en.level) : [];
+                        const applied = isApplied(en.name, en.level);
+
+                        return (
+                          <div
+                            key={i}
+                            className={`px-3 py-1.5 rounded-lg flex items-center gap-2 ${
+                              applied
+                                ? 'bg-emerald-500/10 border border-emerald-500/20'
+                                : canDo
+                                  ? 'bg-purple-500/5 border border-purple-500/10'
+                                  : 'bg-amber-500/5 border border-amber-500/15'
+                            }`}
+                          >
+                            <span className={`text-[10px] font-mono font-bold w-5 h-5 rounded flex items-center justify-center ${
+                              applied ? 'text-emerald-300 bg-emerald-500/15' : canDo ? 'text-purple-300 bg-purple-500/10' : 'text-amber-300 bg-amber-500/10'
+                            }`}>{toRoman(en.level)}</span>
+                            <span className={`text-xs font-semibold ${applied ? 'text-emerald-200' : canDo ? 'text-purple-200' : 'text-amber-200'}`}>
+                              {en.name.replace(/_/g, ' ')}
                             </span>
-                          )}
-                          {canDo && (
-                            <span className="text-[9px] text-emerald-400/70">✓ You</span>
-                          )}
-                          {!canDo && capableNames.length > 0 && (
-                            <span className="text-[9px] text-emerald-400/80 font-semibold">→ {capableNames.join(', ')}</span>
-                          )}
-                          {!canDo && capableNames.length === 0 && minXp !== null && (
-                            <span className="text-[9px] text-red-400/80 font-semibold">✗ No one can</span>
-                          )}
-                        </div>
-                      );
-                    })
+                            {minXp !== null && !applied && (
+                              <span className={`text-[9px] ${canDo ? 'text-muted-foreground/50' : 'text-amber-400/70 font-bold'}`}>
+                                Lv{minXp}
+                              </span>
+                            )}
+                            {applied && (
+                              <span className="text-[9px] text-emerald-400 font-semibold">✓ Book Collected</span>
+                            )}
+                            {!applied && canDo && (
+                              <span className="text-[9px] text-purple-400/70">⏳ Pending</span>
+                            )}
+                            {!applied && !canDo && capableNames.length > 0 && (
+                              <span className="text-[9px] text-emerald-400/80 font-semibold">→ {capableNames.join(', ')}</span>
+                            )}
+                            {!applied && !canDo && capableNames.length === 0 && minXp !== null && (
+                              <span className="text-[9px] text-red-400/80 font-semibold">✗ No one can</span>
+                            )}
+                          </div>
+                        );
+                      });
+                    })()
                   ) : (
                     <div className="text-[10px] text-muted-foreground/60 italic px-1">No enchantments applied yet</div>
                   )}

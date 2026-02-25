@@ -346,7 +346,6 @@ export async function parseRecipeTree(
 
   // For each enchantable tool/armor in the tree, add an Enchanted Book requirement per enchantment
   if (enchantments && enchantments.length > 0) {
-    console.log(`[PARSE-TREE] Adding ${enchantments.length} enchanted book node(s) for ${rootItemName}`);
     // Only the root node (depth 0) should get enchanted books — enchantments are applied
     // to the final item, not to intermediate crafting steps.
     const rootNode = allNodes[0];
@@ -529,8 +528,7 @@ export async function parseRecipeTree(
     throw new Error(`Could not parse recipe tree for "${rootItemName}"`);
   }
 
-  const bookNodes = allNodes.filter(n => n.item_name === 'enchanted_book');
-  console.log(`[PARSE-TREE] Total nodes: ${allNodes.length}, enchanted_book nodes: ${bookNodes.length}, enchantments param: ${JSON.stringify(enchantments)}`);
+
 
   // Insert nodes level by level to resolve parent IDs
   // Group by depth (BFS order)

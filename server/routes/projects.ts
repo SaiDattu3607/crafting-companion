@@ -348,7 +348,6 @@ router.post('/:projectId/items', projectMemberGuard, async (req: Request, res: R
   try {
     const { projectId } = req.params;
     const { itemName, quantity = 1, enchantments = null, variant = null } = req.body;
-    console.log('[ADD-ITEM] Received:', JSON.stringify({ itemName, quantity, enchantments, variant }));
 
     if (!itemName) {
       res.status(400).json({ error: 'itemName is required' });
@@ -1062,7 +1061,7 @@ router.patch('/:projectId/nodes/:nodeId/enchantments', projectMemberGuard, async
       return;
     }
 
-    // Update enchantments
+    // Update enchantments on the root node
     const { error: updateError } = await sb
       .from('crafting_nodes')
       .update({ enchantments })
@@ -1071,6 +1070,76 @@ router.patch('/:projectId/nodes/:nodeId/enchantments', projectMemberGuard, async
     if (updateError) {
       res.status(500).json({ error: `Failed to update enchantments: ${updateError.message}` });
       return;
+    }
+
+    // Sync enchanted book child nodes: update level/display_name for existing books,
+    // create new book nodes for newly added enchantments, delete removed ones.
+    const { data: bookChildren } = await sb
+      .from('crafting_nodes')
+      .select('id, item_name, enchantments, required_qty')
+      .eq('parent_id', nodeId)
+      .eq('item_name', 'enchanted_book');
+
+    const existingBooks = bookChildren || [];
+
+    // Get the root node's required_qty for new book nodes
+    const { data: rootNode } = await sb
+      .from('crafting_nodes')
+      .select('required_qty, depth, project_id')
+      .eq('id', nodeId)
+      .single();
+    const bookQty = rootNode?.required_qty || 1;
+    const bookDepth = (rootNode?.depth ?? 0) + 1;
+
+    // Map existing books by enchantment name
+    const bookByEnch = new Map<string, any>();
+    for (const book of existingBooks) {
+      const bookEnch = Array.isArray(book.enchantments) && book.enchantments.length > 0
+        ? book.enchantments[0] : null;
+      if (bookEnch) bookByEnch.set(bookEnch.name, book);
+    }
+
+    // For each requested enchantment, update or create
+    const desiredEnchNames = new Set<string>();
+    for (const ench of enchantments) {
+      desiredEnchNames.add(ench.name);
+      const existing = bookByEnch.get(ench.name);
+      if (existing) {
+        // Update level and display_name if changed
+        const oldEnch = existing.enchantments[0];
+        if (oldEnch.level !== ench.level) {
+          const label = `${ench.name.replace(/_/g, ' ')} ${ench.level}`;
+          await sb.from('crafting_nodes').update({
+            display_name: `Enchanted Book (${label})`,
+            enchantments: [{ name: ench.name, level: ench.level }],
+          }).eq('id', existing.id);
+        }
+      } else {
+        // Create new book node
+        const label = `${ench.name.replace(/_/g, ' ')} ${ench.level}`;
+        await sb.from('crafting_nodes').insert({
+          project_id: projectId,
+          parent_id: nodeId,
+          item_name: 'enchanted_book',
+          display_name: `Enchanted Book (${label})`,
+          required_qty: bookQty,
+          collected_qty: 0,
+          is_resource: true,
+          is_block: false,
+          depth: bookDepth,
+          status: 'pending',
+          enchantments: [{ name: ench.name, level: ench.level }],
+        });
+      }
+    }
+
+    // Delete book nodes for enchantments that were removed
+    for (const book of existingBooks) {
+      const bookEnch = Array.isArray(book.enchantments) && book.enchantments.length > 0
+        ? book.enchantments[0] : null;
+      if (bookEnch && !desiredEnchNames.has(bookEnch.name)) {
+        await sb.from('crafting_nodes').delete().eq('id', book.id);
+      }
     }
 
     res.json({ success: true, enchantments });
