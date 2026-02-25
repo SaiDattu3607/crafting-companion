@@ -656,21 +656,23 @@ const ProjectDetail = () => {
 
                 {/* Inline Editing */}
                 {editingEnchantments === node.id && (
-                  <div className="flex items-center gap-1.5 bg-purple-500/10 px-2 py-1 rounded-lg border border-purple-500/20">
+                  <div className="flex items-center gap-2 bg-purple-500/10 px-3 py-1.5 rounded-lg border border-purple-500/20">
                     {editEnchantmentLevels.map((en, i) => {
                       const meta = enchMetadata[nodes.find(n => n.id === editingEnchantments)?.item_name || ''];
                       const maxLvl = meta?.possibleEnchantments?.find(pe => pe.name === en.name)?.level || 5;
                       return (
-                        <span key={`${en.name}-${i}`} className="inline-flex items-center gap-1 text-[10px] text-purple-300 font-medium">
+                        <span key={`${en.name}-${i}`} className="inline-flex items-center gap-1.5 text-[11px] text-purple-300 font-medium">
                           {en.name.replace(/_/g, ' ')}
                           <select
                             value={en.level}
                             onChange={(e) => {
+                              e.stopPropagation();
                               const newLevels = [...editEnchantmentLevels];
                               newLevels[i] = { ...newLevels[i], level: parseInt(e.target.value) || 1 };
                               setEditEnchantmentLevels(newLevels);
                             }}
-                            className="w-8 h-4 text-center bg-purple-500/20 border border-purple-400/30 rounded text-purple-200 text-[10px] appearance-none px-0.5"
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-10 h-6 text-center bg-purple-500/20 border border-purple-400/30 rounded text-purple-200 text-[11px] cursor-pointer focus:outline-none focus:ring-1 focus:ring-purple-400/50"
                           >
                             {Array.from({ length: maxLvl }, (_, j) => j + 1).map(l => (
                               <option key={l} value={l}>{l}</option>
@@ -679,11 +681,11 @@ const ProjectDetail = () => {
                         </span>
                       );
                     })}
-                    <button onClick={() => handleSaveEnchantments(node.id)} disabled={savingEnchantments} className="text-emerald-400 hover:text-emerald-300">
-                      {savingEnchantments ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                    <button onClick={(e) => { e.stopPropagation(); handleSaveEnchantments(node.id); }} disabled={savingEnchantments} className="text-emerald-400 hover:text-emerald-300 p-1 hover:bg-white/5 rounded">
+                      {savingEnchantments ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                     </button>
-                    <button onClick={handleCancelEditEnchantments} className="text-red-400 hover:text-red-300">
-                      <X className="w-3 h-3" />
+                    <button onClick={(e) => { e.stopPropagation(); handleCancelEditEnchantments(); }} className="text-red-400 hover:text-red-300 p-1 hover:bg-white/5 rounded">
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 )}
