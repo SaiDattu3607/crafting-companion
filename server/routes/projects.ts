@@ -348,6 +348,7 @@ router.post('/:projectId/items', projectMemberGuard, async (req: Request, res: R
   try {
     const { projectId } = req.params;
     const { itemName, quantity = 1, enchantments = null, variant = null } = req.body;
+    console.log('[ADD-ITEM] Received:', JSON.stringify({ itemName, quantity, enchantments, variant }));
 
     if (!itemName) {
       res.status(400).json({ error: 'itemName is required' });
