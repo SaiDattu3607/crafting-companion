@@ -122,6 +122,16 @@ const ENCHANTMENT_DATA: Record<string, Omit<EnchantmentInfo, 'name'>> = {
       { method: 'Villager Trading', description: 'Trade with a Librarian villager', maxLevel: 3, icon: '🧑‍🌾' },
     ],
   },
+  // Alias: minecraft-data uses 'sweeping' instead of 'sweeping_edge'
+  sweeping: {
+    displayName: 'Sweeping Edge',
+    maxLevel: 3,
+    maxTableLevel: 3,
+    sources: [
+      { method: 'Enchanting Table', description: 'Enchant a book at an enchanting table', maxLevel: 3, icon: '📖' },
+      { method: 'Villager Trading', description: 'Trade with a Librarian villager', maxLevel: 3, icon: '🧑‍🌾' },
+    ],
+  },
 
   // Tool enchantments
   efficiency: {

@@ -1062,7 +1062,12 @@ const ProjectDetail = () => {
           </div>
 
           {/* Enchantment Book Guide (targets & enchanted items) */}
-          {displayEnchantmentNodes.length > 0 && (
+          {(() => {
+            const allBookReqs = displayEnchantmentNodes.flatMap(node =>
+              getBookRequirements(node.enchantments || []).map(req => ({ ...req, _nodeId: node.id, _nodeName: node.display_name }))
+            );
+            if (allBookReqs.length === 0) return null;
+            return (
             <div className="glass-strong rounded-2xl border border-white/5 p-6">
               <div className="flex items-center gap-2 mb-6">
                 <BookOpen className="w-5 h-5 text-amber-400" />
@@ -1070,7 +1075,7 @@ const ProjectDetail = () => {
               </div>
 
               <div className="grid gap-4">
-                {displayEnchantmentNodes.flatMap(node => getBookRequirements(node.enchantments || []).map(req => ({ ...req, _nodeId: node.id, _nodeName: node.display_name }))).map((req) => {
+                {allBookReqs.map((req) => {
                   const isExpanded = expandedBook === `${(req as any)._nodeId}-${req.enchantmentName}`;
                   const strategy = getBestStrategy(req.enchantmentName, req.targetLevel);
 
@@ -1134,7 +1139,8 @@ const ProjectDetail = () => {
                 })}
               </div>
             </div>
-          )}
+            );
+          })()}
 
           {/* Collaboration */}
           <div className="glass-strong rounded-2xl border border-white/5 p-6">

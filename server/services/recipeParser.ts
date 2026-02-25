@@ -1548,7 +1548,7 @@ function getEnchantmentsForCategory(category: string): { name: string; level: nu
 
   // Category → candidate enchantment names (fall back to heuristics)
   const candidates: Record<string, string[]> = {
-    sword: ['sharpness', 'smite', 'bane_of_arthropods', 'knockback', 'fire_aspect', 'looting', 'sweeping_edge'],
+    sword: ['sharpness', 'smite', 'bane_of_arthropods', 'knockback', 'fire_aspect', 'looting', 'sweeping'],
     pickaxe: ['efficiency', 'silk_touch', 'fortune'],
     axe: ['efficiency', 'silk_touch', 'fortune'],
     shovel: ['efficiency', 'silk_touch', 'fortune'],
