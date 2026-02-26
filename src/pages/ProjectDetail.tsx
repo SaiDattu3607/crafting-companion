@@ -55,6 +55,7 @@ const ProjectDetail = () => {
   const [inviteSending, setInviteSending] = useState(false);
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [contributing, setContributing] = useState<string | null>(null);
+  const [collectQty, setCollectQty] = useState<Record<string, number>>({});
 
   // Role-based tasks
   const [myRole, setMyRole] = useState<MemberRole>('member');
@@ -268,15 +269,17 @@ const ProjectDetail = () => {
     return 'blocked';
   };
 
-  const handleContribute = async (nodeId: string, action: 'collected' | 'crafted') => {
+  const handleContribute = async (nodeId: string, action: 'collected' | 'crafted', qty: number = 1) => {
     setContributing(nodeId);
     try {
-      const result = await contributeToNode(id!, nodeId, 1, action);
+      const result = await contributeToNode(id!, nodeId, qty, action);
       if (!result.success) {
         setError(result.error || 'Contribution failed');
       } else {
         soundManager.playFileSound(action === 'crafted' ? 'craft' : 'collect');
       }
+      // Reset qty for this node after contribution
+      setCollectQty(prev => ({ ...prev, [nodeId]: 1 }));
       await loadProject();
     } catch (err) {
       setError((err as Error).message);
@@ -284,6 +287,9 @@ const ProjectDetail = () => {
       setContributing(null);
     }
   };
+
+  const getCollectQty = (nodeId: string) => collectQty[nodeId] || 1;
+  const getRemaining = (node: CraftingNode) => Math.max(0, node.required_qty - node.collected_qty);
 
   const handleSendInvite = async () => {
     setCollabError('');
@@ -622,13 +628,12 @@ const ProjectDetail = () => {
                                     setShowEnchantGrid(true);
                                     soundManager.playSound('button');
                                   }}
-                                  className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium inline-flex items-center gap-1 cursor-pointer transition-all hover:scale-105 ${
-                                    applied
+                                  className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium inline-flex items-center gap-1 cursor-pointer transition-all hover:scale-105 ${applied
                                       ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/25'
                                       : canDo
                                         ? 'bg-purple-500/15 text-purple-400 border border-purple-500/20 hover:bg-purple-500/25'
                                         : 'bg-amber-500/15 text-amber-400 border border-amber-500/20 hover:bg-amber-500/25'
-                                  }`}
+                                    }`}
                                   title={
                                     applied
                                       ? `${en.name.replace(/_/g, ' ')} ${en.level} — ✓ Book Collected · Click for details`
@@ -740,18 +745,50 @@ const ProjectDetail = () => {
             <div className="flex-shrink-0 ml-2 flex items-center gap-1">
               {isComplete ? (
                 <span className="text-xs text-emerald-400 font-semibold">✓ Done</span>
-              ) : (
-                <Button
-                  size="sm" variant="outline"
-                  disabled={!canContribute(node) || !!isContributing}
-                  onClick={() => handleContribute(node.id, node.is_resource ? 'collected' : 'crafted')}
-                  className="h-7 px-2.5 text-xs rounded-lg border-white/10 hover:border-primary/40 hover:text-primary"
-                >
-                  {isContributing
-                    ? <Loader2 className="w-3 h-3 animate-spin" />
-                    : node.is_resource ? '📦 Collect' : '⚒ Craft'}
-                </Button>
-              )}
+              ) : (() => {
+                const remaining = getRemaining(node);
+                const qty = Math.min(getCollectQty(node.id), remaining);
+                const canAct = canContribute(node) && !isContributing;
+                return (
+                  <div className="flex items-center gap-1">
+                    {remaining > 1 && canAct && (
+                      <div className="flex items-center gap-0.5 bg-white/5 border border-white/10 rounded-lg px-1 h-7">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCollectQty(prev => ({ ...prev, [node.id]: Math.max(1, qty - 1) }));
+                          }}
+                          disabled={qty <= 1}
+                          className="w-5 h-5 flex items-center justify-center text-xs text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors rounded hover:bg-white/10"
+                        >
+                          −
+                        </button>
+                        <span className="text-xs font-bold text-foreground min-w-[18px] text-center tabular-nums">{qty}</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCollectQty(prev => ({ ...prev, [node.id]: Math.min(remaining, qty + 1) }));
+                          }}
+                          disabled={qty >= remaining}
+                          className="w-5 h-5 flex items-center justify-center text-xs text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors rounded hover:bg-white/10"
+                        >
+                          +
+                        </button>
+                      </div>
+                    )}
+                    <Button
+                      size="sm" variant="outline"
+                      disabled={!canAct}
+                      onClick={() => handleContribute(node.id, node.is_resource ? 'collected' : 'crafted', qty)}
+                      className="h-7 px-2.5 text-xs rounded-lg border-white/10 hover:border-primary/40 hover:text-primary"
+                    >
+                      {isContributing
+                        ? <Loader2 className="w-3 h-3 animate-spin" />
+                        : node.is_resource ? '📦 Collect' : '⚒ Craft'}
+                    </Button>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -892,17 +929,15 @@ const ProjectDetail = () => {
                         return (
                           <div
                             key={i}
-                            className={`px-3 py-1.5 rounded-lg flex items-center gap-2 ${
-                              applied
+                            className={`px-3 py-1.5 rounded-lg flex items-center gap-2 ${applied
                                 ? 'bg-emerald-500/10 border border-emerald-500/20'
                                 : canDo
                                   ? 'bg-purple-500/5 border border-purple-500/10'
                                   : 'bg-amber-500/5 border border-amber-500/15'
-                            }`}
+                              }`}
                           >
-                            <span className={`text-[10px] font-mono font-bold w-5 h-5 rounded flex items-center justify-center ${
-                              applied ? 'text-emerald-300 bg-emerald-500/15' : canDo ? 'text-purple-300 bg-purple-500/10' : 'text-amber-300 bg-amber-500/10'
-                            }`}>{toRoman(en.level)}</span>
+                            <span className={`text-[10px] font-mono font-bold w-5 h-5 rounded flex items-center justify-center ${applied ? 'text-emerald-300 bg-emerald-500/15' : canDo ? 'text-purple-300 bg-purple-500/10' : 'text-amber-300 bg-amber-500/10'
+                              }`}>{toRoman(en.level)}</span>
                             <span className={`text-xs font-semibold ${applied ? 'text-emerald-200' : canDo ? 'text-purple-200' : 'text-amber-200'}`}>
                               {en.name.replace(/_/g, ' ')}
                             </span>
@@ -1125,79 +1160,79 @@ const ProjectDetail = () => {
                     {/* Enchantments (if applicable — only for tools/armor/weapons, not food/generic) */}
                     {addItemSelected.possibleEnchantments && addItemSelected.possibleEnchantments.length > 0
                       && addItemSelected.category !== 'generic' && (
-                      <div className="space-y-2">
-                        <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
-                          <Sparkles className="w-3 h-3 text-purple-400" /> Enchantments (optional)
-                        </p>
-                        <div className="flex gap-2 flex-wrap">
-                          <select
-                            value={addItemEnchantName}
-                            onChange={e => {
-                              const newName = e.target.value;
-                              setAddItemEnchantName(newName);
-                              const newMax = addItemSelected.possibleEnchantments?.find(en => en.name === newName)?.level || 1;
-                              if (addItemEnchantLevel > newMax) setAddItemEnchantLevel(newMax);
-                            }}
-                            className="bg-secondary/60 border border-white/8 rounded-lg px-2 py-1 text-xs text-foreground flex-1 min-w-[120px]"
-                          >
-                            {addItemSelected.possibleEnchantments.map(e => (
-                              <option key={e.name} value={e.name}>
-                                {e.name.replace(/_/g, ' ')} (max {e.level})
-                              </option>
-                            ))}
-                          </select>
-                          <select
-                            value={addItemEnchantLevel}
-                            onChange={e => setAddItemEnchantLevel(parseInt(e.target.value) || 1)}
-                            className="bg-secondary/60 border border-white/8 rounded-lg px-2 py-1 text-xs text-foreground w-14"
-                          >
-                            {Array.from({ length: addItemSelected.possibleEnchantments.find(e => e.name === addItemEnchantName)?.level || 1 }, (_, i) => i + 1).map(l => (
-                              <option key={l} value={l}>{l}</option>
-                            ))}
-                          </select>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              if (addItemEnchantName && !addItemEnchantments.find(e => e.name === addItemEnchantName)) {
-                                setAddItemEnchantments([...addItemEnchantments, { name: addItemEnchantName, level: addItemEnchantLevel }]);
-                              }
-                            }}
-                            className="rounded-lg h-7 px-2 text-xs border-white/10"
-                          >
-                            <Plus className="w-3 h-3" />
-                          </Button>
-                        </div>
-                        {addItemEnchantments.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5">
-                            {addItemEnchantments.map((e, i) => {
-                              const maxLvl = addItemSelected.possibleEnchantments?.find(pe => pe.name === e.name)?.level || 1;
-                              return (
-                                <span key={i} className="inline-flex items-center gap-1 bg-purple-500/10 border border-purple-500/20 text-purple-200 text-[10px] px-2 py-0.5 rounded-full">
-                                  {e.name.replace(/_/g, ' ')}
-                                  <select
-                                    value={e.level}
-                                    onChange={(ev) => {
-                                      const newEnchants = [...addItemEnchantments];
-                                      newEnchants[i] = { ...newEnchants[i], level: parseInt(ev.target.value) || 1 };
-                                      setAddItemEnchantments(newEnchants);
-                                    }}
-                                    className="bg-purple-500/20 border-none rounded text-purple-200 text-[10px] px-0.5 py-0 h-4 appearance-none cursor-pointer focus:outline-none"
-                                  >
-                                    {Array.from({ length: maxLvl }, (_, j) => j + 1).map(l => (
-                                      <option key={l} value={l}>{toRoman(l)}</option>
-                                    ))}
-                                  </select>
-                                  <button onClick={() => setAddItemEnchantments(addItemEnchantments.filter((_, j) => j !== i))} className="hover:text-red-400">
-                                    <X className="w-2.5 h-2.5" />
-                                  </button>
-                                </span>
-                              );
-                            })}
+                        <div className="space-y-2">
+                          <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                            <Sparkles className="w-3 h-3 text-purple-400" /> Enchantments (optional)
+                          </p>
+                          <div className="flex gap-2 flex-wrap">
+                            <select
+                              value={addItemEnchantName}
+                              onChange={e => {
+                                const newName = e.target.value;
+                                setAddItemEnchantName(newName);
+                                const newMax = addItemSelected.possibleEnchantments?.find(en => en.name === newName)?.level || 1;
+                                if (addItemEnchantLevel > newMax) setAddItemEnchantLevel(newMax);
+                              }}
+                              className="bg-secondary/60 border border-white/8 rounded-lg px-2 py-1 text-xs text-foreground flex-1 min-w-[120px]"
+                            >
+                              {addItemSelected.possibleEnchantments.map(e => (
+                                <option key={e.name} value={e.name}>
+                                  {e.name.replace(/_/g, ' ')} (max {e.level})
+                                </option>
+                              ))}
+                            </select>
+                            <select
+                              value={addItemEnchantLevel}
+                              onChange={e => setAddItemEnchantLevel(parseInt(e.target.value) || 1)}
+                              className="bg-secondary/60 border border-white/8 rounded-lg px-2 py-1 text-xs text-foreground w-14"
+                            >
+                              {Array.from({ length: addItemSelected.possibleEnchantments.find(e => e.name === addItemEnchantName)?.level || 1 }, (_, i) => i + 1).map(l => (
+                                <option key={l} value={l}>{l}</option>
+                              ))}
+                            </select>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                if (addItemEnchantName && !addItemEnchantments.find(e => e.name === addItemEnchantName)) {
+                                  setAddItemEnchantments([...addItemEnchantments, { name: addItemEnchantName, level: addItemEnchantLevel }]);
+                                }
+                              }}
+                              className="rounded-lg h-7 px-2 text-xs border-white/10"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </Button>
                           </div>
-                        )}
-                      </div>
-                    )}
+                          {addItemEnchantments.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5">
+                              {addItemEnchantments.map((e, i) => {
+                                const maxLvl = addItemSelected.possibleEnchantments?.find(pe => pe.name === e.name)?.level || 1;
+                                return (
+                                  <span key={i} className="inline-flex items-center gap-1 bg-purple-500/10 border border-purple-500/20 text-purple-200 text-[10px] px-2 py-0.5 rounded-full">
+                                    {e.name.replace(/_/g, ' ')}
+                                    <select
+                                      value={e.level}
+                                      onChange={(ev) => {
+                                        const newEnchants = [...addItemEnchantments];
+                                        newEnchants[i] = { ...newEnchants[i], level: parseInt(ev.target.value) || 1 };
+                                        setAddItemEnchantments(newEnchants);
+                                      }}
+                                      className="bg-purple-500/20 border-none rounded text-purple-200 text-[10px] px-0.5 py-0 h-4 appearance-none cursor-pointer focus:outline-none"
+                                    >
+                                      {Array.from({ length: maxLvl }, (_, j) => j + 1).map(l => (
+                                        <option key={l} value={l}>{toRoman(l)}</option>
+                                      ))}
+                                    </select>
+                                    <button onClick={() => setAddItemEnchantments(addItemEnchantments.filter((_, j) => j !== i))} className="hover:text-red-400">
+                                      <X className="w-2.5 h-2.5" />
+                                    </button>
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                     {/* Submit */}
                     <div className="flex justify-end gap-2 pt-1">
@@ -1257,92 +1292,92 @@ const ProjectDetail = () => {
             );
             if (allBookReqs.length === 0) return null;
             return (
-            <div className="glass-strong rounded-2xl border border-white/5 p-6">
-              <div className="flex items-center gap-2 mb-6">
-                <BookOpen className="w-5 h-5 text-amber-400" />
-                <h2 className="font-bold text-lg text-foreground">Enchanted Book Guide</h2>
-              </div>
+              <div className="glass-strong rounded-2xl border border-white/5 p-6">
+                <div className="flex items-center gap-2 mb-6">
+                  <BookOpen className="w-5 h-5 text-amber-400" />
+                  <h2 className="font-bold text-lg text-foreground">Enchanted Book Guide</h2>
+                </div>
 
-              <div className="grid gap-4">
-                {allBookReqs.map((req) => {
-                  const isExpanded = expandedBook === `${(req as any)._nodeId}-${req.enchantmentName}`;
-                  const strategy = getBestStrategy(req.enchantmentName, req.targetLevel);
+                <div className="grid gap-4">
+                  {allBookReqs.map((req) => {
+                    const isExpanded = expandedBook === `${(req as any)._nodeId}-${req.enchantmentName}`;
+                    const strategy = getBestStrategy(req.enchantmentName, req.targetLevel);
 
-                  return (
-                    <div key={`${(req as any)._nodeId}-${req.enchantmentName}`} className="glass rounded-xl border border-white/5 overflow-hidden">
-                      <button
-                        onClick={() => setExpandedBook(isExpanded ? null : `${(req as any)._nodeId}-${req.enchantmentName}`)}
-                        className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors text-left"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-xl">📕</div>
-                          <div>
-                            <p className="font-bold text-foreground">
-                              <span
-                                className="cursor-pointer hover:text-primary hover:underline underline-offset-2 transition-colors"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setBookModalEnchant(req.enchantmentName);
-                                  setBookModalLevel(req.targetLevel);
-                                  setBookModalForItem((req as any)._nodeName);
-                                  setShowBookModal(true);
-                                  soundManager.playSound('button');
-                                }}
-                                title="Click for enchantment details"
-                              >
-                                {req.displayName} {toRoman(req.targetLevel)}
-                              </span>
-                            </p>
-                            <p className="text-xs text-muted-foreground">{req.booksNeeded} level-1 books needed for {(req as any)._nodeName}</p>
-                          </div>
-                        </div>
-                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                      </button>
-
-                      {isExpanded && (
-                        <div className="px-5 pb-5 pt-1 space-y-5 border-t border-white/5 mt-1">
-                          <div className="p-3 rounded-xl bg-amber-400/5 border border-amber-400/20 flex gap-3">
-                            <Sparkles className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-                            <p className="text-sm text-amber-200/80 leading-relaxed font-medium">{strategy}</p>
-                          </div>
-
-                          {req.anvilSteps.length > 0 && (
+                    return (
+                      <div key={`${(req as any)._nodeId}-${req.enchantmentName}`} className="glass rounded-xl border border-white/5 overflow-hidden">
+                        <button
+                          onClick={() => setExpandedBook(isExpanded ? null : `${(req as any)._nodeId}-${req.enchantmentName}`)}
+                          className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors text-left"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-xl">📕</div>
                             <div>
-                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3">Anvil Combining Progress</p>
-                              <div className="space-y-2">
-                                {req.anvilSteps.map(step => (
-                                  <div key={step.step} className="flex items-center gap-3 text-sm px-3 py-2 rounded-lg bg-white/5">
-                                    <span className="text-muted-foreground font-mono text-xs">#{step.step}</span>
-                                    <span className="flex-1 font-medium">{step.count}× [{toRoman(step.inputLevel)} + {toRoman(step.inputLevel)}]</span>
-                                    <ArrowLeft className="w-3 h-3 text-muted-foreground rotate-180" />
-                                    <span className="text-purple-400 font-bold">{step.count}× {toRoman(step.outputLevel)}</span>
+                              <p className="font-bold text-foreground">
+                                <span
+                                  className="cursor-pointer hover:text-primary hover:underline underline-offset-2 transition-colors"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setBookModalEnchant(req.enchantmentName);
+                                    setBookModalLevel(req.targetLevel);
+                                    setBookModalForItem((req as any)._nodeName);
+                                    setShowBookModal(true);
+                                    soundManager.playSound('button');
+                                  }}
+                                  title="Click for enchantment details"
+                                >
+                                  {req.displayName} {toRoman(req.targetLevel)}
+                                </span>
+                              </p>
+                              <p className="text-xs text-muted-foreground">{req.booksNeeded} level-1 books needed for {(req as any)._nodeName}</p>
+                            </div>
+                          </div>
+                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </button>
+
+                        {isExpanded && (
+                          <div className="px-5 pb-5 pt-1 space-y-5 border-t border-white/5 mt-1">
+                            <div className="p-3 rounded-xl bg-amber-400/5 border border-amber-400/20 flex gap-3">
+                              <Sparkles className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                              <p className="text-sm text-amber-200/80 leading-relaxed font-medium">{strategy}</p>
+                            </div>
+
+                            {req.anvilSteps.length > 0 && (
+                              <div>
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3">Anvil Combining Progress</p>
+                                <div className="space-y-2">
+                                  {req.anvilSteps.map(step => (
+                                    <div key={step.step} className="flex items-center gap-3 text-sm px-3 py-2 rounded-lg bg-white/5">
+                                      <span className="text-muted-foreground font-mono text-xs">#{step.step}</span>
+                                      <span className="flex-1 font-medium">{step.count}× [{toRoman(step.inputLevel)} + {toRoman(step.inputLevel)}]</span>
+                                      <ArrowLeft className="w-3 h-3 text-muted-foreground rotate-180" />
+                                      <span className="text-purple-400 font-bold">{step.count}× {toRoman(step.outputLevel)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            <div>
+                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3">Where to hunt</p>
+                              <div className="grid sm:grid-cols-2 gap-2">
+                                {req.sources.map((src, i) => (
+                                  <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-secondary/40 border border-white/5">
+                                    <span className="text-lg">{src.icon}</span>
+                                    <div>
+                                      <p className="text-xs font-bold text-foreground">{src.method}</p>
+                                      <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{src.description}</p>
+                                    </div>
                                   </div>
                                 ))}
                               </div>
                             </div>
-                          )}
-
-                          <div>
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3">Where to hunt</p>
-                            <div className="grid sm:grid-cols-2 gap-2">
-                              {req.sources.map((src, i) => (
-                                <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-secondary/40 border border-white/5">
-                                  <span className="text-lg">{src.icon}</span>
-                                  <div>
-                                    <p className="text-xs font-bold text-foreground">{src.method}</p>
-                                    <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{src.description}</p>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
             );
           })()}
 
@@ -1783,46 +1818,92 @@ const ProjectDetail = () => {
               </div>
             ) : (
               <div className="max-h-[500px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-              <div className="space-y-6 relative before:absolute before:left-[13px] before:top-2 before:bottom-2 before:w-px before:bg-white/5">
-                {contributions.slice(0, 15).map(c => {
-                  const isMilestone = c.action === 'milestone';
-                  const isRestored = c.action === 'restored';
-                  const initials = ((c.profiles as any)?.full_name || (c.profiles as any)?.email || 'U')[0].toUpperCase();
+                <div className="space-y-6 relative before:absolute before:left-[13px] before:top-2 before:bottom-2 before:w-px before:bg-white/5">
+                  {contributions.slice(0, 15).map(c => {
+                    const isMilestone = c.action === 'milestone';
+                    const isRestored = c.action === 'restored';
+                    const initials = ((c.profiles as any)?.full_name || (c.profiles as any)?.email || 'U')[0].toUpperCase();
 
-                  if (isMilestone) {
-                    return (
-                      <div key={c.id} className="flex gap-4 relative group">
-                        <div className="w-7 h-7 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center z-10 animate-pulse">
-                          <Trophy className="w-3.5 h-3.5 text-emerald-400" />
+                    if (isMilestone) {
+                      return (
+                        <div key={c.id} className="flex gap-4 relative group">
+                          <div className="w-7 h-7 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center z-10 animate-pulse">
+                            <Trophy className="w-3.5 h-3.5 text-emerald-400" />
+                          </div>
+                          <div className="flex-1 min-w-0 bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-3 transform transition-all group-hover:scale-[1.02] group-hover:bg-emerald-500/10">
+                            <p className="text-xs leading-normal">
+                              <span className="font-black text-emerald-400 uppercase tracking-wider mr-2">Milestone</span>
+                              <span className="text-foreground">
+                                The team completed <span className="text-emerald-400 font-bold">{(c.crafting_nodes as any)?.display_name}</span>!
+                              </span>
+                            </p>
+                            <p className="text-[10px] text-emerald-500/50 mt-1 uppercase tracking-tighter">
+                              {new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex-1 min-w-0 bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-3 transform transition-all group-hover:scale-[1.02] group-hover:bg-emerald-500/10">
-                          <p className="text-xs leading-normal">
-                            <span className="font-black text-emerald-400 uppercase tracking-wider mr-2">Milestone</span>
-                            <span className="text-foreground">
-                              The team completed <span className="text-emerald-400 font-bold">{(c.crafting_nodes as any)?.display_name}</span>!
-                            </span>
-                          </p>
-                          <p className="text-[10px] text-emerald-500/50 mt-1 uppercase tracking-tighter">
-                            {new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  }
+                      );
+                    }
 
-                  if (isRestored) {
+                    if (isRestored) {
+                      return (
+                        <div key={c.id} className="flex gap-4 relative">
+                          <div className="w-7 h-7 rounded-full bg-amber-900/50 border border-white/10 flex items-center justify-center text-[10px] font-black text-amber-400 z-10">
+                            ↺
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs leading-normal">
+                              <span className="font-bold text-amber-400">
+                                {(c.profiles as any)?.full_name || (c.profiles as any)?.email}
+                              </span>
+                              <span className="text-muted-foreground"> restored plan to </span>
+                              <span className="text-amber-400 font-bold">Version {c.quantity}</span>
+                            </p>
+                            <p className="text-[10px] text-muted-foreground/50 mt-1 uppercase tracking-tighter">
+                              {new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (c.action === 'saved') {
+                      return (
+                        <div key={c.id} className="flex gap-4 relative group">
+                          <div className="w-7 h-7 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center z-10">
+                            <Save className="w-3.5 h-3.5 text-blue-400" />
+                          </div>
+                          <div className="flex-1 min-w-0 bg-blue-500/5 border border-blue-500/10 rounded-xl p-3 transition-all group-hover:bg-blue-500/10">
+                            <p className="text-xs leading-normal">
+                              <span className="font-bold text-blue-400">
+                                {(c.profiles as any)?.full_name || (c.profiles as any)?.email}
+                              </span>
+                              <span className="text-muted-foreground"> saved plan as </span>
+                              <span className="text-blue-400 font-bold">Version {c.quantity}</span>
+                            </p>
+                            <p className="text-[10px] text-blue-500/50 mt-1 uppercase tracking-tighter">
+                              {new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    }
+
                     return (
                       <div key={c.id} className="flex gap-4 relative">
-                        <div className="w-7 h-7 rounded-full bg-amber-900/50 border border-white/10 flex items-center justify-center text-[10px] font-black text-amber-400 z-10">
-                          ↺
+                        <div className="w-7 h-7 rounded-full bg-secondary border border-white/10 flex items-center justify-center text-[10px] font-black text-primary z-10">
+                          {initials}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs leading-normal">
-                            <span className="font-bold text-amber-400">
+                            <span className="font-bold text-foreground">
                               {(c.profiles as any)?.full_name || (c.profiles as any)?.email}
                             </span>
-                            <span className="text-muted-foreground"> restored plan to </span>
-                            <span className="text-amber-400 font-bold">Version {c.quantity}</span>
+                            <span className="text-muted-foreground"> {c.action} </span>
+                            <span className="text-primary font-bold">
+                              {(c.crafting_nodes as any)?.display_name || 'item'}
+                            </span>
+                            <span className="text-muted-foreground"> ×{c.quantity}</span>
                           </p>
                           <p className="text-[10px] text-muted-foreground/50 mt-1 uppercase tracking-tighter">
                             {new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -1830,54 +1911,8 @@ const ProjectDetail = () => {
                         </div>
                       </div>
                     );
-                  }
-
-                  if (c.action === 'saved') {
-                    return (
-                      <div key={c.id} className="flex gap-4 relative group">
-                        <div className="w-7 h-7 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center z-10">
-                          <Save className="w-3.5 h-3.5 text-blue-400" />
-                        </div>
-                        <div className="flex-1 min-w-0 bg-blue-500/5 border border-blue-500/10 rounded-xl p-3 transition-all group-hover:bg-blue-500/10">
-                          <p className="text-xs leading-normal">
-                            <span className="font-bold text-blue-400">
-                              {(c.profiles as any)?.full_name || (c.profiles as any)?.email}
-                            </span>
-                            <span className="text-muted-foreground"> saved plan as </span>
-                            <span className="text-blue-400 font-bold">Version {c.quantity}</span>
-                          </p>
-                          <p className="text-[10px] text-blue-500/50 mt-1 uppercase tracking-tighter">
-                            {new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div key={c.id} className="flex gap-4 relative">
-                      <div className="w-7 h-7 rounded-full bg-secondary border border-white/10 flex items-center justify-center text-[10px] font-black text-primary z-10">
-                        {initials}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs leading-normal">
-                          <span className="font-bold text-foreground">
-                            {(c.profiles as any)?.full_name || (c.profiles as any)?.email}
-                          </span>
-                          <span className="text-muted-foreground"> {c.action} </span>
-                          <span className="text-primary font-bold">
-                            {(c.crafting_nodes as any)?.display_name || 'item'}
-                          </span>
-                          <span className="text-muted-foreground"> ×{c.quantity}</span>
-                        </p>
-                        <p className="text-[10px] text-muted-foreground/50 mt-1 uppercase tracking-tighter">
-                          {new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                  })}
+                </div>
               </div>
             )}
           </div>
