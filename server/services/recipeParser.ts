@@ -598,10 +598,9 @@ export async function parseRecipeTree(
     }
   }
 
-  // ── Enchanting dependencies (lapis lazuli + enchanting table) ──
-  // When enchantments are applied, the player needs:
-  //   1. Lapis lazuli (3 per enchantment per item for slot 3)
-  //   2. An enchanting table (reusable station — only 1 needed)
+  // ── Enchanting dependencies (enchanting table + lapis for creating books) ──
+  // When all enchanted books are collected, these will be deleted and replaced
+  // with an anvil node by the contribution service.
   if (enchantments && enchantments.length > 0) {
     const rootIndex = 0;
     const rootNode = allNodes[rootIndex];

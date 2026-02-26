@@ -150,6 +150,13 @@ export async function contribute(req: ContributeRequest, supabase: SupabaseClien
     await checkAndUpdateParentStatus(node.parent_id, supabase);
   }
 
+  // 7. Auto-complete enchanting table + lapis when all enchanted books are collected.
+  //    Once all books are done, the player only needs the anvil to apply them,
+  //    so the enchanting station items become unnecessary.
+  if (node.item_name === 'enchanted_book' && newStatus === 'completed' && node.parent_id) {
+    await autoCompleteEnchantingDeps(projectId, node.parent_id, userId, supabase);
+  }
+
   return {
     success: true,
     node: {
@@ -186,6 +193,166 @@ async function checkAndUpdateParentStatus(parentId: string, supabase: SupabaseCl
       .eq('id', parentId)
       .eq('status', 'pending'); // only if it was still pending
   }
+}
+
+/**
+ * When all enchanted book siblings under a parent are collected,
+ * DELETE the enchanting table + lapis lazuli nodes (and their children),
+ * then INSERT an anvil node with its crafting sub-tree.
+ */
+async function autoCompleteEnchantingDeps(
+  projectId: string,
+  parentId: string,
+  userId: string,
+  supabase: SupabaseClient
+) {
+  // 1. Get all siblings under this parent
+  const { data: siblings, error } = await supabase
+    .from('crafting_nodes')
+    .select('id, item_name, collected_qty, required_qty, depth')
+    .eq('parent_id', parentId)
+    .eq('project_id', projectId);
+
+  if (error || !siblings) return;
+
+  // 2. Check if ALL enchanted book siblings are fully collected
+  const bookNodes = siblings.filter((s: any) => s.item_name === 'enchanted_book');
+  if (bookNodes.length === 0) return;
+  const allBooksCollected = bookNodes.every((b: any) => b.collected_qty >= b.required_qty);
+  if (!allBooksCollected) return;
+
+  // 3. Check if anvil already exists (avoid duplicates on repeat calls)
+  const anvilExists = siblings.some((s: any) => s.item_name === 'anvil');
+  if (anvilExists) return;
+
+  // 4. Find enchanting_table and lapis_lazuli nodes to delete
+  const enchantingItems = ['enchanting_table', 'lapis_lazuli'];
+  const toDelete = siblings.filter(
+    (s: any) => enchantingItems.includes(s.item_name)
+  );
+
+  console.log(`[EnchantSwap] All books collected — removing enchanting table/lapis, adding anvil`);
+
+  // 5. Delete enchanting table + lapis nodes and ALL their descendants
+  for (const node of toDelete) {
+    await deleteNodeTree(projectId, node.id, supabase);
+  }
+
+  // 6. Get the parent node's depth for the anvil
+  const parentDepth = (siblings[0]?.depth ?? 1); // siblings are at parentDepth, anvil goes at same level
+  const anvilDepth = parentDepth;
+
+  // 7. Insert anvil node with its crafting sub-tree
+  //    Anvil recipe: 3 iron_block + 4 iron_ingot
+  //    iron_block recipe: 9 iron_ingot each → 3 × 9 = 27 iron_ingot
+  //    Total iron_ingot: 27 + 4 = 31
+
+  // Insert the anvil node (craftable, not resource)
+  const { data: anvilNode, error: anvilErr } = await supabase
+    .from('crafting_nodes')
+    .insert({
+      project_id: projectId,
+      parent_id: parentId,
+      item_name: 'anvil',
+      display_name: 'Anvil',
+      required_qty: 1,
+      collected_qty: 0,
+      is_resource: false,
+      is_block: true,
+      depth: anvilDepth,
+      status: 'pending',
+    })
+    .select('id')
+    .single();
+
+  if (anvilErr || !anvilNode) {
+    console.error('[EnchantSwap] Failed to insert anvil node:', anvilErr?.message);
+    return;
+  }
+
+  const anvilId = anvilNode.id;
+  const childDepth = anvilDepth + 1;
+
+  // Insert iron_block node (craftable, 3 needed)
+  const { data: ironBlockNode, error: ibErr } = await supabase
+    .from('crafting_nodes')
+    .insert({
+      project_id: projectId,
+      parent_id: anvilId,
+      item_name: 'iron_block',
+      display_name: 'Iron Block',
+      required_qty: 3,
+      collected_qty: 0,
+      is_resource: false,
+      is_block: true,
+      depth: childDepth,
+      status: 'pending',
+    })
+    .select('id')
+    .single();
+
+  if (!ibErr && ironBlockNode) {
+    // Insert iron_ingot for iron blocks (9 per block × 3 = 27)
+    await supabase
+      .from('crafting_nodes')
+      .insert({
+        project_id: projectId,
+        parent_id: ironBlockNode.id,
+        item_name: 'iron_ingot',
+        display_name: 'Iron Ingot',
+        required_qty: 27,
+        collected_qty: 0,
+        is_resource: true,
+        is_block: false,
+        depth: childDepth + 1,
+        status: 'pending',
+      });
+  }
+
+  // Insert iron_ingot node for anvil directly (4 needed)
+  await supabase
+    .from('crafting_nodes')
+    .insert({
+      project_id: projectId,
+      parent_id: anvilId,
+      item_name: 'iron_ingot',
+      display_name: 'Iron Ingot',
+      required_qty: 4,
+      collected_qty: 0,
+      is_resource: true,
+      is_block: false,
+      depth: childDepth,
+      status: 'pending',
+    });
+}
+
+/**
+ * Recursively delete a node and all its descendants from the database.
+ */
+async function deleteNodeTree(
+  projectId: string,
+  nodeId: string,
+  supabase: SupabaseClient
+) {
+  // First, find and delete all children recursively
+  const { data: children } = await supabase
+    .from('crafting_nodes')
+    .select('id')
+    .eq('parent_id', nodeId)
+    .eq('project_id', projectId);
+
+  if (children) {
+    for (const child of children) {
+      await deleteNodeTree(projectId, child.id, supabase);
+    }
+  }
+
+  // Then delete this node
+  await supabase
+    .from('crafting_nodes')
+    .delete()
+    .eq('id', nodeId)
+    .eq('project_id', projectId);
 }
 
 /**
