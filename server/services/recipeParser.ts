@@ -606,8 +606,21 @@ export async function parseRecipeTree(
     const rootNode = allNodes[rootIndex];
     const enchDepth = rootNode.depth + 1;
 
-    // Add Lapis Lazuli requirement: 3 per enchantment per item (worst case = slot 3)
-    const lapisPerItem = enchantments.length * 3;
+    // Add Lapis Lazuli requirement based on enchanting table slot:
+    //   Slot 1 (XP level 1–10):  1 lapis
+    //   Slot 2 (XP level 11–20): 2 lapis
+    //   Slot 3 (XP level 21–30): 3 lapis
+    let lapisPerItem = 0;
+    for (const ench of enchantments) {
+      const minXp = getEnchantmentMinLevel(ench.name, ench.level);
+      if (minXp <= 10) {
+        lapisPerItem += 1;  // slot 1
+      } else if (minXp <= 20) {
+        lapisPerItem += 2;  // slot 2
+      } else {
+        lapisPerItem += 3;  // slot 3
+      }
+    }
     const lapisTotal = lapisPerItem * totalQuantity;
     const lapisNode: CraftingNode = {
       project_id: projectId,
