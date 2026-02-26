@@ -80,6 +80,10 @@ const ProjectDetail = () => {
   const [addItemVariant, setAddItemVariant] = useState<string>('');
   const [addingItem, setAddingItem] = useState(false);
 
+  // Beacon pyramid state
+  const [beaconPyramidLevel, setBeaconPyramidLevel] = useState<number>(1);
+  const [beaconMaterial, setBeaconMaterial] = useState<string>('iron_block');
+
   // Enchantment editing state
   const [editingEnchantments, setEditingEnchantments] = useState<string | null>(null);
   const [editEnchantmentLevels, setEditEnchantmentLevels] = useState<{ name: string; level: number }[]>([]);
@@ -385,6 +389,8 @@ const ProjectDetail = () => {
     setAddItemQty(1);
     setAddItemEnchantments([]);
     setAddItemVariant('');
+    setBeaconPyramidLevel(1);
+    setBeaconMaterial('iron_block');
     if (fullItem.possibleEnchantments?.length) {
       setAddItemEnchantName(fullItem.possibleEnchantments[0].name);
     } else {
@@ -396,12 +402,18 @@ const ProjectDetail = () => {
     if (!addItemSelected || !id) return;
     setAddingItem(true);
     try {
+      // For beacons, construct pyramid variant from level + material
+      let finalVariant = addItemVariant || null;
+      if (addItemSelected.name === 'beacon' && beaconPyramidLevel > 0) {
+        finalVariant = `pyramid_${beaconPyramidLevel}_${beaconMaterial}`;
+      }
+
       await addTargetItem(
         id,
         addItemSelected.name,
         addItemQty,
         addItemEnchantments.length > 0 ? addItemEnchantments : null,
-        addItemVariant || null,
+        finalVariant,
       );
       soundManager.playSound('craft');
       // Reset state
@@ -410,6 +422,8 @@ const ProjectDetail = () => {
       setAddItemQty(1);
       setAddItemEnchantments([]);
       setAddItemVariant('');
+      setBeaconPyramidLevel(1);
+      setBeaconMaterial('iron_block');
       setShowAddItem(false);
       // Reload the project to show new nodes
       await loadProject();
@@ -428,6 +442,8 @@ const ProjectDetail = () => {
     setAddItemQty(1);
     setAddItemEnchantments([]);
     setAddItemVariant('');
+    setBeaconPyramidLevel(1);
+    setBeaconMaterial('iron_block');
   };
 
   const handleGoHome = () => {
@@ -662,11 +678,17 @@ const ProjectDetail = () => {
                   );
                 })()}
 
-                {/* Variant badge (potion type) */}
+                {/* Variant badge (potion type / beacon pyramid) */}
                 {node.variant && (
-                  <span className="text-[10px] bg-teal-500/15 text-teal-400 border border-teal-500/20 px-1.5 py-0.5 rounded-full font-medium">
-                    🧪 {node.variant.replace(/_/g, ' ')}
-                  </span>
+                  node.variant.startsWith('pyramid_') ? (
+                    <span className="text-[10px] bg-amber-500/15 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded-full font-medium">
+                      🔶 Level {node.variant.split('_')[1]} Pyramid
+                    </span>
+                  ) : (
+                    <span className="text-[10px] bg-teal-500/15 text-teal-400 border border-teal-500/20 px-1.5 py-0.5 rounded-full font-medium">
+                      🧪 {node.variant.replace(/_/g, ' ')}
+                    </span>
+                  )
                 )}
 
                 {/* Inline Editing */}
@@ -1035,8 +1057,47 @@ const ProjectDetail = () => {
                       />
                     </div>
 
-                    {/* Variant selection (potions, splash potions, etc.) */}
-                    {addItemSelected.possibleVariants && addItemSelected.possibleVariants.length > 0 && (
+                    {/* Beacon Pyramid selection */}
+                    {addItemSelected.name === 'beacon' && (
+                      <div className="space-y-3 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20">
+                        <p className="text-xs text-amber-300 font-medium flex items-center gap-1">
+                          🔶 Beacon Pyramid
+                        </p>
+                        <div className="flex items-center gap-3">
+                          <label className="text-xs text-muted-foreground font-medium w-20">Power Level</label>
+                          <select
+                            value={beaconPyramidLevel}
+                            onChange={e => setBeaconPyramidLevel(parseInt(e.target.value))}
+                            className="flex-1 bg-secondary/60 border border-white/8 rounded-lg px-2 py-1.5 text-xs text-foreground"
+                          >
+                            <option value={1}>Level 1 — 9 blocks (Speed, Haste)</option>
+                            <option value={2}>Level 2 — 34 blocks (+Resistance, Jump Boost)</option>
+                            <option value={3}>Level 3 — 83 blocks (+Strength)</option>
+                            <option value={4}>Level 4 — 164 blocks (+Regeneration)</option>
+                          </select>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <label className="text-xs text-muted-foreground font-medium w-20">Material</label>
+                          <select
+                            value={beaconMaterial}
+                            onChange={e => setBeaconMaterial(e.target.value)}
+                            className="flex-1 bg-secondary/60 border border-white/8 rounded-lg px-2 py-1.5 text-xs text-foreground"
+                          >
+                            <option value="iron_block">Iron Blocks</option>
+                            <option value="gold_block">Gold Blocks</option>
+                            <option value="diamond_block">Diamond Blocks</option>
+                            <option value="emerald_block">Emerald Blocks</option>
+                            <option value="netherite_block">Netherite Blocks</option>
+                          </select>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">
+                          Total: {[9, 34, 83, 164][beaconPyramidLevel - 1] * addItemQty} {beaconMaterial.replace(/_/g, ' ')}s needed
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Variant selection (potions, splash potions, etc.) — NOT for beacons */}
+                    {addItemSelected.name !== 'beacon' && addItemSelected.possibleVariants && addItemSelected.possibleVariants.length > 0 && (
                       <div className="space-y-2">
                         <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
                           🧪 Potion Type

@@ -148,6 +148,33 @@ function isRawResource(itemName: string, itemId: number): boolean {
   return !hasRecipe;
 }
 
+// ── Beacon pyramid levels ─────────────────────────────────────
+
+/** Block count per pyramid level (1-4) */
+const BEACON_PYRAMID_SIZES: Record<number, number> = {
+  1: 9,    // 3×3
+  2: 34,   // 3×3 + 5×5
+  3: 83,   // 3×3 + 5×5 + 7×7
+  4: 164,  // 3×3 + 5×5 + 7×7 + 9×9
+};
+
+/** Materials usable for the beacon pyramid base */
+const BEACON_MATERIALS = [
+  { name: 'iron_block', displayName: 'Iron Blocks' },
+  { name: 'gold_block', displayName: 'Gold Blocks' },
+  { name: 'diamond_block', displayName: 'Diamond Blocks' },
+  { name: 'emerald_block', displayName: 'Emerald Blocks' },
+  { name: 'netherite_block', displayName: 'Netherite Blocks' },
+];
+
+/** Effects available at each beacon pyramid power level */
+const BEACON_POWER_EFFECTS: Record<number, string[]> = {
+  1: ['Speed', 'Haste'],
+  2: ['Resistance', 'Jump Boost'],
+  3: ['Strength'],
+  4: ['Regeneration (secondary)'],
+};
+
 // ── Potion / splash / lingering / tipped arrow variants ───────
 
 const POTION_VARIANTS: { name: string; displayName: string; ingredient: string; level?: number; effects: string; duration?: string; canAmplify?: boolean }[] = [
@@ -179,11 +206,29 @@ const POTION_VARIANTS: { name: string; displayName: string; ingredient: string; 
   { name: 'turtle_master_2', displayName: 'Potion of the Turtle Master II', ingredient: 'turtle_helmet', level: 2, effects: 'Slowness VI (-90% speed) + Resistance IV (80% damage reduction)', duration: '0:20' },
 ];
 
-/** Items that support variant selection (potion type, etc.) */
-const VARIANT_ITEMS = new Set(['potion', 'splash_potion', 'lingering_potion', 'tipped_arrow']);
+/** Items that support variant selection (potion type, beacon pyramid, etc.) */
+const VARIANT_ITEMS = new Set(['potion', 'splash_potion', 'lingering_potion', 'tipped_arrow', 'beacon']);
 
 function getPossibleVariants(itemName: string): { name: string; displayName: string; effects?: string; duration?: string }[] | null {
   if (!VARIANT_ITEMS.has(itemName)) return null;
+
+  // Beacon pyramid variants
+  if (itemName === 'beacon') {
+    const variants: { name: string; displayName: string; effects?: string }[] = [];
+    for (let level = 1; level <= 4; level++) {
+      const blockCount = BEACON_PYRAMID_SIZES[level];
+      const effects = BEACON_POWER_EFFECTS[level].join(', ');
+      for (const mat of BEACON_MATERIALS) {
+        variants.push({
+          name: `pyramid_${level}_${mat.name}`,
+          displayName: `Level ${level} Pyramid — ${mat.displayName} (${blockCount} blocks)`,
+          effects: `Unlocks: ${effects}`,
+        });
+      }
+    }
+    return variants;
+  }
+
   // For potions, prefix changes by item type
   const prefix = itemName === 'potion' ? 'Potion'
     : itemName === 'splash_potion' ? 'Splash Potion'
@@ -381,7 +426,7 @@ export async function parseRecipeTree(
   }
 
   // For potion/splash/lingering/tipped_arrow with a variant, add brewing ingredient nodes
-  if (variant && VARIANT_ITEMS.has(rootItemName)) {
+  if (variant && VARIANT_ITEMS.has(rootItemName) && rootItemName !== 'beacon') {
     const variantInfo = POTION_VARIANTS.find(v => v.name === variant);
     if (variantInfo) {
       const rootIndex = 0;
@@ -521,6 +566,72 @@ export async function parseRecipeTree(
           if (gdExist) gdExist.qty += totalQuantity; else resourceTotals.set('glowstone_dust', { displayName: 'Glowstone Dust', qty: totalQuantity });
         }
       }
+    }
+  }
+
+  // ── Beacon pyramid handling ──────────────────────────────────
+  // When a beacon is added with a pyramid variant, add the mineral block requirement.
+  // Variant format: "pyramid_LEVEL_MATERIAL" e.g. "pyramid_3_iron_block"
+  if (rootItemName === 'beacon' && variant && variant.startsWith('pyramid_')) {
+    const parts = variant.split('_');
+    // parts = ['pyramid', '3', 'iron', 'block'] or ['pyramid', '2', 'diamond', 'block'] etc.
+    const level = parseInt(parts[1]) || 1;
+    const material = parts.slice(2).join('_'); // e.g. 'iron_block'
+    const blockCount = BEACON_PYRAMID_SIZES[Math.min(Math.max(level, 1), 4)] || 9;
+    const totalBlocks = blockCount * totalQuantity;
+
+    const rootIndex = 0;
+    const rootNode = allNodes[rootIndex];
+    rootNode.is_resource = false; // beacon with pyramid is craftable
+    const pyramidDepth = rootNode.depth + 1;
+
+    // Update display name to show pyramid level
+    const matInfo = BEACON_MATERIALS.find(m => m.name === material);
+    const matLabel = matInfo ? matInfo.displayName : material.replace(/_/g, ' ');
+    rootNode.display_name = `Beacon (Level ${level} Pyramid)`;
+
+    // Add the mineral block as a child — buildTree will recursively parse its recipe
+    // (e.g., iron_block = 9 iron_ingot, giving full resource breakdown)
+    const materialItem = mcData.itemsByName[material];
+    if (materialItem) {
+      buildTree(materialItem.id, rootIndex, totalBlocks, pyramidDepth);
+    }
+  }
+
+  // ── Enchanting dependencies (lapis lazuli + enchanting table) ──
+  // When enchantments are applied, the player needs:
+  //   1. Lapis lazuli (3 per enchantment per item for slot 3)
+  //   2. An enchanting table (reusable station — only 1 needed)
+  if (enchantments && enchantments.length > 0) {
+    const rootIndex = 0;
+    const rootNode = allNodes[rootIndex];
+    const enchDepth = rootNode.depth + 1;
+
+    // Add Lapis Lazuli requirement: 3 per enchantment per item (worst case = slot 3)
+    const lapisPerItem = enchantments.length * 3;
+    const lapisTotal = lapisPerItem * totalQuantity;
+    const lapisNode: CraftingNode = {
+      project_id: projectId,
+      parent_id: null,
+      item_name: 'lapis_lazuli',
+      display_name: 'Lapis Lazuli (enchanting)',
+      required_qty: lapisTotal,
+      collected_qty: 0,
+      is_resource: true,
+      is_block: false,
+      depth: enchDepth,
+      status: 'pending',
+    };
+    (lapisNode as any)._parentIndex = rootIndex;
+    allNodes.push(lapisNode);
+    const lapisExist = resourceTotals.get('lapis_lazuli');
+    if (lapisExist) lapisExist.qty += lapisTotal;
+    else resourceTotals.set('lapis_lazuli', { displayName: 'Lapis Lazuli (enchanting)', qty: lapisTotal });
+
+    // Add Enchanting Table (reusable station — 1 needed regardless of quantity)
+    const enchTableItem = mcData.itemsByName['enchanting_table'];
+    if (enchTableItem) {
+      buildTree(enchTableItem.id, rootIndex, 1, enchDepth);
     }
   }
 
@@ -674,6 +785,23 @@ export function getEnchantmentMaxLevel(enchantmentName: string): number | null {
   const enchantmentsArray: any[] = (mcData as any).enchantmentsArray || [];
   const ench = enchantmentsArray.find((e: any) => e.name === enchantmentName);
   return ench ? (ench.maxLevel || 1) : null;
+}
+
+/**
+ * Returns beacon pyramid info for the frontend UI.
+ */
+export function getBeaconPyramidInfo() {
+  return {
+    levels: Object.entries(BEACON_PYRAMID_SIZES).map(([level, blocks]) => ({
+      level: parseInt(level),
+      blocks,
+      effects: BEACON_POWER_EFFECTS[parseInt(level)] || [],
+    })),
+    materials: BEACON_MATERIALS.map(m => ({
+      name: m.name,
+      displayName: m.displayName,
+    })),
+  };
 }
 
 /**

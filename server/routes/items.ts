@@ -6,12 +6,18 @@
 
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
-import { searchItems, lookupItem, getItemDetail, getEnchantmentData } from '../services/recipeParser.js';
+import { searchItems, lookupItem, getItemDetail, getEnchantmentData, getBeaconPyramidInfo } from '../services/recipeParser.js';
 
 const router = Router();
 
 // Authentication required but no project membership needed
 router.use(authMiddleware);
+
+// ── GET /api/items/beacon/pyramid ───────────────────────────────
+// Get beacon pyramid level and material options
+router.get('/beacon/pyramid', async (req: Request, res: Response) => {
+  res.json(getBeaconPyramidInfo());
+});
 
 // ── GET /api/items/enchantment/:enchantmentName ────────────────
 // Get full enchantment data from minecraft-data (for Enchanted Book Guide modal)

@@ -7,9 +7,9 @@
 
 import { supabase } from './supabase';
 
-// Use the same hostname the browser loaded from, so LAN users hit the right server
-const API_BASE = import.meta.env.VITE_API_URL
-  || `http://${window.location.hostname}:3001/api`;
+// In dev mode, Vite proxies /api to the backend so we can use same-origin.
+// In production, the Express server serves both static files and API on the same port.
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 // ── Helper ─────────────────────────────────────────────────────
 
