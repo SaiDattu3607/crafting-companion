@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { soundManager } from '@/lib/sound';
@@ -8,12 +8,14 @@ import {
   fetchLeaderboard, updateNodeEnchantments, updateMemberRole,
   fetchTaskSuggestions, savePlanSnapshot, fetchPlanSnapshots, restorePlanSnapshot,
   addTargetItem, searchMinecraftItems, lookupMinecraftItem,
-  updateProfile,
+  updateProfile, undoLastContribution,
+  fetchChatMessages, sendChatMessage, deleteChatMessage,
   type Project, type CraftingNode, type Contribution,
   type BottleneckItem, type ProjectProgress, type ProjectMember,
   type MemberRole, type SuggestedTask, type PlanSnapshot,
-  type MinecraftItem,
+  type MinecraftItem, type ChatMessage,
 } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
@@ -22,7 +24,7 @@ import {
   UserPlus, RefreshCw, Loader2, Layers, Activity,
   Sparkles, Pencil, Check, X, BookOpen, ChevronDown, ChevronUp, Trophy,
   ClipboardList, Save, History, HardHat, Hammer, BrainCircuit, Users,
-  Plus, Search, Package, Shield
+  Plus, Search, Package, Shield, Undo2, MessageCircle, Send, Trash2
 } from 'lucide-react';
 import { getBookRequirements, toRoman, getBestStrategy } from '@/lib/enchantmentBooks';
 import { getMinecraftAssetUrl } from '@/lib/minecraftAssets';
@@ -111,6 +113,16 @@ const ProjectDetail = () => {
   const [bookModalForItem, setBookModalForItem] = useState<string | undefined>(undefined);
   const [showBookModal, setShowBookModal] = useState(false);
 
+  // Undo
+  const [undoing, setUndoing] = useState(false);
+
+  // Chat
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatSending, setChatSending] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
   /** Get the minimum XP level required for an enchantment at a given tier */
   const getMinXpLevel = (enchName: string, enchLevel: number): number | null => {
     const reqs = enchLevelReqs[enchName];
@@ -133,12 +145,13 @@ const ProjectDetail = () => {
     if (!id) return;
     try {
       setLoading(true);
-      const [projectData, contribs, bottleneckData, progressData, leaderboardData] = await Promise.all([
+      const [projectData, contribs, bottleneckData, progressData, leaderboardData, chatData] = await Promise.all([
         fetchProject(id),
         fetchContributions(id).catch(() => []),
         fetchBottleneck(id).catch(() => []),
         fetchProgress(id).catch(() => null),
         fetchLeaderboard(id).catch(() => []),
+        fetchChatMessages(id).catch(() => []),
       ]);
 
       const parsedNodes = projectData.nodes.map((node: any) => {
@@ -156,6 +169,7 @@ const ProjectDetail = () => {
       setBottlenecks(bottleneckData);
       setLeaderboard(leaderboardData);
       setProgress(progressData);
+      setChatMessages(chatData);
       setError('');
 
       // Load tasks & snapshots in parallel
@@ -174,6 +188,70 @@ const ProjectDetail = () => {
   }, [id]);
 
   useEffect(() => { loadProject(); }, [loadProject]);
+
+  // ── Supabase realtime: live crafting_nodes updates ─────────────
+  useEffect(() => {
+    if (!id) return;
+    const channel = supabase
+      .channel(`project-nodes-${id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'crafting_nodes',
+        filter: `project_id=eq.${id}`,
+      }, (payload: any) => {
+        setNodes(prev => prev.map(n =>
+          n.id === payload.new.id
+            ? { ...n, collected_qty: payload.new.collected_qty, status: payload.new.status }
+            : n
+        ));
+        // Refresh progress/bottleneck/contributions in background
+        Promise.all([
+          fetchProgress(id).catch(() => null),
+          fetchBottleneck(id).catch(() => []),
+          fetchContributions(id).catch(() => []),
+        ]).then(([prog, bns, contribs]) => {
+          if (prog) setProgress(prog);
+          if (bns) setBottlenecks(bns);
+          if (contribs) setContributions(contribs);
+        });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [id]);
+
+  // ── Supabase realtime: live chat messages ─────────────────────
+  useEffect(() => {
+    if (!id) return;
+    const channel = supabase
+      .channel(`project-chat-${id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'project_chat_messages',
+        filter: `project_id=eq.${id}`,
+      }, () => {
+        // Re-fetch messages on any insert to get full profile data
+        fetchChatMessages(id).then(msgs => setChatMessages(msgs)).catch(() => {});
+      })
+      .on('postgres_changes', {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'project_chat_messages',
+        filter: `project_id=eq.${id}`,
+      }, (payload: any) => {
+        setChatMessages(prev => prev.filter(m => m.id !== payload.old.id));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [id]);
+
+  // ── Scroll chat to bottom on new messages ─────────────────────
+  useEffect(() => {
+    if (showChat) {
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages, showChat]);
 
   // ── Fetch enchantment level requirements for items in the project ──
   useEffect(() => {
@@ -271,20 +349,105 @@ const ProjectDetail = () => {
 
   const handleContribute = async (nodeId: string, action: 'collected' | 'crafted', qty: number = 1) => {
     setContributing(nodeId);
+    // ── Optimistic update ──
+    setNodes(prev => prev.map(n => {
+      if (n.id !== nodeId) return n;
+      const newQty = Math.min(n.collected_qty + qty, n.required_qty);
+      return { ...n, collected_qty: newQty, status: newQty >= n.required_qty ? 'completed' : 'in_progress' };
+    }));
     try {
       const result = await contributeToNode(id!, nodeId, qty, action);
       if (!result.success) {
+        // Revert optimistic update on failure
+        setNodes(prev => prev.map(n => {
+          if (n.id !== nodeId) return n;
+          const revertQty = Math.max(0, n.collected_qty - qty);
+          return { ...n, collected_qty: revertQty, status: revertQty >= n.required_qty ? 'completed' : revertQty > 0 ? 'in_progress' : 'pending' };
+        }));
         setError(result.error || 'Contribution failed');
       } else {
         soundManager.playFileSound(action === 'crafted' ? 'craft' : 'collect');
       }
       // Reset qty for this node after contribution
       setCollectQty(prev => ({ ...prev, [nodeId]: 1 }));
-      await loadProject();
+      // Background refresh for progress/bottleneck/contributions (non-blocking)
+      Promise.all([
+        fetchProgress(id!).catch(() => null),
+        fetchBottleneck(id!).catch(() => []),
+        fetchContributions(id!).catch(() => []),
+        fetchLeaderboard(id!).catch(() => []),
+      ]).then(([prog, bns, contribs, lb]) => {
+        if (prog) setProgress(prog);
+        if (bns) setBottlenecks(bns as any);
+        if (contribs) setContributions(contribs as any);
+        if (lb) setLeaderboard(lb as any);
+      });
     } catch (err) {
+      // Revert optimistic update on error
+      setNodes(prev => prev.map(n => {
+        if (n.id !== nodeId) return n;
+        const revertQty = Math.max(0, n.collected_qty - qty);
+        return { ...n, collected_qty: revertQty, status: revertQty >= n.required_qty ? 'completed' : revertQty > 0 ? 'in_progress' : 'pending' };
+      }));
       setError((err as Error).message);
     } finally {
       setContributing(null);
+    }
+  };
+
+  const handleUndo = async () => {
+    if (!id) return;
+    setUndoing(true);
+    try {
+      const result = await undoLastContribution(id);
+      soundManager.playSound('button');
+      toast({ title: 'Undone', description: `Reverted ${result.display_name} by ${result.newQty < 0 ? 0 : result.display_name}` });
+      // Optimistic update
+      setNodes(prev => prev.map(n =>
+        n.id === result.nodeId
+          ? { ...n, collected_qty: result.newQty, status: result.newQty > 0 ? 'in_progress' : 'pending' }
+          : n
+      ));
+      // Background refresh
+      Promise.all([
+        fetchProgress(id).catch(() => null),
+        fetchBottleneck(id).catch(() => []),
+        fetchContributions(id).catch(() => []),
+      ]).then(([prog, bns, contribs]) => {
+        if (prog) setProgress(prog);
+        if (bns) setBottlenecks(bns as any);
+        if (contribs) setContributions(contribs as any);
+      });
+    } catch (err) {
+      toast({ title: 'Undo failed', description: (err as Error).message, variant: 'destructive' });
+    } finally {
+      setUndoing(false);
+    }
+  };
+
+  const handleSendChat = async () => {
+    if (!id || !chatInput.trim() || chatSending) return;
+    const msg = chatInput.trim();
+    setChatInput('');
+    setChatSending(true);
+    try {
+      await sendChatMessage(id, msg);
+      // Realtime will update the messages list
+    } catch (err) {
+      toast({ title: 'Chat error', description: (err as Error).message, variant: 'destructive' });
+      setChatInput(msg); // restore on error
+    } finally {
+      setChatSending(false);
+    }
+  };
+
+  const handleDeleteChatMessage = async (messageId: string) => {
+    if (!id) return;
+    try {
+      await deleteChatMessage(id, messageId);
+      setChatMessages(prev => prev.filter(m => m.id !== messageId));
+    } catch (err) {
+      toast({ title: 'Delete error', description: (err as Error).message, variant: 'destructive' });
     }
   };
 
@@ -751,7 +914,7 @@ const ProjectDetail = () => {
                 const canAct = canContribute(node) && !isContributing;
                 return (
                   <div className="flex items-center gap-1">
-                    {remaining > 1 && canAct && (
+                    {canAct && (
                       <div className="flex items-center gap-0.5 bg-white/5 border border-white/10 rounded-lg px-1 h-7">
                         <button
                           onClick={(e) => {
@@ -763,7 +926,19 @@ const ProjectDetail = () => {
                         >
                           −
                         </button>
-                        <span className="text-xs font-bold text-foreground min-w-[18px] text-center tabular-nums">{qty}</span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={remaining}
+                          value={qty}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            const v = Math.max(1, Math.min(remaining, parseInt(e.target.value) || 1));
+                            setCollectQty(prev => ({ ...prev, [node.id]: v }));
+                          }}
+                          className="w-10 h-5 text-center bg-transparent text-xs font-bold text-foreground tabular-nums focus:outline-none focus:ring-1 focus:ring-primary/50 rounded [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        />
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -813,9 +988,36 @@ const ProjectDetail = () => {
             </div>
             <span className="text-muted-foreground text-sm hidden sm:block">/ {project.name}</span>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleRefresh} className="text-muted-foreground hover:text-foreground rounded-xl gap-1.5">
-            <RefreshCw className="w-4 h-4" /> <span className="hidden sm:inline text-sm">Refresh</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            {project.owner_id === user?.id && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleUndo}
+                disabled={undoing}
+                className="text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 rounded-xl gap-1.5"
+                title="Undo last contribution"
+              >
+                {undoing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Undo2 className="w-4 h-4" />}
+                <span className="hidden sm:inline text-sm">Undo</span>
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setShowChat(c => !c); soundManager.playSound('button'); }}
+              className="text-muted-foreground hover:text-foreground rounded-xl gap-1.5"
+            >
+              <MessageCircle className="w-4 h-4" />
+              <span className="hidden sm:inline text-sm">Chat</span>
+              {chatMessages.length > 0 && (
+                <span className="bg-primary/20 text-primary text-[10px] font-bold px-1.5 py-0.5 rounded-full">{chatMessages.length}</span>
+              )}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={handleRefresh} className="text-muted-foreground hover:text-foreground rounded-xl gap-1.5">
+              <RefreshCw className="w-4 h-4" /> <span className="hidden sm:inline text-sm">Refresh</span>
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -1918,6 +2120,96 @@ const ProjectDetail = () => {
           </div>
         </div>
       </main>
+
+      {/* ── Chat Panel ─────────────────────────────────────────── */}
+      {showChat && (
+        <div className="fixed bottom-4 right-4 z-50 w-80 flex flex-col glass-strong border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
+          style={{ maxHeight: '480px' }}>
+          {/* Chat Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-white/[0.03]">
+            <div className="flex items-center gap-2">
+              <MessageCircle className="w-4 h-4 text-primary" />
+              <span className="font-semibold text-sm text-foreground">Project Chat</span>
+              <span className="text-[10px] text-muted-foreground/50 bg-white/5 px-1.5 py-0.5 rounded-full">
+                {members.length} member{members.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+            <button
+              onClick={() => setShowChat(false)}
+              className="text-muted-foreground/60 hover:text-foreground transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0" style={{ maxHeight: '340px' }}>
+            {chatMessages.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground/40 text-xs">
+                No messages yet. Say hi! 👋
+              </div>
+            ) : (
+              chatMessages.map(msg => {
+                const isOwn = msg.user_id === user?.id;
+                const name = (msg.profiles as any)?.full_name || (msg.profiles as any)?.email || 'User';
+                const initials = name[0].toUpperCase();
+                return (
+                  <div key={msg.id} className={`flex gap-2 group ${isOwn ? 'flex-row-reverse' : ''}`}>
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0 ${isOwn ? 'bg-primary/20 text-primary' : 'bg-secondary text-muted-foreground'}`}>
+                      {(msg.profiles as any)?.avatar_url ? (
+                        <img src={(msg.profiles as any).avatar_url} alt={name} className="w-full h-full rounded-full object-cover" />
+                      ) : initials}
+                    </div>
+                    <div className={`max-w-[200px] ${isOwn ? 'items-end' : 'items-start'} flex flex-col gap-0.5`}>
+                      {!isOwn && (
+                        <span className="text-[9px] text-muted-foreground/60 px-1">{name}</span>
+                      )}
+                      <div className={`relative px-3 py-1.5 rounded-xl text-xs leading-relaxed ${isOwn
+                          ? 'bg-primary/20 text-primary-foreground border border-primary/20'
+                          : 'bg-white/5 text-foreground border border-white/8'
+                        }`}>
+                        {msg.message}
+                        {isOwn && (
+                          <button
+                            onClick={() => handleDeleteChatMessage(msg.id)}
+                            className="absolute -top-1.5 -right-1.5 opacity-0 group-hover:opacity-100 transition-opacity w-4 h-4 rounded-full bg-destructive/80 flex items-center justify-center"
+                          >
+                            <X className="w-2.5 h-2.5 text-white" />
+                          </button>
+                        )}
+                      </div>
+                      <span className="text-[9px] text-muted-foreground/30 px-1">
+                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+            <div ref={chatEndRef} />
+          </div>
+
+          {/* Input */}
+          <div className="flex items-center gap-2 p-3 border-t border-white/5 bg-white/[0.02]">
+            <input
+              type="text"
+              value={chatInput}
+              onChange={e => setChatInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendChat(); } }}
+              placeholder="Type a message…"
+              maxLength={1000}
+              className="flex-1 bg-white/5 border border-white/8 rounded-xl px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/30"
+            />
+            <button
+              onClick={handleSendChat}
+              disabled={!chatInput.trim() || chatSending}
+              className="w-8 h-8 rounded-xl bg-primary/20 border border-primary/20 flex items-center justify-center text-primary hover:bg-primary/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {chatSending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Item Detail Modal */}
       <ItemDetailModal

@@ -535,6 +535,52 @@ export async function declineInvite(inviteId: string): Promise<{ success: boolea
   return apiFetch(`/projects/invites/${inviteId}/decline`, { method: 'POST' });
 }
 
+// ── Undo ──────────────────────────────────────────────────────
+
+/** Undo the last contribution for a project (owner only) */
+export async function undoLastContribution(projectId: string): Promise<{
+  success: boolean;
+  nodeId: string;
+  newQty: number;
+  display_name: string;
+}> {
+  return apiFetch(`/projects/${projectId}/undo`, { method: 'POST' });
+}
+
+// ── Chat ──────────────────────────────────────────────────────
+
+export interface ChatMessage {
+  id: string;
+  message: string;
+  created_at: string;
+  user_id: string;
+  profiles: {
+    full_name: string | null;
+    email: string;
+    avatar_url: string | null;
+  };
+}
+
+/** Fetch the last 50 chat messages for a project */
+export async function fetchChatMessages(projectId: string): Promise<ChatMessage[]> {
+  const data = await apiFetch<{ messages: ChatMessage[] }>(`/projects/${projectId}/chat`);
+  return data.messages;
+}
+
+/** Send a chat message */
+export async function sendChatMessage(projectId: string, message: string): Promise<ChatMessage> {
+  const data = await apiFetch<{ message: ChatMessage }>(`/projects/${projectId}/chat`, {
+    method: 'POST',
+    body: JSON.stringify({ message }),
+  });
+  return data.message;
+}
+
+/** Delete a chat message (own messages only) */
+export async function deleteChatMessage(projectId: string, messageId: string): Promise<void> {
+  await apiFetch(`/projects/${projectId}/chat/${messageId}`, { method: 'DELETE' });
+}
+
 // ── Profile ────────────────────────────────────────────────────
 
 /** Get the current user's profile */

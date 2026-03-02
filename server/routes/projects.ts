@@ -1325,6 +1325,186 @@ router.get('/profile', async (req: Request, res: Response) => {
   }
 });
 
+// ── POST /api/projects/:projectId/undo ────────────────────────
+// Undo the last contribution for the project (owner only)
+router.post('/:projectId/undo', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { projectId } = req.params;
+    const sb = supabaseForUser(req.accessToken!);
+
+    // Owner only
+    const { data: project } = await sb
+      .from('projects')
+      .select('owner_id')
+      .eq('id', projectId)
+      .single();
+
+    if (!project || project.owner_id !== req.userId) {
+      res.status(403).json({ error: 'Only the project owner can undo contributions' });
+      return;
+    }
+
+    // Find the last real contribution (collected or crafted) — not system entries
+    const { data: lastContrib, error: contribErr } = await sb
+      .from('contributions')
+      .select('id, node_id, quantity, action, user_id')
+      .eq('project_id', projectId)
+      .in('action', ['collected', 'crafted'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (contribErr) {
+      res.status(500).json({ error: contribErr.message });
+      return;
+    }
+
+    if (!lastContrib) {
+      res.status(404).json({ error: 'No contributions to undo' });
+      return;
+    }
+
+    // Fetch the node
+    const { data: node, error: nodeErr } = await sb
+      .from('crafting_nodes')
+      .select('id, display_name, collected_qty, required_qty')
+      .eq('id', lastContrib.node_id)
+      .single();
+
+    if (nodeErr || !node) {
+      res.status(404).json({ error: 'Node not found' });
+      return;
+    }
+
+    const newQty = Math.max(0, node.collected_qty - lastContrib.quantity);
+    const newStatus = newQty >= node.required_qty ? 'completed' : newQty > 0 ? 'in_progress' : 'pending';
+
+    // Update the node
+    await sb
+      .from('crafting_nodes')
+      .update({ collected_qty: newQty, status: newStatus })
+      .eq('id', node.id);
+
+    // Delete the original contribution + any milestone it may have triggered
+    await sb.from('contributions').delete().eq('id', lastContrib.id);
+    await sb
+      .from('contributions')
+      .delete()
+      .eq('project_id', projectId)
+      .eq('node_id', lastContrib.node_id)
+      .eq('action', 'milestone')
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    // Log the undo action
+    await sb.from('contributions').insert({
+      project_id: projectId,
+      node_id: lastContrib.node_id,
+      user_id: req.userId!,
+      quantity: lastContrib.quantity,
+      action: 'undone',
+    });
+
+    res.json({ success: true, nodeId: node.id, newQty, display_name: node.display_name });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// ── GET /api/projects/:projectId/chat ──────────────────────────
+// Fetch the last 50 chat messages for a project
+router.get('/:projectId/chat', projectMemberGuard, async (req: Request, res: Response) => {
+  try {
+    const { projectId } = req.params;
+    const sb = supabaseForUser(req.accessToken!);
+
+    const { data, error } = await sb
+      .from('project_chat_messages')
+      .select(`
+        id, message, created_at, user_id,
+        profiles!inner (full_name, email, avatar_url)
+      `)
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: true })
+      .limit(50);
+
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    res.json({ messages: data || [] });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// ── POST /api/projects/:projectId/chat ─────────────────────────
+// Send a chat message
+router.post('/:projectId/chat', projectMemberGuard, async (req: Request, res: Response) => {
+  try {
+    const { projectId } = req.params;
+    const { message } = req.body;
+
+    if (!message || typeof message !== 'string' || !message.trim()) {
+      res.status(400).json({ error: 'message is required' });
+      return;
+    }
+    if (message.trim().length > 1000) {
+      res.status(400).json({ error: 'message too long (max 1000 chars)' });
+      return;
+    }
+
+    const sb = supabaseForUser(req.accessToken!);
+    const { data, error } = await sb
+      .from('project_chat_messages')
+      .insert({
+        project_id: projectId,
+        user_id: req.userId!,
+        message: message.trim(),
+      })
+      .select(`
+        id, message, created_at, user_id,
+        profiles!inner (full_name, email, avatar_url)
+      `)
+      .single();
+
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    res.status(201).json({ message: data });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// ── DELETE /api/projects/:projectId/chat/:messageId ─────────────
+// Delete own chat message
+router.delete('/:projectId/chat/:messageId', projectMemberGuard, async (req: Request, res: Response) => {
+  try {
+    const { projectId, messageId } = req.params;
+    const sb = supabaseForUser(req.accessToken!);
+
+    const { error } = await sb
+      .from('project_chat_messages')
+      .delete()
+      .eq('id', messageId)
+      .eq('project_id', projectId)
+      .eq('user_id', req.userId!);
+
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
 // ── GET /api/enchantment-levels ────────────────────────────────
 // Get XP level requirements for all enchantments
 router.get('/enchantment-levels', async (_req: Request, res: Response) => {
