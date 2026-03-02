@@ -9,7 +9,7 @@ import {
   fetchTaskSuggestions, savePlanSnapshot, fetchPlanSnapshots, restorePlanSnapshot,
   addTargetItem, searchMinecraftItems, lookupMinecraftItem,
   updateProfile, undoLastContribution,
-  fetchChatMessages, sendChatMessage, deleteChatMessage,
+  fetchChatMessages, sendChatMessage,
   type Project, type CraftingNode, type Contribution,
   type BottleneckItem, type ProjectProgress, type ProjectMember,
   type MemberRole, type SuggestedTask, type PlanSnapshot,
@@ -24,7 +24,7 @@ import {
   UserPlus, RefreshCw, Loader2, Layers, Activity,
   Sparkles, Pencil, Check, X, BookOpen, ChevronDown, ChevronUp, Trophy,
   ClipboardList, Save, History, HardHat, Hammer, BrainCircuit, Users,
-  Plus, Search, Package, Shield, Undo2, MessageCircle, Send, Trash2
+  Plus, Search, Package, Shield, Undo2, MessageCircle, Send
 } from 'lucide-react';
 import { getBookRequirements, toRoman, getBestStrategy } from '@/lib/enchantmentBooks';
 import { getMinecraftAssetUrl } from '@/lib/minecraftAssets';
@@ -47,8 +47,8 @@ const ProjectDetail = () => {
   const [bottlenecks, setBottlenecks] = useState<BottleneckItem[]>([]);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [progress, setProgress] = useState<ProjectProgress | null>(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const hasFetchedOnce = useRef(false);
   const [collabEmail, setCollabEmail] = useState('');
   const [collabRole, setCollabRole] = useState<MemberRole>('member');
   const [collabMessage, setCollabMessage] = useState('');
@@ -58,6 +58,8 @@ const ProjectDetail = () => {
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [contributing, setContributing] = useState<string | null>(null);
   const [collectQty, setCollectQty] = useState<Record<string, number>>({});
+  // Raw text state per node — lets users type freely; clamped on blur
+  const [collectQtyRaw, setCollectQtyRaw] = useState<Record<string, string>>({});
 
   // Role-based tasks
   const [myRole, setMyRole] = useState<MemberRole>('member');
@@ -144,7 +146,6 @@ const ProjectDetail = () => {
   const loadProject = useCallback(async () => {
     if (!id) return;
     try {
-      setLoading(true);
       const [projectData, contribs, bottleneckData, progressData, leaderboardData, chatData] = await Promise.all([
         fetchProject(id),
         fetchContributions(id).catch(() => []),
@@ -180,10 +181,9 @@ const ProjectDetail = () => {
       setMyRole(taskData.role);
       setSuggestedTasks(taskData.tasks);
       setSnapshots(snapshotData);
+      hasFetchedOnce.current = true;
     } catch (err) {
       setError((err as Error).message);
-    } finally {
-      setLoading(false);
     }
   }, [id]);
 
@@ -313,21 +313,47 @@ const ProjectDetail = () => {
 
   if (!user) { navigate('/auth'); return null; }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen mesh-bg flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
   if (!project) {
-    return (
-      <div className="min-h-screen mesh-bg flex items-center justify-center text-center">
-        <div>
-          <p className="text-muted-foreground text-xl mb-4">{error || 'Project not found'}</p>
-          <Button variant="outline" onClick={() => navigate('/dashboard')} className="rounded-xl">Go Home</Button>
+    if (error) {
+      return (
+        <div className="min-h-screen mesh-bg flex items-center justify-center text-center">
+          <div>
+            <p className="text-muted-foreground text-xl mb-4">{error}</p>
+            <Button variant="outline" onClick={() => navigate('/dashboard')} className="rounded-xl">Go Home</Button>
+          </div>
         </div>
+      );
+    }
+    // Skeleton layout — shown only on first load before any data arrives
+    return (
+      <div className="min-h-screen mesh-bg text-foreground">
+        <header className="sticky top-0 z-40 glass-strong border-b border-white/5">
+          <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-white/5 animate-pulse" />
+              <div className="w-32 h-5 rounded-lg bg-white/5 animate-pulse" />
+            </div>
+            <div className="w-20 h-7 rounded-xl bg-white/5 animate-pulse" />
+          </div>
+        </header>
+        <div className="max-w-7xl mx-auto px-6 mt-6">
+          <div className="glass-strong rounded-2xl border border-white/5 p-6">
+            <div className="w-48 h-7 rounded-lg bg-white/5 animate-pulse mb-3" />
+            <div className="w-80 h-4 rounded-lg bg-white/5 animate-pulse mb-6" />
+            <div className="w-full h-1.5 rounded-full bg-white/5 animate-pulse" />
+          </div>
+        </div>
+        <main className="max-w-7xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-12 rounded-xl bg-white/5 animate-pulse" style={{ opacity: 1 - i * 0.12 }} />
+            ))}
+          </div>
+          <div className="space-y-4">
+            <div className="h-64 rounded-2xl bg-white/5 animate-pulse" />
+            <div className="h-48 rounded-2xl bg-white/5 animate-pulse" />
+          </div>
+        </main>
       </div>
     );
   }
@@ -438,16 +464,6 @@ const ProjectDetail = () => {
       setChatInput(msg); // restore on error
     } finally {
       setChatSending(false);
-    }
-  };
-
-  const handleDeleteChatMessage = async (messageId: string) => {
-    if (!id) return;
-    try {
-      await deleteChatMessage(id, messageId);
-      setChatMessages(prev => prev.filter(m => m.id !== messageId));
-    } catch (err) {
-      toast({ title: 'Delete error', description: (err as Error).message, variant: 'destructive' });
     }
   };
 
@@ -2154,7 +2170,7 @@ const ProjectDetail = () => {
                 const name = (msg.profiles as any)?.full_name || (msg.profiles as any)?.email || 'User';
                 const initials = name[0].toUpperCase();
                 return (
-                  <div key={msg.id} className={`flex gap-2 group ${isOwn ? 'flex-row-reverse' : ''}`}>
+                  <div key={msg.id} className={`flex gap-2 ${isOwn ? 'flex-row-reverse' : ''}`}>
                     <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0 ${isOwn ? 'bg-primary/20 text-primary' : 'bg-secondary text-muted-foreground'}`}>
                       {(msg.profiles as any)?.avatar_url ? (
                         <img src={(msg.profiles as any).avatar_url} alt={name} className="w-full h-full rounded-full object-cover" />
@@ -2164,19 +2180,11 @@ const ProjectDetail = () => {
                       {!isOwn && (
                         <span className="text-[9px] text-muted-foreground/60 px-1">{name}</span>
                       )}
-                      <div className={`relative px-3 py-1.5 rounded-xl text-xs leading-relaxed ${isOwn
+                      <div className={`px-3 py-1.5 rounded-xl text-xs leading-relaxed ${isOwn
                           ? 'bg-primary/20 text-primary-foreground border border-primary/20'
                           : 'bg-white/5 text-foreground border border-white/8'
                         }`}>
                         {msg.message}
-                        {isOwn && (
-                          <button
-                            onClick={() => handleDeleteChatMessage(msg.id)}
-                            className="absolute -top-1.5 -right-1.5 opacity-0 group-hover:opacity-100 transition-opacity w-4 h-4 rounded-full bg-destructive/80 flex items-center justify-center"
-                          >
-                            <X className="w-2.5 h-2.5 text-white" />
-                          </button>
-                        )}
                       </div>
                       <span className="text-[9px] text-muted-foreground/30 px-1">
                         {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
