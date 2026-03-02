@@ -202,7 +202,22 @@ const HomePage = () => {
           <div className="flex gap-10 text-sm font-bold text-white/50">
             <Link to="/auth" className="hover:text-emerald-400 transition-colors">Sign Up</Link>
             <a href="#features" className="hover:text-emerald-400 transition-colors">Features</a>
+            <a
+              href="mailto:craftchainminecraft@gmail.com"
+              className="hover:text-emerald-400 transition-colors"
+            >
+              Feedback
+            </a>
           </div>
+        </div>
+        <div className="max-w-7xl mx-auto mt-6 pt-6 border-t border-white/5 flex items-center justify-center gap-2">
+          <span className="text-white/20 text-xs">Issues or suggestions?</span>
+          <a
+            href="mailto:craftchainminecraft@gmail.com"
+            className="text-emerald-400/70 hover:text-emerald-400 text-xs font-semibold transition-colors"
+          >
+            craftchainminecraft@gmail.com
+          </a>
         </div>
       </footer>
     </div>

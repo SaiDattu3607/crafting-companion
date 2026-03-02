@@ -313,6 +313,19 @@ const Dashboard = () => {
           </div>
         )}
       </main>
+
+      {/* Feedback footer */}
+      <footer className="mt-auto py-6 px-6 border-t border-white/5 text-center">
+        <p className="text-xs text-muted-foreground/40">
+          Got an issue or a suggestion?{' '}
+          <a
+            href="mailto:craftchainminecraft@gmail.com"
+            className="text-primary/60 hover:text-primary transition-colors font-medium"
+          >
+            craftchainminecraft@gmail.com
+          </a>
+        </p>
+      </footer>
     </div>
   );
 };
